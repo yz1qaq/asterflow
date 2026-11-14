@@ -1,0 +1,2944 @@
+{
+  "schema_version": 1,
+  "upstream": "Q1mi/kbot",
+  "commit": "baed6c354e1966cdae7bc5328e771dc50ae6c70b",
+  "prefix": "kbot-final",
+  "files": [
+    {
+      "path": "kbot-final/.dockerignore",
+      "mode": "100644",
+      "blob_sha": "21e7a5056fd2f380510607ca381289628811a7ff",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/.env.example",
+      "mode": "100644",
+      "blob_sha": "cd166a7984d3051d99135aaacdb53efe5be8a2a0",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/.gitignore",
+      "mode": "100644",
+      "blob_sha": "8461c0767f117d03d769075a1b0f2c54587d2ff4",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/LICENSE",
+      "mode": "100644",
+      "blob_sha": "261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/Makefile",
+      "mode": "100644",
+      "blob_sha": "d7fb096514726eb006d0a15fd1043e99bf570ed5",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/README.md",
+      "mode": "100644",
+      "blob_sha": "560e796e1de3411086b1f9154a7f2402ac791211",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/cmd/kbotctl/main.go",
+      "mode": "100644",
+      "blob_sha": "a8ab685e808fb3675df794b087b759eded08f26e",
+      "module": "MOD-SDK"
+    },
+    {
+      "path": "kbot-final/cmd/migrate/main.go",
+      "mode": "100644",
+      "blob_sha": "22d15e56aa6669c70731932873559dd1e261ab7c",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/cmd/mockllm/main.go",
+      "mode": "100644",
+      "blob_sha": "fe495dcc6cada25e3c24f822c20f3d5de65db234",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/cmd/mockllm/main_test.go",
+      "mode": "100644",
+      "blob_sha": "a05eddc4f25a9269436b091856cc1de2e5dca4f7",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/cmd/sandbox-runner/main.go",
+      "mode": "100644",
+      "blob_sha": "0b3ca4a68e0bb7346c36a0811ac0ee261f30565b",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/cmd/server/main.go",
+      "mode": "100644",
+      "blob_sha": "939ca2ee0dad6885080f144d28446985830ec6ec",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/cmd/worker/main.go",
+      "mode": "100644",
+      "blob_sha": "f3f8f855a593ba66d127d2e1ef82cf2ecfe143e6",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/deploy/Dockerfile",
+      "mode": "100644",
+      "blob_sha": "7591e53c9ebe6124de4152e72df1212c8a85809f",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/deploy/Dockerfile.migrate",
+      "mode": "100644",
+      "blob_sha": "fa735dbc4b6f9474b14f21ebb4584e5503a25a48",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/deploy/Dockerfile.mockllm",
+      "mode": "100644",
+      "blob_sha": "25d7568b06bc484b09b4646f173704f3eebb9bdc",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/deploy/Dockerfile.sandbox-runner",
+      "mode": "100644",
+      "blob_sha": "e06bcaa7ce6411820f48cfaee9c4e818f65e14bd",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/deploy/Dockerfile.worker",
+      "mode": "100644",
+      "blob_sha": "1aaf49158d241ebc861979190ac5d6f30aa014bc",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/deploy/docker-compose.langfuse.yml",
+      "mode": "100644",
+      "blob_sha": "171a52c80c221a4cee8c18d1afc10d961f8c6296",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/deploy/docker-compose.yml",
+      "mode": "100644",
+      "blob_sha": "2944109685c63dc65b4c98d73fd31be6bbe745f9",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/docs/architecture.md",
+      "mode": "100644",
+      "blob_sha": "480c024af56846cf17876fcc874932b1be8c7f8f",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/docs/course-business-assets.md",
+      "mode": "100644",
+      "blob_sha": "ec27419ffffc0f8823610a9dd03e10b8b4b8954a",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/docs/course-prompt-presets.md",
+      "mode": "100644",
+      "blob_sha": "34d48a5f3fbbe38a7e90943aabbbafef23546429",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/docs/integrations/a2a.md",
+      "mode": "100644",
+      "blob_sha": "d42464aa6203c6e1895ee8789e84d0d2ee9a56b6",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/docs/integrations/lark.md",
+      "mode": "100644",
+      "blob_sha": "4dfff53776a9a70556ef93ab45abedd70688ef11",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/docs/integrations/mcp.md",
+      "mode": "100644",
+      "blob_sha": "6a3a1b2d26620795864263d3e64fe8cda5e5172a",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/docs/integrations/webhook.md",
+      "mode": "100644",
+      "blob_sha": "6e84b7e4edab6a2e14a7ae1273f432f22cad1b09",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/docs/labs/langfuse-a2ui-demo.md",
+      "mode": "100644",
+      "blob_sha": "e8492e7b4a6d4e27187596f0772221615bb8add3",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/docs/runbook.md",
+      "mode": "100644",
+      "blob_sha": "242518e10178bd4beaa2512db8ce0799adbf073d",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/go.mod",
+      "mode": "100644",
+      "blob_sha": "aac28afb495f3299f53ba3ee07010555e1d24c0a",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/go.sum",
+      "mode": "100644",
+      "blob_sha": "9f1daaebed571d5d0d194c8ac3aa9c1bd033d6a2",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/internal/a2ui/approval.go",
+      "mode": "100644",
+      "blob_sha": "016a52f8bdbf2fb205da313b69030aa6e1c0e3a3",
+      "module": "MOD-APPROVAL"
+    },
+    {
+      "path": "kbot-final/internal/a2ui/approval_test.go",
+      "mode": "100644",
+      "blob_sha": "6a3db194d57fa520bd6da9faf7fbb853f17601fd",
+      "module": "MOD-APPROVAL"
+    },
+    {
+      "path": "kbot-final/internal/a2ui/protocol.go",
+      "mode": "100644",
+      "blob_sha": "e9cb006d0a8f00693f6c67d24ddc2aaddab9922b",
+      "module": "MOD-APPROVAL"
+    },
+    {
+      "path": "kbot-final/internal/a2ui/validate.go",
+      "mode": "100644",
+      "blob_sha": "cbaf183d027564144fb6e92686143f0bf4dfc4c2",
+      "module": "MOD-APPROVAL"
+    },
+    {
+      "path": "kbot-final/internal/api/auth_routes_test.go",
+      "mode": "100644",
+      "blob_sha": "3702fdd93f503ab3d979609e0e2f817abb4f576c",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/internal/api/middleware/auth.go",
+      "mode": "100644",
+      "blob_sha": "22ab4d96e843a4a919b014c9ed794f62362fa77d",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/internal/api/middleware/auth_websocket_test.go",
+      "mode": "100644",
+      "blob_sha": "0eb0c143fe9a44f0a2f1da010d28f0058c3f543e",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/internal/api/middleware/common.go",
+      "mode": "100644",
+      "blob_sha": "b4cda22dec414cf1170d7ce7e525c5205d19f6cb",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/internal/api/middleware/common_test.go",
+      "mode": "100644",
+      "blob_sha": "944012dba04ec0c035299a8cdae64ea766738583",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/internal/api/middleware/idempotency.go",
+      "mode": "100644",
+      "blob_sha": "73415af484444e976229c10bf750742ff1fed3b4",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/internal/api/middleware/idempotency_test.go",
+      "mode": "100644",
+      "blob_sha": "ba8440bbd51d5f98160ac72ada39d1118321eb36",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/internal/api/readiness_test.go",
+      "mode": "100644",
+      "blob_sha": "959869854ae4a74bfc3ba64006341578a5b72852",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/internal/api/router.go",
+      "mode": "100644",
+      "blob_sha": "c87958bc7b37f0678b18f847d5262583ff58c6d3",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/internal/api/static.go",
+      "mode": "100644",
+      "blob_sha": "04a2741287f721f16adf330ec961d2aeeeb623ae",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/internal/api/static_test.go",
+      "mode": "100644",
+      "blob_sha": "00fbe49f9ec9d5bd2e8f4b545513f2a36ee2938d",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/internal/api/streaming/sse.go",
+      "mode": "100644",
+      "blob_sha": "783e610ed8fb3289c3ba5379e636be29992f905b",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/internal/api/streaming/websocket.go",
+      "mode": "100644",
+      "blob_sha": "1e47061e34872332f5a64d5ace9f0889cdd79214",
+      "module": "MOD-CHANNEL"
+    },
+    {
+      "path": "kbot-final/internal/api/v1/agent.go",
+      "mode": "100644",
+      "blob_sha": "9075268d01daae583d276d7d33397b893677a9d7",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/internal/api/v1/approval.go",
+      "mode": "100644",
+      "blob_sha": "29a8ae8a5d9b9218dd78bf9f70bdda6442478170",
+      "module": "MOD-APPROVAL"
+    },
+    {
+      "path": "kbot-final/internal/api/v1/approval_a2ui_test.go",
+      "mode": "100644",
+      "blob_sha": "c4e1eb31ec9eb8599c1d49051bafaac832624535",
+      "module": "MOD-APPROVAL"
+    },
+    {
+      "path": "kbot-final/internal/api/v1/audit.go",
+      "mode": "100644",
+      "blob_sha": "4661c3048a4aed947777d156cad607251f9846f1",
+      "module": "MOD-AUDIT"
+    },
+    {
+      "path": "kbot-final/internal/api/v1/auth.go",
+      "mode": "100644",
+      "blob_sha": "7fd0c7b3f822ae3ac9714eebd04a335a364e365e",
+      "module": "MOD-IAM"
+    },
+    {
+      "path": "kbot-final/internal/api/v1/eval.go",
+      "mode": "100644",
+      "blob_sha": "f177b50ff6e5e54d2bdb24b0dce0adf88579d32f",
+      "module": "MOD-EVAL"
+    },
+    {
+      "path": "kbot-final/internal/api/v1/guard.go",
+      "mode": "100644",
+      "blob_sha": "e668fb990f68a7fe4d0576899b2544b5ab9bc734",
+      "module": "MOD-GUARD"
+    },
+    {
+      "path": "kbot-final/internal/api/v1/http.go",
+      "mode": "100644",
+      "blob_sha": "e45dd48993a36520ca2f6f13ac56f0f475468cbe",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/internal/api/v1/http_test.go",
+      "mode": "100644",
+      "blob_sha": "31413801d18fc4b71f021ba061692c7b5631f62b",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/internal/api/v1/iam.go",
+      "mode": "100644",
+      "blob_sha": "ebc3bbd0c57f591738dc5a619b29651ce646d955",
+      "module": "MOD-IAM"
+    },
+    {
+      "path": "kbot-final/internal/api/v1/integration.go",
+      "mode": "100644",
+      "blob_sha": "bd1e9b6a840451d7b11c97ebd3324d7cb3e5aff2",
+      "module": "MOD-CHANNEL"
+    },
+    {
+      "path": "kbot-final/internal/api/v1/integration_lark_test.go",
+      "mode": "100644",
+      "blob_sha": "204dc000c31d824c7d52a89f917f303ecd7ec185",
+      "module": "MOD-CHANNEL"
+    },
+    {
+      "path": "kbot-final/internal/api/v1/kb.go",
+      "mode": "100644",
+      "blob_sha": "1bfd56bfb9748aee7212fd2222da2e5011e693da",
+      "module": "MOD-KB"
+    },
+    {
+      "path": "kbot-final/internal/api/v1/modelconfig.go",
+      "mode": "100644",
+      "blob_sha": "055259e94b3375db23118bf037cfbebd127fe952",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/internal/api/v1/modelconfig_test.go",
+      "mode": "100644",
+      "blob_sha": "c9e34ba6d73efbb63a2c988dd01c2489b2ea44e5",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/internal/api/v1/prompt.go",
+      "mode": "100644",
+      "blob_sha": "36f1448fa6c03088f4a87fc694d10c66a2d75b71",
+      "module": "MOD-PROMPT"
+    },
+    {
+      "path": "kbot-final/internal/api/v1/read_endpoints_test.go",
+      "mode": "100644",
+      "blob_sha": "73970db03b90a44bde4edc25aaeda975c10e9e2e",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/internal/api/v1/skill.go",
+      "mode": "100644",
+      "blob_sha": "9d2eb697afccb6a780c8094f0d254ea7b98ad12d",
+      "module": "MOD-SKILL"
+    },
+    {
+      "path": "kbot-final/internal/api/v1/team.go",
+      "mode": "100644",
+      "blob_sha": "dba070389ac4520f631aa3312c7f18876ca285c0",
+      "module": "MOD-TEAM"
+    },
+    {
+      "path": "kbot-final/internal/api/v1/team_test.go",
+      "mode": "100644",
+      "blob_sha": "1c27d1a8134eeebeee9ce4cf25096421ae14aa0f",
+      "module": "MOD-TEAM"
+    },
+    {
+      "path": "kbot-final/internal/api/v1/tool.go",
+      "mode": "100644",
+      "blob_sha": "d0bbf32630d3683e789348e5330dc44987aa9891",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/internal/config/config.go",
+      "mode": "100644",
+      "blob_sha": "e47f36a750fd0fa0d15fd835aa37406d71e60f8f",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/internal/config/config_test.go",
+      "mode": "100644",
+      "blob_sha": "5fd23aaca04b1e746556eb6f9f77e0c8c146eb4c",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/internal/connector/connector.go",
+      "mode": "100644",
+      "blob_sha": "65d8620d30bde685d64fd849afe3615dc633a812",
+      "module": "MOD-KB"
+    },
+    {
+      "path": "kbot-final/internal/connector/markdown_folder/connector.go",
+      "mode": "100644",
+      "blob_sha": "5f15a1fefeba61dd7c400b62eb4b08a2b8c88791",
+      "module": "MOD-KB"
+    },
+    {
+      "path": "kbot-final/internal/connector/markdown_folder/connector_test.go",
+      "mode": "100644",
+      "blob_sha": "6b704e5383c2d6a5fb0583609d0c8d3c811cdc3c",
+      "module": "MOD-KB"
+    },
+    {
+      "path": "kbot-final/internal/domain/domain.go",
+      "mode": "100644",
+      "blob_sha": "85798c33c1d1244cbe565d827e8468b3720d0e9d",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/jobs/jobs.go",
+      "mode": "100644",
+      "blob_sha": "b5d5a2cd59dde43fa2691ae69ec09d6626e4c4c2",
+      "module": "MOD-CACHE"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/metrics/metrics.go",
+      "mode": "100644",
+      "blob_sha": "32cbc9193d215a4a8274acbbebdd2fa5f0bc9227",
+      "module": "MOD-OBS"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/objstore/objstore.go",
+      "mode": "100644",
+      "blob_sha": "80365ca549d4aec30054d49e9374158f89f6a1cd",
+      "module": "MOD-AUDIT"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/otel/attributes.go",
+      "mode": "100644",
+      "blob_sha": "496b60a447238248b4767c462c987215151b0fa9",
+      "module": "MOD-OBS"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/otel/otel.go",
+      "mode": "100644",
+      "blob_sha": "31920c26f68b6c49656b443f8748176d78918a62",
+      "module": "MOD-OBS"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/otel/otel_test.go",
+      "mode": "100644",
+      "blob_sha": "8cff0a08b422c1386895c7d847cbd8328307c635",
+      "module": "MOD-OBS"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/partitioning.go",
+      "mode": "100644",
+      "blob_sha": "89bc169b96e096522eabbae0d55efd25f9cc8a2c",
+      "module": "MOD-AUDIT"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/postgres.go",
+      "mode": "100644",
+      "blob_sha": "3588e8c029a30b834fc8fa52e7fc675d5ee4c037",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/queries/agent.sql",
+      "mode": "100644",
+      "blob_sha": "48d24600cca1ab6fe3b552772c90c4f0354c7e36",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/queries/audit.sql",
+      "mode": "100644",
+      "blob_sha": "67a3edf61d1ab12b29493ae921adc1adf835a99e",
+      "module": "MOD-AUDIT"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/queries/conversation.sql",
+      "mode": "100644",
+      "blob_sha": "aa938d30d021828a292438ebad64c8cd9c4a3a6b",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/queries/eval.sql",
+      "mode": "100644",
+      "blob_sha": "ec76b17e5ab5d42ea3e63b2d665020bd47757bad",
+      "module": "MOD-EVAL"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/queries/guard.sql",
+      "mode": "100644",
+      "blob_sha": "50f7571e86458243e846fc642c55be5150398c50",
+      "module": "MOD-GUARD"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/queries/iam.sql",
+      "mode": "100644",
+      "blob_sha": "69e3165570a59e2010daed4ca17d9bf2f503591a",
+      "module": "MOD-IAM"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/queries/jobs.sql",
+      "mode": "100644",
+      "blob_sha": "bf6552e648f47ee93efefa7f5cd7cdecf406911b",
+      "module": "MOD-CACHE"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/queries/kb.sql",
+      "mode": "100644",
+      "blob_sha": "fa6ea902922c3771507b0df6438aae96666f577a",
+      "module": "MOD-KB"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/queries/llm_gateway.sql",
+      "mode": "100644",
+      "blob_sha": "e5f74e1aa52ad05b02effdc980d04f29914b7a86",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/queries/prompt.sql",
+      "mode": "100644",
+      "blob_sha": "a221158414dfb3d01ebaf49e4307a3b6c290f4ee",
+      "module": "MOD-PROMPT"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/queries/skill.sql",
+      "mode": "100644",
+      "blob_sha": "ebe3500f3ac66e429b556511cef4e0919193126d",
+      "module": "MOD-SKILL"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/queries/team.sql",
+      "mode": "100644",
+      "blob_sha": "bde13ea47c676ce66487de4e669e932d8ba294c1",
+      "module": "MOD-TEAM"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/queries/tool.sql",
+      "mode": "100644",
+      "blob_sha": "ba51f5fa439a222bcbc5f45e1cf7f4ae4da72cd3",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/sqlc/agent.sql.go",
+      "mode": "100644",
+      "blob_sha": "af8e86270302583312d0950db43a283a0c337524",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/sqlc/audit.sql.go",
+      "mode": "100644",
+      "blob_sha": "26ef85104f142c103d4829047539a418b7a9080c",
+      "module": "MOD-AUDIT"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/sqlc/conversation.sql.go",
+      "mode": "100644",
+      "blob_sha": "bdc000021e8af7ddc90860247f56a25d6783594c",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/sqlc/db.go",
+      "mode": "100644",
+      "blob_sha": "a743fdd75455ef34ae85a52264cf6ddbea063ce7",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/sqlc/eval.sql.go",
+      "mode": "100644",
+      "blob_sha": "bed0d931b4778a37667b11af163715f31adc49a5",
+      "module": "MOD-EVAL"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/sqlc/guard.sql.go",
+      "mode": "100644",
+      "blob_sha": "57902ddd1159b598142a58d261158384e7ba3120",
+      "module": "MOD-GUARD"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/sqlc/iam.sql.go",
+      "mode": "100644",
+      "blob_sha": "2467f87505927109cb66e5e17ad2317e1df2f95f",
+      "module": "MOD-IAM"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/sqlc/jobs.sql.go",
+      "mode": "100644",
+      "blob_sha": "e16883794c4d7c7e9241cbeae1b178c04b97c18c",
+      "module": "MOD-CACHE"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/sqlc/kb.sql.go",
+      "mode": "100644",
+      "blob_sha": "a3de533134623a89816cf2200e1dece16514e20f",
+      "module": "MOD-KB"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/sqlc/llm_gateway.sql.go",
+      "mode": "100644",
+      "blob_sha": "ea1ff0a3794520c9289d9cdb777e074c620dcf22",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/sqlc/models.go",
+      "mode": "100644",
+      "blob_sha": "a8635fecc50d8d9cfd5d4a37e490ae7c8e30a9e6",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/sqlc/prompt.sql.go",
+      "mode": "100644",
+      "blob_sha": "43616796ed296e23974fb30b8ea9b5e0d1c352e4",
+      "module": "MOD-PROMPT"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/sqlc/querier.go",
+      "mode": "100644",
+      "blob_sha": "8f931d40715392879a2f21543791266db8945801",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/sqlc/skill.sql.go",
+      "mode": "100644",
+      "blob_sha": "015ece248cf54cd8189edc64fc102ebd209b3c6f",
+      "module": "MOD-SKILL"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/sqlc/team.sql.go",
+      "mode": "100644",
+      "blob_sha": "49c031fb7848bba81cdd1df6ffe35b57fd88e0dc",
+      "module": "MOD-TEAM"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/sqlc/tool.sql.go",
+      "mode": "100644",
+      "blob_sha": "7984d2eb57c8e8896b42a19a1951773ab3b8ae45",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/postgres/testpg/testpg.go",
+      "mode": "100644",
+      "blob_sha": "833011b2a5903e44179358e4689f0b056e53b784",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/redis/pubsub.go",
+      "mode": "100644",
+      "blob_sha": "83b1d15646fbe966c5c42259ac2ed6a1615ff478",
+      "module": "MOD-CACHE"
+    },
+    {
+      "path": "kbot-final/internal/infrastructure/redis/redis.go",
+      "mode": "100644",
+      "blob_sha": "9104ae4724179517055e22da5ed8f308c248fdb3",
+      "module": "MOD-CACHE"
+    },
+    {
+      "path": "kbot-final/internal/integration/lark/job.go",
+      "mode": "100644",
+      "blob_sha": "492c3486d6733542279c3b374504a83c1d365a97",
+      "module": "MOD-CHANNEL"
+    },
+    {
+      "path": "kbot-final/internal/integration/lark/job_test.go",
+      "mode": "100644",
+      "blob_sha": "babbedc62594c9c2312242bb92655c1eb9a87182",
+      "module": "MOD-CHANNEL"
+    },
+    {
+      "path": "kbot-final/internal/integration/lark/lark.go",
+      "mode": "100644",
+      "blob_sha": "013a336e0c7978525c964d33a623f16f989d12a1",
+      "module": "MOD-CHANNEL"
+    },
+    {
+      "path": "kbot-final/internal/integration/lark/lark_test.go",
+      "mode": "100644",
+      "blob_sha": "66b2eb289f527fdb6a83554b5d50ac91803fd492",
+      "module": "MOD-CHANNEL"
+    },
+    {
+      "path": "kbot-final/internal/integration/lark/outbound.go",
+      "mode": "100644",
+      "blob_sha": "9099b90430da3c92e49297e1bd76ab74e5efd0d9",
+      "module": "MOD-CHANNEL"
+    },
+    {
+      "path": "kbot-final/internal/integration/lark/outbound_test.go",
+      "mode": "100644",
+      "blob_sha": "2b70e5fb5e8f78194b848627e7d7f417b3996a0c",
+      "module": "MOD-CHANNEL"
+    },
+    {
+      "path": "kbot-final/internal/integration/types.go",
+      "mode": "100644",
+      "blob_sha": "65c4d6bd834bdf93989735dfb603e4cc6c309114",
+      "module": "MOD-CHANNEL"
+    },
+    {
+      "path": "kbot-final/internal/integration/webhook/webhook.go",
+      "mode": "100644",
+      "blob_sha": "6f1540846e7140215165253c3e10c291906c9e13",
+      "module": "MOD-CHANNEL"
+    },
+    {
+      "path": "kbot-final/internal/integration/webhook/webhook_test.go",
+      "mode": "100644",
+      "blob_sha": "047472ba09c21617855e8b34b5fbbd791e461bb3",
+      "module": "MOD-CHANNEL"
+    },
+    {
+      "path": "kbot-final/internal/platform/agent/contract_test.go",
+      "mode": "100644",
+      "blob_sha": "c8f8ac9bad2a9d20360af1954822dd89eaef08b4",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/internal/platform/agent/postgres_store.go",
+      "mode": "100644",
+      "blob_sha": "8c9c54f23383fe9896a31f4e48e8c237a4ea6b00",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/internal/platform/agent/postgres_store_test.go",
+      "mode": "100644",
+      "blob_sha": "c8c5f223cd9a3391eead43e1b28729050a310e34",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/internal/platform/agent/prompt_rollout_test.go",
+      "mode": "100644",
+      "blob_sha": "e9578ade583562c27aa9dd6e1bf0c17d10b0ed34",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/internal/platform/agent/service.go",
+      "mode": "100644",
+      "blob_sha": "92b433bd96ea589417a69507f0a30c2b80dd303f",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/internal/platform/agent/snapshot_tool_pin_test.go",
+      "mode": "100644",
+      "blob_sha": "6161d6c607647da80a38fa702e1c3a7936bfc883",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/internal/platform/agent/user_prompt_template_test.go",
+      "mode": "100644",
+      "blob_sha": "3bc3b791e17bc8ffbc86c100635ab2a2394188ea",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/internal/platform/agent/version_config_test.go",
+      "mode": "100644",
+      "blob_sha": "37e34c00634319cb47622f0e0cb92b8c32771ca4",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/internal/platform/approval/approval.go",
+      "mode": "100644",
+      "blob_sha": "cd7c84e7bc3b2d842c60e97df25929e652cb7a1b",
+      "module": "MOD-APPROVAL"
+    },
+    {
+      "path": "kbot-final/internal/platform/approval/contract_test.go",
+      "mode": "100644",
+      "blob_sha": "15a66601b74d2f47192e16d6c2b5b55846f3df2c",
+      "module": "MOD-APPROVAL"
+    },
+    {
+      "path": "kbot-final/internal/platform/approval/memory_store.go",
+      "mode": "100644",
+      "blob_sha": "924d903391a210827ad9125757ca84c1e9c1a2aa",
+      "module": "MOD-APPROVAL"
+    },
+    {
+      "path": "kbot-final/internal/platform/approval/postgres_store.go",
+      "mode": "100644",
+      "blob_sha": "ff83a584562b2030c72aa1724d3dcc01a9ba5808",
+      "module": "MOD-APPROVAL"
+    },
+    {
+      "path": "kbot-final/internal/platform/approval/postgres_store_test.go",
+      "mode": "100644",
+      "blob_sha": "f25f479788bd6529aa8d19c526318336f4f9bb98",
+      "module": "MOD-APPROVAL"
+    },
+    {
+      "path": "kbot-final/internal/platform/approval_gate.go",
+      "mode": "100644",
+      "blob_sha": "38c9546bc2badc630d62a920485c3fd32016bdfd",
+      "module": "MOD-APPROVAL"
+    },
+    {
+      "path": "kbot-final/internal/platform/audit/audit.go",
+      "mode": "100644",
+      "blob_sha": "7a2424beeaff166f693ea4a3bcb13adf4997f387",
+      "module": "MOD-AUDIT"
+    },
+    {
+      "path": "kbot-final/internal/platform/audit/audit_test.go",
+      "mode": "100644",
+      "blob_sha": "d7a3aeaa22cc29acc98102fa9ef15824655e09d1",
+      "module": "MOD-AUDIT"
+    },
+    {
+      "path": "kbot-final/internal/platform/audit/contract_test.go",
+      "mode": "100644",
+      "blob_sha": "a02c259a0acbafa7f7e7990ed14d85ea7ad1180f",
+      "module": "MOD-AUDIT"
+    },
+    {
+      "path": "kbot-final/internal/platform/audit/memory_store.go",
+      "mode": "100644",
+      "blob_sha": "e958ae15670cca7ffa3ebda7cd6fa2b2dda26f18",
+      "module": "MOD-AUDIT"
+    },
+    {
+      "path": "kbot-final/internal/platform/audit/postgres_store.go",
+      "mode": "100644",
+      "blob_sha": "5744f0a078c5a7d6f0256ffd9fffeab5a9b7d838",
+      "module": "MOD-AUDIT"
+    },
+    {
+      "path": "kbot-final/internal/platform/audit/postgres_store_test.go",
+      "mode": "100644",
+      "blob_sha": "8a8d9cbdbaea447e4772e9bc721e12f9c3dc4a21",
+      "module": "MOD-AUDIT"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/assets/crossborder.tools.json",
+      "mode": "100644",
+      "blob_sha": "9fd4c416bb50f31f596f310ade4611dae4338ee7",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/assets/insurance.tools.json",
+      "mode": "100644",
+      "blob_sha": "6d0990118d005bb86751523e15818aa7c1b46c22",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/assets/knowledge/crossborder-product/cancellation-refund-and-data-boundaries.md",
+      "mode": "100644",
+      "blob_sha": "baffab7f6179a20bfd748640af9de7712e5cb905",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/assets/knowledge/crossborder-product/fulfillment-diagnosis-guide.md",
+      "mode": "100644",
+      "blob_sha": "390a59fafc5928a06aeee0560908b62e5059ad43",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/assets/knowledge/crossborder-supply-chain/inventory-logistics-recovery-sop.md",
+      "mode": "100644",
+      "blob_sha": "4eb1a41586ed9c071caa3dd6bf2c875a2392a36f",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/assets/knowledge/crossborder-supply-chain/settlement-reconciliation-policy.md",
+      "mode": "100644",
+      "blob_sha": "5e68f24ec7cac7c46cc4eaf2f049ad4b112f50ca",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/assets/knowledge/insurance-claim-review/auto-collision-coverage-and-calculation.md",
+      "mode": "100644",
+      "blob_sha": "602bae336d1b1d0337606b5da99aba568c4c79e4",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/assets/knowledge/insurance-claim-review/claim-review-materials-and-approval-sop.md",
+      "mode": "100644",
+      "blob_sha": "1484b43cfe5e56d084c3efa9a6abf51c568451f8",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/assets/knowledge/insurance-fraud-analysis/fraud-rules-and-signal-evidence.md",
+      "mode": "100644",
+      "blob_sha": "38d499c3a946a6e25fbc0d4725e544480209d54c",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/assets/knowledge/insurance-fraud-analysis/investigation-fairness-and-disposition-sop.md",
+      "mode": "100644",
+      "blob_sha": "5550b732d7b069c117885a5a3136ca908cae2a22",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/assets/skills/claim-coverage-review/SKILL.md",
+      "mode": "100644",
+      "blob_sha": "e1e97d613fd3317418203e9e1aa59ded0d910666",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/assets/skills/fraud-investigation-coordination/SKILL.md",
+      "mode": "100644",
+      "blob_sha": "1c50ed201b8a4420ef1aceb9fd6cecd412d08925",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/assets/skills/fraud-risk-triage/SKILL.md",
+      "mode": "100644",
+      "blob_sha": "a4e7ef8fa54fc1b1af948ee47a0cecec3d643ade",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/assets/skills/order-exception-recovery/SKILL.md",
+      "mode": "100644",
+      "blob_sha": "0f7acaf0e1951a8aeecd3685e40282a71097d6ba",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/assets/skills/product-fulfillment-diagnosis/SKILL.md",
+      "mode": "100644",
+      "blob_sha": "ac6199cc33f442cbfb2a202bd9824727e9431aba",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/assets/skills/settlement-reconciliation/SKILL.md",
+      "mode": "100644",
+      "blob_sha": "c4f6f92310c0bcd6680d4ba5e935bc1c9161b218",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/business_assets.go",
+      "mode": "100644",
+      "blob_sha": "eb905f4ffb86c8fe80d7396b81e02a17b1a5ffca",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/business_assets_test.go",
+      "mode": "100644",
+      "blob_sha": "fc2370bc4aa2bbe589c4a221ebf535269ac100bc",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/prompts.go",
+      "mode": "100644",
+      "blob_sha": "c51e77119e234b21f2948290bdd158b1b5c96c09",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/prompts/crossborder_product_operations.schema.json",
+      "mode": "100644",
+      "blob_sha": "13ac254415ac0a1f4ecbc8a1dc7f1234461488e7",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/prompts/crossborder_product_operations.system.md",
+      "mode": "100644",
+      "blob_sha": "1f9364e58c24d0ff7df171765465d3f604ac0a34",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/prompts/crossborder_product_operations.user.md",
+      "mode": "100644",
+      "blob_sha": "ba4d2ce052fa8f7d1445a89891e6e389f23ac967",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/prompts/crossborder_supply_chain.schema.json",
+      "mode": "100644",
+      "blob_sha": "518543c2200f2372eb7839628002832845302c8c",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/prompts/crossborder_supply_chain.system.md",
+      "mode": "100644",
+      "blob_sha": "517af5c2844fd8a6521ea8fc9ce66441b5728599",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/prompts/crossborder_supply_chain.user.md",
+      "mode": "100644",
+      "blob_sha": "f490fae3ef9d1198fe063798d02bc65ea97996b4",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/prompts/insurance_claim_review.schema.json",
+      "mode": "100644",
+      "blob_sha": "36d70b777a461341488b1f7cf5de207d1480cab8",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/prompts/insurance_claim_review.system.md",
+      "mode": "100644",
+      "blob_sha": "f63d9e6208717d7eafdab9c4c9c252348d316000",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/prompts/insurance_claim_review.user.md",
+      "mode": "100644",
+      "blob_sha": "426b52c76c5359454ab6112b5b914a1f80b64395",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/prompts/insurance_fraud_analysis.schema.json",
+      "mode": "100644",
+      "blob_sha": "45a82128d820a86bd784f2d123b3748d6a214bb9",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/prompts/insurance_fraud_analysis.system.md",
+      "mode": "100644",
+      "blob_sha": "e2be4702ec4de306ac15bd00d33342a1d1234398",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/prompts/insurance_fraud_analysis.user.md",
+      "mode": "100644",
+      "blob_sha": "c0588654c9a43d0631282ecde1b3daa7fcbc3a0b",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/coursepreset/prompts_test.go",
+      "mode": "100644",
+      "blob_sha": "fa42abe3d4c0611505e379e0d48d0eb0365e6776",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/internal/platform/eval/contract_test.go",
+      "mode": "100644",
+      "blob_sha": "118601c0d957dcb9024a2fa4df82a2c21a329806",
+      "module": "MOD-EVAL"
+    },
+    {
+      "path": "kbot-final/internal/platform/eval/eval_test.go",
+      "mode": "100644",
+      "blob_sha": "a09f724feb5057577f65d2e630a8cb42502fc607",
+      "module": "MOD-EVAL"
+    },
+    {
+      "path": "kbot-final/internal/platform/eval/judge.go",
+      "mode": "100644",
+      "blob_sha": "5e924df98b2fcd8b3871230d3055b53fb19536d7",
+      "module": "MOD-EVAL"
+    },
+    {
+      "path": "kbot-final/internal/platform/eval/memory_store.go",
+      "mode": "100644",
+      "blob_sha": "2d1b8abc30990337c54a8780fcdf19a045374045",
+      "module": "MOD-EVAL"
+    },
+    {
+      "path": "kbot-final/internal/platform/eval/postgres_store.go",
+      "mode": "100644",
+      "blob_sha": "fe442ef7a6472c16af5b81e4d9e43b366469942e",
+      "module": "MOD-EVAL"
+    },
+    {
+      "path": "kbot-final/internal/platform/eval/postgres_store_test.go",
+      "mode": "100644",
+      "blob_sha": "a4c15c1a5078d9ef760e23cfcfcae061608c08ae",
+      "module": "MOD-EVAL"
+    },
+    {
+      "path": "kbot-final/internal/platform/eval/service.go",
+      "mode": "100644",
+      "blob_sha": "3d5e25bfd51ac11d804ceba3a59374f00a1ef243",
+      "module": "MOD-EVAL"
+    },
+    {
+      "path": "kbot-final/internal/platform/guardconfig/memory_store.go",
+      "mode": "100644",
+      "blob_sha": "a84b9def605e2b083ff5cdb59308d60294b076dd",
+      "module": "MOD-GUARD"
+    },
+    {
+      "path": "kbot-final/internal/platform/guardconfig/postgres_store.go",
+      "mode": "100644",
+      "blob_sha": "0a22d1a57c94a9dd5ca631520903b908674d9f04",
+      "module": "MOD-GUARD"
+    },
+    {
+      "path": "kbot-final/internal/platform/guardconfig/postgres_store_test.go",
+      "mode": "100644",
+      "blob_sha": "5ef12cdfd53fdec67abdf3d009b3def1242329f9",
+      "module": "MOD-GUARD"
+    },
+    {
+      "path": "kbot-final/internal/platform/guardconfig/service.go",
+      "mode": "100644",
+      "blob_sha": "a42297b69db95c4998bbabaea6ac081d2753e4d8",
+      "module": "MOD-GUARD"
+    },
+    {
+      "path": "kbot-final/internal/platform/guardconfig/service_test.go",
+      "mode": "100644",
+      "blob_sha": "92daaa6720c5f4254de1b9ed8317374966b8161f",
+      "module": "MOD-GUARD"
+    },
+    {
+      "path": "kbot-final/internal/platform/iam/contract_test.go",
+      "mode": "100644",
+      "blob_sha": "92551879d42639ba55a0db8f5eb80eaac6028293",
+      "module": "MOD-IAM"
+    },
+    {
+      "path": "kbot-final/internal/platform/iam/postgres_store.go",
+      "mode": "100644",
+      "blob_sha": "17eb9a3e8ac9e532b49a424c2dc8e73a7c2f4e3f",
+      "module": "MOD-IAM"
+    },
+    {
+      "path": "kbot-final/internal/platform/iam/postgres_store_test.go",
+      "mode": "100644",
+      "blob_sha": "919f7b6f965dfe9795a9c72e38eb8f1914599759",
+      "module": "MOD-IAM"
+    },
+    {
+      "path": "kbot-final/internal/platform/iam/service.go",
+      "mode": "100644",
+      "blob_sha": "2032cc32fad53644d7d932c7ccab2d1afaed88e1",
+      "module": "MOD-IAM"
+    },
+    {
+      "path": "kbot-final/internal/platform/iam/service_test.go",
+      "mode": "100644",
+      "blob_sha": "a43cd0d22aabc18ee344ecc56be0b12e2ac2142c",
+      "module": "MOD-IAM"
+    },
+    {
+      "path": "kbot-final/internal/platform/iam/token_test.go",
+      "mode": "100644",
+      "blob_sha": "34f74eb2c34411e50d54f370e7c88bb8a1978951",
+      "module": "MOD-IAM"
+    },
+    {
+      "path": "kbot-final/internal/platform/kb/chunk.go",
+      "mode": "100644",
+      "blob_sha": "0918a0e50dd7eb80a10db57a63746a0833cfccd5",
+      "module": "MOD-KB"
+    },
+    {
+      "path": "kbot-final/internal/platform/kb/contract_test.go",
+      "mode": "100644",
+      "blob_sha": "5fbc096a4bb1658927c1c6c2bb542cbadae4c379",
+      "module": "MOD-KB"
+    },
+    {
+      "path": "kbot-final/internal/platform/kb/ingest.go",
+      "mode": "100644",
+      "blob_sha": "5031928d140f7e90eb950996fc746cbca381d0e8",
+      "module": "MOD-KB"
+    },
+    {
+      "path": "kbot-final/internal/platform/kb/ingest_test.go",
+      "mode": "100644",
+      "blob_sha": "4d92957890a6aadebab7bbfb2c4020d1f1026a9b",
+      "module": "MOD-KB"
+    },
+    {
+      "path": "kbot-final/internal/platform/kb/jobs.go",
+      "mode": "100644",
+      "blob_sha": "44e117024c0cc39c26a4e005e29ad1992031755b",
+      "module": "MOD-KB"
+    },
+    {
+      "path": "kbot-final/internal/platform/kb/postgres_store.go",
+      "mode": "100644",
+      "blob_sha": "4a7470d363b93224c542684520afefef1dbf7155",
+      "module": "MOD-KB"
+    },
+    {
+      "path": "kbot-final/internal/platform/kb/postgres_store_test.go",
+      "mode": "100644",
+      "blob_sha": "b0014d79d1af889aed088ec5e1fa351bc471aa8d",
+      "module": "MOD-KB"
+    },
+    {
+      "path": "kbot-final/internal/platform/kb/service.go",
+      "mode": "100644",
+      "blob_sha": "7e57d54f2eb1f9b52f8d18898481ea2546622386",
+      "module": "MOD-KB"
+    },
+    {
+      "path": "kbot-final/internal/platform/maintenance/maintenance.go",
+      "mode": "100644",
+      "blob_sha": "f50afd51e2ef5bec035269bf7cc52ec08c575ce2",
+      "module": "MOD-AUDIT"
+    },
+    {
+      "path": "kbot-final/internal/platform/maintenance/maintenance_test.go",
+      "mode": "100644",
+      "blob_sha": "a01333236a6e3b6f1867b835a48a0bda94798506",
+      "module": "MOD-AUDIT"
+    },
+    {
+      "path": "kbot-final/internal/platform/maintenance/safety_test.go",
+      "mode": "100644",
+      "blob_sha": "56f7c3d89c3e970a7df20441191626309cc408ed",
+      "module": "MOD-AUDIT"
+    },
+    {
+      "path": "kbot-final/internal/platform/memory_store.go",
+      "mode": "100644",
+      "blob_sha": "31e9f4ff5e6f3ffa8276213eb8b0ab9378ba0474",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/internal/platform/memory_store_list_test.go",
+      "mode": "100644",
+      "blob_sha": "16bb3d2041fe1edb2249df1346590f51f9f232a5",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/internal/platform/memory_store_m2.go",
+      "mode": "100644",
+      "blob_sha": "4714f81d2239f9dfe944bb50473b4538c827636a",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/internal/platform/modelconfig/crypto.go",
+      "mode": "100644",
+      "blob_sha": "ef9a5455dc90518c319f1f4473b1ed351e876e7d",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/internal/platform/modelconfig/memory_store.go",
+      "mode": "100644",
+      "blob_sha": "0d72ecbdfd497ed52f196fdb070a34813806712c",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/internal/platform/modelconfig/postgres_store.go",
+      "mode": "100644",
+      "blob_sha": "616ace5e4cd3a049e8f8df7e5f7d2dcf24dffdbe",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/internal/platform/modelconfig/postgres_store_test.go",
+      "mode": "100644",
+      "blob_sha": "c4d45a33bd652fc659e54fea9529b7451aea0e84",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/internal/platform/modelconfig/postgres_store_unit_test.go",
+      "mode": "100644",
+      "blob_sha": "4265c60c2dc8a5f27ee03b13b3a2070e2db37a86",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/internal/platform/modelconfig/quota_test.go",
+      "mode": "100644",
+      "blob_sha": "fe101f9f35268759bf6bd78af3894a6320210704",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/internal/platform/modelconfig/service.go",
+      "mode": "100644",
+      "blob_sha": "57ee9a88a2f1899f042cf59f563b63bd82e60f58",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/internal/platform/modelconfig/service_test.go",
+      "mode": "100644",
+      "blob_sha": "eff2f06a28128e37a9aef86a78940cb97a538713",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/internal/platform/platform.go",
+      "mode": "100644",
+      "blob_sha": "e717ae032aafe891ec9bfd2c443e72415bae873c",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/internal/platform/prompt/contract_test.go",
+      "mode": "100644",
+      "blob_sha": "40685c35270afb839e1e67ac04928d50a8a1b2c4",
+      "module": "MOD-PROMPT"
+    },
+    {
+      "path": "kbot-final/internal/platform/prompt/diff.go",
+      "mode": "100644",
+      "blob_sha": "3f299bf712a4d25a1d16c09049e04ade396e5104",
+      "module": "MOD-PROMPT"
+    },
+    {
+      "path": "kbot-final/internal/platform/prompt/postgres_store.go",
+      "mode": "100644",
+      "blob_sha": "06640c1bdf203db07d7a9c091de9486f5cf14246",
+      "module": "MOD-PROMPT"
+    },
+    {
+      "path": "kbot-final/internal/platform/prompt/postgres_store_test.go",
+      "mode": "100644",
+      "blob_sha": "89b986bb17b42b633b3700998df3c0a720ed14ae",
+      "module": "MOD-PROMPT"
+    },
+    {
+      "path": "kbot-final/internal/platform/prompt/service.go",
+      "mode": "100644",
+      "blob_sha": "aec6425cf2765e1e3cd563a33f14eeb8ccbbfe3b",
+      "module": "MOD-PROMPT"
+    },
+    {
+      "path": "kbot-final/internal/platform/prompt/service_test.go",
+      "mode": "100644",
+      "blob_sha": "bab79b93cfbaea26448939d4d2fca6838b81b527",
+      "module": "MOD-PROMPT"
+    },
+    {
+      "path": "kbot-final/internal/platform/skill/contract_test.go",
+      "mode": "100644",
+      "blob_sha": "b5b00b62414e5d7146c6135be5fd8c9632b4190e",
+      "module": "MOD-SKILL"
+    },
+    {
+      "path": "kbot-final/internal/platform/skill/parser.go",
+      "mode": "100644",
+      "blob_sha": "5d75a31be2a7a6acc61deb82b2515daa26d0f780",
+      "module": "MOD-SKILL"
+    },
+    {
+      "path": "kbot-final/internal/platform/skill/postgres_store.go",
+      "mode": "100644",
+      "blob_sha": "01bef7beb4f48388ad0e133cd4c066e7f432523c",
+      "module": "MOD-SKILL"
+    },
+    {
+      "path": "kbot-final/internal/platform/skill/postgres_store_test.go",
+      "mode": "100644",
+      "blob_sha": "3f7b8601e6ff709f19ee172922af1665b0a605b9",
+      "module": "MOD-SKILL"
+    },
+    {
+      "path": "kbot-final/internal/platform/skill/service.go",
+      "mode": "100644",
+      "blob_sha": "bf5c8cded435ba9e383f19f7029688165d630beb",
+      "module": "MOD-SKILL"
+    },
+    {
+      "path": "kbot-final/internal/platform/skill/skill_test.go",
+      "mode": "100644",
+      "blob_sha": "336443e955f268367635056be1ba42bff593236a",
+      "module": "MOD-SKILL"
+    },
+    {
+      "path": "kbot-final/internal/platform/team/contract_test.go",
+      "mode": "100644",
+      "blob_sha": "7b1d59681fc7cde9e0859543a7d35f4266441d89",
+      "module": "MOD-TEAM"
+    },
+    {
+      "path": "kbot-final/internal/platform/team/memory_store.go",
+      "mode": "100644",
+      "blob_sha": "53a688d222066858aec8976d48032769fa900cbf",
+      "module": "MOD-TEAM"
+    },
+    {
+      "path": "kbot-final/internal/platform/team/postgres_store.go",
+      "mode": "100644",
+      "blob_sha": "20fa4ff0fbec9b7d8f3aff139ee1975836392d53",
+      "module": "MOD-TEAM"
+    },
+    {
+      "path": "kbot-final/internal/platform/team/postgres_store_test.go",
+      "mode": "100644",
+      "blob_sha": "7b339a98824e7573dace00b17c9dccbda9867717",
+      "module": "MOD-TEAM"
+    },
+    {
+      "path": "kbot-final/internal/platform/team/service.go",
+      "mode": "100644",
+      "blob_sha": "e94fbf08c415e343c07b966179ffb362ba2c8c5f",
+      "module": "MOD-TEAM"
+    },
+    {
+      "path": "kbot-final/internal/platform/team/snapshot_member_pin_test.go",
+      "mode": "100644",
+      "blob_sha": "a5ec3310c865ff68ca7f5e28dd0d63f901b3b366",
+      "module": "MOD-TEAM"
+    },
+    {
+      "path": "kbot-final/internal/platform/tool/contract_test.go",
+      "mode": "100644",
+      "blob_sha": "f251af541e02bb107da17233ea7cfa86e4f3e8f5",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/internal/platform/tool/endpoint_policy.go",
+      "mode": "100644",
+      "blob_sha": "277b3a1e05bcc6d1042f21b6a684a543a35538b8",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/internal/platform/tool/endpoint_policy_test.go",
+      "mode": "100644",
+      "blob_sha": "2c5c643263a6ed53e10156084d841fba2a71134e",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/internal/platform/tool/postgres_store.go",
+      "mode": "100644",
+      "blob_sha": "e85df8dfb204d8a4742ac7e02554a737ece886c1",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/internal/platform/tool/postgres_store_test.go",
+      "mode": "100644",
+      "blob_sha": "6f23d4f2d4bd5e684429168676db9681c687d548",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/internal/platform/tool/service.go",
+      "mode": "100644",
+      "blob_sha": "843a76894335cbc705b9dc0e7faf3ced8492c78c",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/internal/platform/tool/service_test.go",
+      "mode": "100644",
+      "blob_sha": "8aa53fb989adf84eff423ffd4bf9d0115f279d92",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/cache/cache.go",
+      "mode": "100644",
+      "blob_sha": "024ab414395c62eb9aa77ea42d77d2eefc7f23b7",
+      "module": "MOD-CACHE"
+    },
+    {
+      "path": "kbot-final/internal/runtime/cache/cache_test.go",
+      "mode": "100644",
+      "blob_sha": "b5c5c7512485fec767f3d56f8c37839b59b0f95e",
+      "module": "MOD-CACHE"
+    },
+    {
+      "path": "kbot-final/internal/runtime/engine/agent_runtime.go",
+      "mode": "100644",
+      "blob_sha": "19beba54449a346fb2f155aa8740fb704586a034",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/internal/runtime/engine/approval.go",
+      "mode": "100644",
+      "blob_sha": "255e0ec4fa44a9cdf0706db62009345473a22696",
+      "module": "MOD-APPROVAL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/engine/approval_safety_test.go",
+      "mode": "100644",
+      "blob_sha": "c5b974961c59e363a0c4c1c75539a5f273aa4635",
+      "module": "MOD-APPROVAL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/engine/engine.go",
+      "mode": "100644",
+      "blob_sha": "84578b5c4845577b7dad329c32571652c5ebfbb3",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/internal/runtime/engine/engine_test.go",
+      "mode": "100644",
+      "blob_sha": "9f87cd69190ffd44fe8a8222cbdc849345a93938",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/internal/runtime/engine/skill_policy_test.go",
+      "mode": "100644",
+      "blob_sha": "e510f066868c465e2d9a3709126d3712a74c9757",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/internal/runtime/engine/team_runtime.go",
+      "mode": "100644",
+      "blob_sha": "23334f310deb5192993687309d096ab30e0aa6d2",
+      "module": "MOD-TEAM"
+    },
+    {
+      "path": "kbot-final/internal/runtime/engine/team_runtime_test.go",
+      "mode": "100644",
+      "blob_sha": "fa555a67551222045f345a003f8f49e145c82e50",
+      "module": "MOD-TEAM"
+    },
+    {
+      "path": "kbot-final/internal/runtime/engine/tracing.go",
+      "mode": "100644",
+      "blob_sha": "59f36983cb2518306c25f1d8925cbd35e7acbf33",
+      "module": "MOD-OBS"
+    },
+    {
+      "path": "kbot-final/internal/runtime/guard/config_rule.go",
+      "mode": "100644",
+      "blob_sha": "590dec2a9f20046380b3efb6fc001298bc129042",
+      "module": "MOD-GUARD"
+    },
+    {
+      "path": "kbot-final/internal/runtime/guard/guard.go",
+      "mode": "100644",
+      "blob_sha": "436ea726d15ab16911c9ce1d1e21ef54ddb5073b",
+      "module": "MOD-GUARD"
+    },
+    {
+      "path": "kbot-final/internal/runtime/guard/guard_test.go",
+      "mode": "100644",
+      "blob_sha": "d2a03047b03b34675249ace839769341d790a91c",
+      "module": "MOD-GUARD"
+    },
+    {
+      "path": "kbot-final/internal/runtime/guard/injection.go",
+      "mode": "100644",
+      "blob_sha": "be0928f905108891e0f9533486b1d7d54e986d81",
+      "module": "MOD-GUARD"
+    },
+    {
+      "path": "kbot-final/internal/runtime/guard/pii.go",
+      "mode": "100644",
+      "blob_sha": "233c0ac5a7a0cff000cc335fdd3aaf07256289b8",
+      "module": "MOD-GUARD"
+    },
+    {
+      "path": "kbot-final/internal/runtime/guard/quota.go",
+      "mode": "100644",
+      "blob_sha": "af09ebaebbea1a6666eb86419cc4f61e0b899715",
+      "module": "MOD-GUARD"
+    },
+    {
+      "path": "kbot-final/internal/runtime/guard/quota_rule.go",
+      "mode": "100644",
+      "blob_sha": "2ac03343a2b6085ad3c0fd68f7f373b0f5fe423b",
+      "module": "MOD-GUARD"
+    },
+    {
+      "path": "kbot-final/internal/runtime/guard/ratelimit.go",
+      "mode": "100644",
+      "blob_sha": "4fe9038f96cacfe4ec45f544f1848cd5942c9d0b",
+      "module": "MOD-GUARD"
+    },
+    {
+      "path": "kbot-final/internal/runtime/guard/ratelimit_rule_test.go",
+      "mode": "100644",
+      "blob_sha": "5c706a53fe863430abd26a3bec9e00c54129ada4",
+      "module": "MOD-GUARD"
+    },
+    {
+      "path": "kbot-final/internal/runtime/guard/routing.go",
+      "mode": "100644",
+      "blob_sha": "5e3e6c0bcb7207e5bc2e95ea7f25e1518f501edf",
+      "module": "MOD-GUARD"
+    },
+    {
+      "path": "kbot-final/internal/runtime/llm/calllog.go",
+      "mode": "100644",
+      "blob_sha": "8e245080b7f6240868c0a89c100714cee93537c4",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/llm/calllog_test.go",
+      "mode": "100644",
+      "blob_sha": "b55f6290d0bd6b53bd528524a0c8b7be9222b153",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/llm/execution_plan_test.go",
+      "mode": "100644",
+      "blob_sha": "08826b99c395d4a1f9ee4042adc0a108908dbfe0",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/llm/gateway.go",
+      "mode": "100644",
+      "blob_sha": "13fb162e3f64ab5c485f649e751b0c762d6ffe26",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/llm/gateway_quota_test.go",
+      "mode": "100644",
+      "blob_sha": "50077aaae554837e32f457679eb3415a28df4e07",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/llm/otel.go",
+      "mode": "100644",
+      "blob_sha": "fdc69742c271018b9da698432b7d8f37d1afe48b",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/llm/routing.go",
+      "mode": "100644",
+      "blob_sha": "a086f920e358395196bd1c414f7eaa326ca368d7",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/llm/routing_test.go",
+      "mode": "100644",
+      "blob_sha": "598a7d784a291b7ce09ad2dff662bfeebeb8bc90",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/promptcache/cache.go",
+      "mode": "100644",
+      "blob_sha": "1513a0286b7bd753e5e8656393356f2f07d52638",
+      "module": "MOD-PROMPT"
+    },
+    {
+      "path": "kbot-final/internal/runtime/promptcache/cache_test.go",
+      "mode": "100644",
+      "blob_sha": "5353e5dc69c14798e7192a1b4fd968b33a8444fb",
+      "module": "MOD-PROMPT"
+    },
+    {
+      "path": "kbot-final/internal/runtime/promptcache/compile.go",
+      "mode": "100644",
+      "blob_sha": "b40637fcfe267ab48df860dfeeae0c2c3b5c1867",
+      "module": "MOD-PROMPT"
+    },
+    {
+      "path": "kbot-final/internal/runtime/promptcache/subscriber.go",
+      "mode": "100644",
+      "blob_sha": "e04adb329824c2aec5858cbefb010d5c564e24d9",
+      "module": "MOD-PROMPT"
+    },
+    {
+      "path": "kbot-final/internal/runtime/retriever/concurrency_test.go",
+      "mode": "100644",
+      "blob_sha": "ef65676052cb7fdb34f30705112e90cdbaa60265",
+      "module": "MOD-KB"
+    },
+    {
+      "path": "kbot-final/internal/runtime/retriever/embed.go",
+      "mode": "100644",
+      "blob_sha": "7a6bae3db12a79a7ad9aa66e366a2b1f9f9ae4d1",
+      "module": "MOD-KB"
+    },
+    {
+      "path": "kbot-final/internal/runtime/retriever/embedder_openai.go",
+      "mode": "100644",
+      "blob_sha": "73a33dfb5fab2f2f7e1f816eefe302d953bef19c",
+      "module": "MOD-KB"
+    },
+    {
+      "path": "kbot-final/internal/runtime/retriever/hybrid.go",
+      "mode": "100644",
+      "blob_sha": "f9f9ace31d05896494edc9d4ca89f4d86589eb5e",
+      "module": "MOD-KB"
+    },
+    {
+      "path": "kbot-final/internal/runtime/retriever/hybrid_test.go",
+      "mode": "100644",
+      "blob_sha": "526c1ef665905e5761df3d8be0585c2a33efadd5",
+      "module": "MOD-KB"
+    },
+    {
+      "path": "kbot-final/internal/runtime/retriever/mode.go",
+      "mode": "100644",
+      "blob_sha": "5df7fb523768f78a6ebc2246f87622533395ad3b",
+      "module": "MOD-KB"
+    },
+    {
+      "path": "kbot-final/internal/runtime/retriever/mode_test.go",
+      "mode": "100644",
+      "blob_sha": "cbc8492ca7baac1cbb5cbf37110f6024901593ca",
+      "module": "MOD-KB"
+    },
+    {
+      "path": "kbot-final/internal/runtime/retriever/pgvector.go",
+      "mode": "100644",
+      "blob_sha": "53c5b28bb1e61889db50077f8f41add709c01d56",
+      "module": "MOD-KB"
+    },
+    {
+      "path": "kbot-final/internal/runtime/retriever/pgvector_test.go",
+      "mode": "100644",
+      "blob_sha": "2324ef28672dbbb835bc55ab51c80f0757abef2e",
+      "module": "MOD-KB"
+    },
+    {
+      "path": "kbot-final/internal/runtime/sandbox/details.go",
+      "mode": "100644",
+      "blob_sha": "ae23f8e4ce099fc4648878c4780a4922e8b51ee0",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/sandbox/http.go",
+      "mode": "100644",
+      "blob_sha": "290dbdf071a0f0c6905e9a794f6555a6c5565ff8",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/sandbox/http_test.go",
+      "mode": "100644",
+      "blob_sha": "17dd9f0a78df3a04ef8e54dcbddb708887a5dfa2",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/sandbox/sandbox.go",
+      "mode": "100644",
+      "blob_sha": "d23f49e8969aa32246eb5fcba6aca31035e07596",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/sandbox/sandbox_test.go",
+      "mode": "100644",
+      "blob_sha": "6e92ad6b7f971a471415e73122e645e8d322893e",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/skillrunner/runner.go",
+      "mode": "100644",
+      "blob_sha": "c8df8b61c2fbb5851078c5bcb916db93e6ef3ebd",
+      "module": "MOD-SKILL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/skillrunner/runner_test.go",
+      "mode": "100644",
+      "blob_sha": "759893973579d32903238413c791424adea1a5b7",
+      "module": "MOD-SKILL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/team/team.go",
+      "mode": "100644",
+      "blob_sha": "a674657e1cb524c1934b1c8cf9f7d338a6732ca7",
+      "module": "MOD-TEAM"
+    },
+    {
+      "path": "kbot-final/internal/runtime/team/team_test.go",
+      "mode": "100644",
+      "blob_sha": "3ca2694ee5d713b66a95553c800b58726b349cce",
+      "module": "MOD-TEAM"
+    },
+    {
+      "path": "kbot-final/internal/runtime/tooling/a2a.go",
+      "mode": "100644",
+      "blob_sha": "e8db4b22fbb9e143e1adb55845e00b950f666805",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/tooling/a2a_test.go",
+      "mode": "100644",
+      "blob_sha": "b1545d42d0bec346068fd830722c91f2e7462916",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/tooling/executor.go",
+      "mode": "100644",
+      "blob_sha": "1ea661a8e069486f70c24a7eee8f95bdf9883223",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/tooling/executor_test.go",
+      "mode": "100644",
+      "blob_sha": "b1b5cf959a4e69f05edaade1ce1a48bd305ae122",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/tooling/mcp.go",
+      "mode": "100644",
+      "blob_sha": "0e9f5eef18a6309d4014f587b5385fbc8b26e3a4",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/tooling/mcp_test.go",
+      "mode": "100644",
+      "blob_sha": "9599f45deae469fe77d60d2fca3ec1113100c004",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/tooling/policy_test.go",
+      "mode": "100644",
+      "blob_sha": "b0e1a81ce48be5f4ddf7eb09944a356691414276",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/tooling/response.go",
+      "mode": "100644",
+      "blob_sha": "9e4863aafa45bb0fc699a45a07463224b85494f5",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/tooling/response_test.go",
+      "mode": "100644",
+      "blob_sha": "286b1317c435ad4b998f84e3bbfccb2cac56e2c9",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/tooling/rest.go",
+      "mode": "100644",
+      "blob_sha": "a735155aea75db5caecd34920c68a39e8b8a4ada",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/tooling/sandbox_exec.go",
+      "mode": "100644",
+      "blob_sha": "c6c8b0429a20dfb6fb05ba99e7f84c8ad52adb07",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/tooling/sandbox_result.go",
+      "mode": "100644",
+      "blob_sha": "bae8dd71962976646034e08cf7bb71cce6f7dd64",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/internal/runtime/tooling/sdk.go",
+      "mode": "100644",
+      "blob_sha": "522d66fb3059397fa3463bbd01924ff73c9db58b",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/internal/util/id.go",
+      "mode": "100644",
+      "blob_sha": "5e654d317e49bdcdf38e23bdd183bcd0994c2d72",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/migrations/000001_init_iam.down.sql",
+      "mode": "100644",
+      "blob_sha": "9381ebf1a791e8679e0c72cd131f048b407943b2",
+      "module": "MOD-IAM"
+    },
+    {
+      "path": "kbot-final/migrations/000001_init_iam.up.sql",
+      "mode": "100644",
+      "blob_sha": "f6ae019cc1e471ef677f12fb19fe657e9535f388",
+      "module": "MOD-IAM"
+    },
+    {
+      "path": "kbot-final/migrations/000002_prompt_apollo.down.sql",
+      "mode": "100644",
+      "blob_sha": "a4ab7375c3598199eaac8e1f4168fef6b4a96be3",
+      "module": "MOD-PROMPT"
+    },
+    {
+      "path": "kbot-final/migrations/000002_prompt_apollo.up.sql",
+      "mode": "100644",
+      "blob_sha": "9b65f6470f3109ec96860804dc51dfa8c1b5cf14",
+      "module": "MOD-PROMPT"
+    },
+    {
+      "path": "kbot-final/migrations/000003_tool_registry.down.sql",
+      "mode": "100644",
+      "blob_sha": "496b28a00346a30fab13fc1e4b6ddcc700b6bc4d",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/migrations/000003_tool_registry.up.sql",
+      "mode": "100644",
+      "blob_sha": "0053495bb8b7e8ff1ddad9a71db89ad2bb78708b",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/migrations/000004_skill.down.sql",
+      "mode": "100644",
+      "blob_sha": "f1ae4784106a5fec7232f538c09160cb4c6600da",
+      "module": "MOD-SKILL"
+    },
+    {
+      "path": "kbot-final/migrations/000004_skill.up.sql",
+      "mode": "100644",
+      "blob_sha": "7a5753ed7fdce68e1606266400671c0864ef4ba8",
+      "module": "MOD-SKILL"
+    },
+    {
+      "path": "kbot-final/migrations/000005_kb_pgvector.down.sql",
+      "mode": "100644",
+      "blob_sha": "7e7c8ace59b01ad2f9414450477bbc5109c8897d",
+      "module": "MOD-KB"
+    },
+    {
+      "path": "kbot-final/migrations/000005_kb_pgvector.up.sql",
+      "mode": "100644",
+      "blob_sha": "b7278e9a827266492ff568a410cb5eaab701e7de",
+      "module": "MOD-KB"
+    },
+    {
+      "path": "kbot-final/migrations/000006_agent_snapshot.down.sql",
+      "mode": "100644",
+      "blob_sha": "5c2a90b0a38337ab751e7de3e68ab6c7788dc5b8",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/migrations/000006_agent_snapshot.up.sql",
+      "mode": "100644",
+      "blob_sha": "c06ee38088eacefce37ebb3ad3d385171e89b7c2",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/migrations/000007_conversation.down.sql",
+      "mode": "100644",
+      "blob_sha": "7e1c9b0197025ac201d9a08bb32d98486f2ec620",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/migrations/000007_conversation.up.sql",
+      "mode": "100644",
+      "blob_sha": "9eca86c2b2786553fd450a27fd697e4a578778ea",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/migrations/000008_llm_gateway.down.sql",
+      "mode": "100644",
+      "blob_sha": "ff276efd5dd41f75f0adc729b3e32275da094a1a",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/migrations/000008_llm_gateway.up.sql",
+      "mode": "100644",
+      "blob_sha": "1a87f4f33c27fd02c2379f033f477d43a1dee572",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/migrations/000009_jobs.down.sql",
+      "mode": "100644",
+      "blob_sha": "b4e91cac2d7d7c1243e0f64c271a1314fd067f7c",
+      "module": "MOD-CACHE"
+    },
+    {
+      "path": "kbot-final/migrations/000009_jobs.up.sql",
+      "mode": "100644",
+      "blob_sha": "0d6d9eb86556c658bbced3432a5a9e9f8b1b3f64",
+      "module": "MOD-CACHE"
+    },
+    {
+      "path": "kbot-final/migrations/000010_eval.down.sql",
+      "mode": "100644",
+      "blob_sha": "38fd2964c03d1683a89717406d42da6276ca7430",
+      "module": "MOD-EVAL"
+    },
+    {
+      "path": "kbot-final/migrations/000010_eval.up.sql",
+      "mode": "100644",
+      "blob_sha": "07db26de66b8d962ab1b55407c08b4731025c929",
+      "module": "MOD-EVAL"
+    },
+    {
+      "path": "kbot-final/migrations/000011_guard.down.sql",
+      "mode": "100644",
+      "blob_sha": "514f0ba8fd4946fd9abd5bdfccc421e3c627b827",
+      "module": "MOD-GUARD"
+    },
+    {
+      "path": "kbot-final/migrations/000011_guard.up.sql",
+      "mode": "100644",
+      "blob_sha": "0c2061bc67f5ac03e7051b428ddddc5e598587ce",
+      "module": "MOD-GUARD"
+    },
+    {
+      "path": "kbot-final/migrations/000012_audit_partitioned.down.sql",
+      "mode": "100644",
+      "blob_sha": "cbbc2e237b15aa02031b7010289f8a9f6680f998",
+      "module": "MOD-AUDIT"
+    },
+    {
+      "path": "kbot-final/migrations/000012_audit_partitioned.up.sql",
+      "mode": "100644",
+      "blob_sha": "5853d20e7f4f665d2e696328443a78cac4a1bca4",
+      "module": "MOD-AUDIT"
+    },
+    {
+      "path": "kbot-final/migrations/000013_model_prompt_control.down.sql",
+      "mode": "100644",
+      "blob_sha": "146438cb8325f1b11dae541eeb2b5b5be96e7a8d",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/migrations/000013_model_prompt_control.up.sql",
+      "mode": "100644",
+      "blob_sha": "b20b7c06b12f52d0e17a838b4d3392484de86130",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/migrations/000014_approval_checkpoint_binding.down.sql",
+      "mode": "100644",
+      "blob_sha": "a2c4bdd79fdd61be729346cf446491c5d01c3743",
+      "module": "MOD-APPROVAL"
+    },
+    {
+      "path": "kbot-final/migrations/000014_approval_checkpoint_binding.up.sql",
+      "mode": "100644",
+      "blob_sha": "8eed549d2793fd4a1f8446dbd25ce6eda1e21ced",
+      "module": "MOD-APPROVAL"
+    },
+    {
+      "path": "kbot-final/migrations/000015_version_governance.down.sql",
+      "mode": "100644",
+      "blob_sha": "85cba9d4a7b6aeba9b29c67cbf78052878c62ba2",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/migrations/000015_version_governance.up.sql",
+      "mode": "100644",
+      "blob_sha": "2ae525370b9ba7476d89742bfebb5d824e4d1934",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/migrations/000016_workspace_rbac.down.sql",
+      "mode": "100644",
+      "blob_sha": "ffb446994d5f11d9c043e9afaaff7993a569ad90",
+      "module": "MOD-IAM"
+    },
+    {
+      "path": "kbot-final/migrations/000016_workspace_rbac.up.sql",
+      "mode": "100644",
+      "blob_sha": "6d39271cb413efa99de018cb2e6184477b25e979",
+      "module": "MOD-IAM"
+    },
+    {
+      "path": "kbot-final/migrations/000017_approval_hardening.down.sql",
+      "mode": "100644",
+      "blob_sha": "6e421cb071d066e17c5611a01ed7c8148071b8a7",
+      "module": "MOD-APPROVAL"
+    },
+    {
+      "path": "kbot-final/migrations/000017_approval_hardening.up.sql",
+      "mode": "100644",
+      "blob_sha": "d4986623d0411760418548cd16f377ce7aa4a729",
+      "module": "MOD-APPROVAL"
+    },
+    {
+      "path": "kbot-final/migrations/000018_audit_workspace.down.sql",
+      "mode": "100644",
+      "blob_sha": "68db7fdf03121b681bd5b653cd4fcdf014ff3169",
+      "module": "MOD-AUDIT"
+    },
+    {
+      "path": "kbot-final/migrations/000018_audit_workspace.up.sql",
+      "mode": "100644",
+      "blob_sha": "af27fe9406844ddd31e9ee0fbb0e831f1df226c6",
+      "module": "MOD-AUDIT"
+    },
+    {
+      "path": "kbot-final/migrations/000019_tool_security.down.sql",
+      "mode": "100644",
+      "blob_sha": "2ac7aef2630bcf84163c09b87892ed2841081feb",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/migrations/000019_tool_security.up.sql",
+      "mode": "100644",
+      "blob_sha": "04404e3890e74b25c585109100ba1a7c7d771b34",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/migrations/000020_tool_invocation_audit.down.sql",
+      "mode": "100644",
+      "blob_sha": "9e4e8c6fa4d8025ad90c4c70008d272bbe842bc1",
+      "module": "MOD-AUDIT"
+    },
+    {
+      "path": "kbot-final/migrations/000020_tool_invocation_audit.up.sql",
+      "mode": "100644",
+      "blob_sha": "b59a9ab7f1e0aa5ab7ffdcac0f0c25adc0b5dd51",
+      "module": "MOD-AUDIT"
+    },
+    {
+      "path": "kbot-final/migrations/000021_sandbox_execution_audit.down.sql",
+      "mode": "100644",
+      "blob_sha": "f00356c1900aad5e0b79ceedef92ed6a72b6327f",
+      "module": "MOD-AUDIT"
+    },
+    {
+      "path": "kbot-final/migrations/000021_sandbox_execution_audit.up.sql",
+      "mode": "100644",
+      "blob_sha": "6ac2a3cbb45a8d48f59f2ccbafa04d3423b0614e",
+      "module": "MOD-AUDIT"
+    },
+    {
+      "path": "kbot-final/migrations/000022_skill_trigger_audit.down.sql",
+      "mode": "100644",
+      "blob_sha": "00a9bd687da64c6729717ff63175224aeb05c16e",
+      "module": "MOD-AUDIT"
+    },
+    {
+      "path": "kbot-final/migrations/000022_skill_trigger_audit.up.sql",
+      "mode": "100644",
+      "blob_sha": "c97ae8c847df4deffec323f76e61dadc6673eae8",
+      "module": "MOD-AUDIT"
+    },
+    {
+      "path": "kbot-final/migrations/000023_model_project_quota.down.sql",
+      "mode": "100644",
+      "blob_sha": "28f9d1e9d1800cfec12eedc5a263a99b4728d851",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/migrations/000023_model_project_quota.up.sql",
+      "mode": "100644",
+      "blob_sha": "5b45463b9919bd23299c8d96450f92a7dd6c3fb8",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/migrations/000024_approval_execution_lease.down.sql",
+      "mode": "100644",
+      "blob_sha": "53e3a82d5d63c760df6037568acde1c6a7e9a4e5",
+      "module": "MOD-APPROVAL"
+    },
+    {
+      "path": "kbot-final/migrations/000024_approval_execution_lease.up.sql",
+      "mode": "100644",
+      "blob_sha": "88a8828d78e514d6618932560b5c0cbb29aa6a83",
+      "module": "MOD-APPROVAL"
+    },
+    {
+      "path": "kbot-final/migrations/000025_conversation_turn_lease.down.sql",
+      "mode": "100644",
+      "blob_sha": "c25e0abeea7d7f7178e0436f9147a48619e13b97",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/migrations/000025_conversation_turn_lease.up.sql",
+      "mode": "100644",
+      "blob_sha": "364d374ca0e052484f98d1157e8fe2309db84ffa",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/migrations/000026_model_usage_reservation_expiry.down.sql",
+      "mode": "100644",
+      "blob_sha": "3f01f551ed4e891d1e84054c6901cc7694628cab",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/migrations/000026_model_usage_reservation_expiry.up.sql",
+      "mode": "100644",
+      "blob_sha": "9236db6bd17129766fd2dc4476a624fcbdcbf35f",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/pkg/sdk/go/client.go",
+      "mode": "100644",
+      "blob_sha": "fab07474160ba4621e33270e19f57c4f4968e62d",
+      "module": "MOD-SDK"
+    },
+    {
+      "path": "kbot-final/pkg/sdk/openapi/docs.go",
+      "mode": "100644",
+      "blob_sha": "6b5d5112d12a6f85ddb8adf593fc048454236f4c",
+      "module": "MOD-SDK"
+    },
+    {
+      "path": "kbot-final/pkg/sdk/openapi/swagger.json",
+      "mode": "100644",
+      "blob_sha": "f231e103d1cea952142cf5f397191853b7bd9679",
+      "module": "MOD-SDK"
+    },
+    {
+      "path": "kbot-final/pkg/sdk/openapi/swagger.yaml",
+      "mode": "100644",
+      "blob_sha": "21c3cc3b289c195b6dfd1e104eab178bee47b525",
+      "module": "MOD-SDK"
+    },
+    {
+      "path": "kbot-final/projects/crossborder/Dockerfile",
+      "mode": "100644",
+      "blob_sha": "07e347e60904f00e5c8815978004c6c734107466",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/crossborder/Makefile",
+      "mode": "100644",
+      "blob_sha": "4805eb447f5177ec0993269f4ee736fffec7f997",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/crossborder/README.md",
+      "mode": "100644",
+      "blob_sha": "179edaa8f47a2ca4cb156d28bf167ba3dcfe83ba",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/crossborder/cmd/simulator/main.go",
+      "mode": "100644",
+      "blob_sha": "5e817f14fbf7cbb0440b4a728ed9b8e8622be6c3",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/crossborder/compose.env",
+      "mode": "100644",
+      "blob_sha": "7abee5071cdbb26bfbba0846a10efe914acdc365",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/crossborder/config/tools.json",
+      "mode": "100644",
+      "blob_sha": "858cb9182e58c279ec834c392fa7cdaacc82ed10",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/crossborder/contract_test.go",
+      "mode": "100644",
+      "blob_sha": "7d9befe2d931d05a7ed08c4dcdd54c0456f112f1",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/crossborder/docker-compose.yml",
+      "mode": "100644",
+      "blob_sha": "1fb9b9554df206cc028b1fcb5d08bd404279cfe0",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/crossborder/evals/cases.jsonl",
+      "mode": "100644",
+      "blob_sha": "e91e39b2aa5d088765571348e6fb08917a100112",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/crossborder/go.mod",
+      "mode": "100644",
+      "blob_sha": "37dac697db1a6f63c8440c293c86a4f9d2a99296",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/crossborder/internal/agentmock/handler.go",
+      "mode": "100644",
+      "blob_sha": "4c70248ba49423cfd82ac2cab82f3d939537370c",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/crossborder/internal/agentmock/handler_test.go",
+      "mode": "100644",
+      "blob_sha": "5a26c7a5cc8bbc23b1161de6fa5b70969001ce5d",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/crossborder/internal/domain/models.go",
+      "mode": "100644",
+      "blob_sha": "af5974b6fcf442545f7d381e5d1a6a087e3dd2eb",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/crossborder/internal/httpapi/router.go",
+      "mode": "100644",
+      "blob_sha": "b1e5c9b9ac2a9e3fb55518a2c6d305def4b4e7ff",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/crossborder/internal/httpapi/router_test.go",
+      "mode": "100644",
+      "blob_sha": "63bfe1a609479e9bb458809f3accce233f98196c",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/crossborder/internal/service/service.go",
+      "mode": "100644",
+      "blob_sha": "a7b7177f7d10c169420e7f475d6ad0d98b5f94aa",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/crossborder/internal/service/service_test.go",
+      "mode": "100644",
+      "blob_sha": "42c8aeda1a6d1d03f86efa5f518ecd224bcf1104",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/crossborder/kbot-compose.yml",
+      "mode": "100644",
+      "blob_sha": "a43156afa3bf30c1e38b077a1e5c1bf7fdbeda3a",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/crossborder/knowledge/fulfillment-policy.md",
+      "mode": "100644",
+      "blob_sha": "4fb752cb02a0dcdf1bc214817cbccec3133a8222",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/crossborder/knowledge/settlement-policy.md",
+      "mode": "100644",
+      "blob_sha": "8d9e860510e344ddddc9c67d1cea370375d48e86",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/crossborder/scripts/e2e.sh",
+      "mode": "100755",
+      "blob_sha": "8719ad3d24fb0632f695d15ac75443b2fe80852c",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/crossborder/scripts/install.sh",
+      "mode": "100755",
+      "blob_sha": "7b61dcef22e504528d9d781026d1a067f4de7571",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/crossborder/skills/order-exception-triage/SKILL.md",
+      "mode": "100644",
+      "blob_sha": "86615556a3bdd544eb0c59e9941d7c82d3eec889",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/crossborder/skills/settlement-reconciliation/SKILL.md",
+      "mode": "100644",
+      "blob_sha": "199b472056b75e0a56ef30ddf89960e23b9fbc1b",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/insurance/Dockerfile",
+      "mode": "100644",
+      "blob_sha": "2f14b8921b481953d3ecf216430544306fa41147",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/insurance/Makefile",
+      "mode": "100644",
+      "blob_sha": "4805eb447f5177ec0993269f4ee736fffec7f997",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/insurance/README.md",
+      "mode": "100644",
+      "blob_sha": "4de42d25a99dece392121c47f90e6f6812cf058a",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/insurance/cmd/simulator/main.go",
+      "mode": "100644",
+      "blob_sha": "ee7fbb87bcb6e24e794dad657d526f40d2711cca",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/insurance/compose.env",
+      "mode": "100644",
+      "blob_sha": "9eddfd4ad7e83ee53f391ba85a8458eeccd6feb1",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/insurance/config/tools.json",
+      "mode": "100644",
+      "blob_sha": "80749beb45c1ede06add5d7b87cd0e7f64a9a387",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/insurance/contract_test.go",
+      "mode": "100644",
+      "blob_sha": "051e0f37249e3306a0039df68a506b796a7ad088",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/insurance/docker-compose.yml",
+      "mode": "100644",
+      "blob_sha": "3a6a8d87976f00c391561ac5a5ed7a927bc1be19",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/insurance/evals/cases.jsonl",
+      "mode": "100644",
+      "blob_sha": "d054291bced1bd8ebf26e640a6b751e4ce44d521",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/insurance/go.mod",
+      "mode": "100644",
+      "blob_sha": "96d93e191c19a60d2dd1a446e41e722305c3ecd7",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/insurance/internal/agentmock/handler.go",
+      "mode": "100644",
+      "blob_sha": "8440b146e51fe07ff72b2511c841bc96f96bf29d",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/insurance/internal/agentmock/handler_test.go",
+      "mode": "100644",
+      "blob_sha": "d0931f9ffb850ff29f64dab3077d893d25d4f26e",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/insurance/internal/domain/models.go",
+      "mode": "100644",
+      "blob_sha": "64ee93c27405ae6629f7e8705fe62037718964bb",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/insurance/internal/httpapi/router.go",
+      "mode": "100644",
+      "blob_sha": "121c39ef05b04ac5b965d8cc6cf7b903ec4b58d5",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/insurance/internal/httpapi/router_test.go",
+      "mode": "100644",
+      "blob_sha": "98a99d6ba85d66ac97890cd917854540c3ecfb1e",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/insurance/internal/service/service.go",
+      "mode": "100644",
+      "blob_sha": "16a98c2507a70bc6e42275f4d9a8a26f877c75e9",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/insurance/internal/service/service_test.go",
+      "mode": "100644",
+      "blob_sha": "3a0c60c8bc5734095ba053084f8a2417add83884",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/insurance/kbot-compose.yml",
+      "mode": "100644",
+      "blob_sha": "1064d6e7f2157a3711afa9e8dc203796026289b9",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/insurance/knowledge/auto-policy-2026.07.md",
+      "mode": "100644",
+      "blob_sha": "17fc47e3db60a7ab7d047e198dc503032f329ded",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/insurance/knowledge/fraud-rules-2026.08.md",
+      "mode": "100644",
+      "blob_sha": "49ae2b7156318173478f5b981d8805c5456e5379",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/insurance/scripts/e2e.sh",
+      "mode": "100755",
+      "blob_sha": "991f3b2dd276f36f3ea3f4cb5195549e39daaaf7",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/insurance/scripts/install.sh",
+      "mode": "100755",
+      "blob_sha": "5b7087dafb0bd6dd56f5bb3d4fd70cf091a39b4f",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/insurance/skills/claim-intake-triage/SKILL.md",
+      "mode": "100644",
+      "blob_sha": "4cd18b38b7dbffe4614f78d988bcf2cef6ee167e",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/projects/insurance/skills/underwriting-assessment/SKILL.md",
+      "mode": "100644",
+      "blob_sha": "7a351fabf428de7fb393aa9764efd2550c8895d9",
+      "module": "MOD-BUSINESS"
+    },
+    {
+      "path": "kbot-final/scripts/bootstrap.sh",
+      "mode": "100644",
+      "blob_sha": "a13ce50167a7dac552f57f28316b2a54f62a2cf8",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/scripts/check-vertical-isolation.sh",
+      "mode": "100644",
+      "blob_sha": "dc1d7de697b5e62bbb5e15213b019d92c7fb9f5f",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/scripts/langfuse-demo.sh",
+      "mode": "100755",
+      "blob_sha": "32e50b110f6ec5b42df6ae7a1bc428e1a9e6781c",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/scripts/langfuse-preflight.sh",
+      "mode": "100755",
+      "blob_sha": "0dacbbfa8b36b3f42b5e58433a9782ae7b59707b",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/scripts/langfuse-up.sh",
+      "mode": "100755",
+      "blob_sha": "43ef12630ccabc8b69593ddeacfec254b889ff93",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/scripts/ollama-pull.sh",
+      "mode": "100644",
+      "blob_sha": "ac198c51f5f19dbe4c77fa095829e33f50402eb4",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/scripts/seed.sh",
+      "mode": "100755",
+      "blob_sha": "8647facfbf8f647c828ba437a6dfd3ad27dedd44",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/sqlc.yaml",
+      "mode": "100644",
+      "blob_sha": "49d94baa2ef8bf1ae0017b949932dd783f50b5bf",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/testdata/kb_docs/refund.md",
+      "mode": "100644",
+      "blob_sha": "4ccc4071a004e3132f9e6aeecf8af70a393dc9f2",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/testdata/kb_docs/shipping.md",
+      "mode": "100644",
+      "blob_sha": "1bc9256a28ccadf41f71f9fef4097b7f30eec219",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/tests/integration/approval_e2e_test.go",
+      "mode": "100644",
+      "blob_sha": "5780bc567240e4a2cffe9bbadd2ca27de124cc4a",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/tests/integration/e2e_test.go",
+      "mode": "100644",
+      "blob_sha": "369934f58b189ae9d42162b95d6308a70134845b",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/tests/integration/helpers_test.go",
+      "mode": "100644",
+      "blob_sha": "db8749cb6966a265045f979378866dc344a4ebd1",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/tests/integration/pg_e2e_test.go",
+      "mode": "100644",
+      "blob_sha": "b4c07b46b6f172741ed97f808647ef82399e6fbb",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/web/admin/.gitignore",
+      "mode": "100644",
+      "blob_sha": "41bb1a6494b73466dbcf66de521e514879a3b5c8",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/web/admin/index.html",
+      "mode": "100644",
+      "blob_sha": "6b926f48bc1eab722bfce2c9fba28f170d23d8e4",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/web/admin/package-lock.json",
+      "mode": "100644",
+      "blob_sha": "3be419374dd21db252663fb595ac99c7c1b561f3",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/web/admin/package.json",
+      "mode": "100644",
+      "blob_sha": "86bc02a1896dcdf16a196c86fe268015d0bab566",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/web/admin/public/favicon.svg",
+      "mode": "100644",
+      "blob_sha": "9810a1f62fd285baac125ac38c6ae80a7888eb60",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/web/admin/src/App.tsx",
+      "mode": "100644",
+      "blob_sha": "5a1a5a5fcb6569382d472bbd0c6020b0aaa4ad57",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/web/admin/src/a2ui/protocol.ts",
+      "mode": "100644",
+      "blob_sha": "54e2fa5c5f91d5ce8a63c7002910800dbe44bb51",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/web/admin/src/api/a2ui.ts",
+      "mode": "100644",
+      "blob_sha": "cb8f39165a2c18fc4e52b7fb42b13c1a0dc06ca8",
+      "module": "MOD-APPROVAL"
+    },
+    {
+      "path": "kbot-final/web/admin/src/api/agent.ts",
+      "mode": "100644",
+      "blob_sha": "90ef33f8fc5fd5bab57462c8ecafc8b4b5d4633a",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/web/admin/src/api/audit.ts",
+      "mode": "100644",
+      "blob_sha": "82a6b85f291866ba92e3b163407614c678def6fc",
+      "module": "MOD-AUDIT"
+    },
+    {
+      "path": "kbot-final/web/admin/src/api/auth.test.ts",
+      "mode": "100644",
+      "blob_sha": "1e0c52a7707c5d1bf59922648b03cc5dc79c31a3",
+      "module": "MOD-IAM"
+    },
+    {
+      "path": "kbot-final/web/admin/src/api/auth.ts",
+      "mode": "100644",
+      "blob_sha": "033724fba02f03e5f435dae2038d600d5573b571",
+      "module": "MOD-IAM"
+    },
+    {
+      "path": "kbot-final/web/admin/src/api/client.test.ts",
+      "mode": "100644",
+      "blob_sha": "7df9dfb3751a8277b7cd4dbd62edc7d2fe40bdfb",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/web/admin/src/api/client.ts",
+      "mode": "100644",
+      "blob_sha": "54fbb2923bf5fc7af4cfb000e747e461188a1601",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/web/admin/src/api/eval.ts",
+      "mode": "100644",
+      "blob_sha": "5c017dbd59653d3aa25bc25e3f04e56675d400f9",
+      "module": "MOD-EVAL"
+    },
+    {
+      "path": "kbot-final/web/admin/src/api/guard.ts",
+      "mode": "100644",
+      "blob_sha": "8a8cf5d6c8997793d48eac1af42a4fe513f562d1",
+      "module": "MOD-GUARD"
+    },
+    {
+      "path": "kbot-final/web/admin/src/api/iam.ts",
+      "mode": "100644",
+      "blob_sha": "1a1d03ac2d45b731d53514ae8deeb7f7810c5b6d",
+      "module": "MOD-IAM"
+    },
+    {
+      "path": "kbot-final/web/admin/src/api/kb.ts",
+      "mode": "100644",
+      "blob_sha": "555bd8808745e8dec3416da2c3aaaad7fdc801a0",
+      "module": "MOD-KB"
+    },
+    {
+      "path": "kbot-final/web/admin/src/api/model.ts",
+      "mode": "100644",
+      "blob_sha": "9ca5162a7059176ad491145c78a4aa9cbdbb1fd0",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/web/admin/src/api/observability.ts",
+      "mode": "100644",
+      "blob_sha": "2ac530114cb3b57b1689962813eb22d09866ab46",
+      "module": "MOD-OBS"
+    },
+    {
+      "path": "kbot-final/web/admin/src/api/prompt.ts",
+      "mode": "100644",
+      "blob_sha": "81990335fb6e0c5433032f381a4977c30e7715e4",
+      "module": "MOD-PROMPT"
+    },
+    {
+      "path": "kbot-final/web/admin/src/api/skill.ts",
+      "mode": "100644",
+      "blob_sha": "e9a6303062aced51af43cb3b1d2950b2b7338e93",
+      "module": "MOD-SKILL"
+    },
+    {
+      "path": "kbot-final/web/admin/src/api/team.ts",
+      "mode": "100644",
+      "blob_sha": "1d20d242907974a0a02379bbf3801ff6fdadf915",
+      "module": "MOD-TEAM"
+    },
+    {
+      "path": "kbot-final/web/admin/src/api/tool.ts",
+      "mode": "100644",
+      "blob_sha": "1e81d929eb5ba0bd8971746c59d6229c8db29d96",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/web/admin/src/api/types.ts",
+      "mode": "100644",
+      "blob_sha": "cebb8f29ace11894644bb960b065bdad674dd66f",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/web/admin/src/components/A2UIRenderer.tsx",
+      "mode": "100644",
+      "blob_sha": "c13b80184858df89a2712e373d2d02a28d426300",
+      "module": "MOD-APPROVAL"
+    },
+    {
+      "path": "kbot-final/web/admin/src/components/AgentConfigFields.tsx",
+      "mode": "100644",
+      "blob_sha": "35c7ec6be351e46e227976e51e63a3dab8e620c1",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/web/admin/src/components/AppLayout.css",
+      "mode": "100644",
+      "blob_sha": "b708516c6f4445f68135cf168006bf96172b7b1d",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/web/admin/src/components/AppLayout.tsx",
+      "mode": "100644",
+      "blob_sha": "15eb953cd3827f45587008a3342b90c18b73eb70",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/web/admin/src/components/CodeEditor.tsx",
+      "mode": "100644",
+      "blob_sha": "077e6d55f44cadb6ad5d16f8b32f0e7949a54b55",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/web/admin/src/components/ModelProfileVersionSelect.tsx",
+      "mode": "100644",
+      "blob_sha": "7a281e1adc746c4d81420b5792bb62e3b95c4ce5",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/web/admin/src/components/ProtectedRoute.tsx",
+      "mode": "100644",
+      "blob_sha": "d5bc1a1f7e8f348f3e2cd6a8fdce61a67079d7d5",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/web/admin/src/components/SkillEditor.tsx",
+      "mode": "100644",
+      "blob_sha": "e5bd3a5c30fd0e84e5f677b7916d41a649c7213b",
+      "module": "MOD-SKILL"
+    },
+    {
+      "path": "kbot-final/web/admin/src/components/WorkspaceSwitcher.tsx",
+      "mode": "100644",
+      "blob_sha": "d19c6819577a246b1eac93eb8404dd972ffb1c0c",
+      "module": "MOD-IAM"
+    },
+    {
+      "path": "kbot-final/web/admin/src/lib/format.ts",
+      "mode": "100644",
+      "blob_sha": "645d853f0ec19f2fcd20b906e9879b1d4534a142",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/web/admin/src/main.tsx",
+      "mode": "100644",
+      "blob_sha": "0dc3a3cbdfddac882204894526ec1570e390bdad",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/web/admin/src/nav.tsx",
+      "mode": "100644",
+      "blob_sha": "02a1073f0a355ce1a7c8eab042cd53820c60fc1a",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/web/admin/src/pages/AgentDetailPage.tsx",
+      "mode": "100644",
+      "blob_sha": "b743edb47903145d5d406178fe18bf6f77b87f75",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/web/admin/src/pages/AgentsPage.tsx",
+      "mode": "100644",
+      "blob_sha": "02b54c31aa48441acc9f125c61b4174fa6b73b0c",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/web/admin/src/pages/AuditPage.tsx",
+      "mode": "100644",
+      "blob_sha": "ea55ea107a204b3b0f7e9b5b4400ab09781cca20",
+      "module": "MOD-AUDIT"
+    },
+    {
+      "path": "kbot-final/web/admin/src/pages/ConversationsPage.css",
+      "mode": "100644",
+      "blob_sha": "880c73680e1a8c1a8249cbc184954a6bfb69fad1",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/web/admin/src/pages/ConversationsPage.tsx",
+      "mode": "100644",
+      "blob_sha": "f081c87480c2f9c46f5e0ab177c7b2f9bcf9a04c",
+      "module": "MOD-AGENT"
+    },
+    {
+      "path": "kbot-final/web/admin/src/pages/EvalPage.tsx",
+      "mode": "100644",
+      "blob_sha": "f06a04d32eeb558e3d3f3e741d3dae7ff1935064",
+      "module": "MOD-EVAL"
+    },
+    {
+      "path": "kbot-final/web/admin/src/pages/GuardPage.tsx",
+      "mode": "100644",
+      "blob_sha": "b10f7f39344cde12f9ad33f01784d4c095298f2d",
+      "module": "MOD-GUARD"
+    },
+    {
+      "path": "kbot-final/web/admin/src/pages/KBDetailPage.tsx",
+      "mode": "100644",
+      "blob_sha": "8ec71c818f97429321eea62151ceabbfd1c82a51",
+      "module": "MOD-KB"
+    },
+    {
+      "path": "kbot-final/web/admin/src/pages/KBsPage.tsx",
+      "mode": "100644",
+      "blob_sha": "1a2754f9023a0c8a0587db9b91e23c5f39e36b8b",
+      "module": "MOD-KB"
+    },
+    {
+      "path": "kbot-final/web/admin/src/pages/LoginPage.tsx",
+      "mode": "100644",
+      "blob_sha": "865a9e7b21316f2eedf0c69edf138b26bc1adfe6",
+      "module": "MOD-IAM"
+    },
+    {
+      "path": "kbot-final/web/admin/src/pages/ModelsPage.tsx",
+      "mode": "100644",
+      "blob_sha": "bb14c7b6da9f05efbc8ede9aa4c111e4ccfebef8",
+      "module": "MOD-MODEL"
+    },
+    {
+      "path": "kbot-final/web/admin/src/pages/ObservabilityPage.tsx",
+      "mode": "100644",
+      "blob_sha": "dc8d25650f0857aca64e9dae39bdbc83e0f6e36e",
+      "module": "MOD-OBS"
+    },
+    {
+      "path": "kbot-final/web/admin/src/pages/PromptDetailPage.tsx",
+      "mode": "100644",
+      "blob_sha": "df1f8e1b6e8f37659598c4f0d3f76be24a37a195",
+      "module": "MOD-PROMPT"
+    },
+    {
+      "path": "kbot-final/web/admin/src/pages/PromptsPage.tsx",
+      "mode": "100644",
+      "blob_sha": "edd516ad53da0b6cadb1cf4296a85ba6d1c243fd",
+      "module": "MOD-PROMPT"
+    },
+    {
+      "path": "kbot-final/web/admin/src/pages/SkillDetailPage.tsx",
+      "mode": "100644",
+      "blob_sha": "e578a4d22bcca13d1107a64dac0e435e39a32cc4",
+      "module": "MOD-SKILL"
+    },
+    {
+      "path": "kbot-final/web/admin/src/pages/SkillsPage.tsx",
+      "mode": "100644",
+      "blob_sha": "154433aef152c8c0d4b10de46b363d45c5a2b21f",
+      "module": "MOD-SKILL"
+    },
+    {
+      "path": "kbot-final/web/admin/src/pages/TeamsPage.tsx",
+      "mode": "100644",
+      "blob_sha": "5dca60ca0f70482c3859092078bc7d7521261ed2",
+      "module": "MOD-TEAM"
+    },
+    {
+      "path": "kbot-final/web/admin/src/pages/ToolDetailPage.tsx",
+      "mode": "100644",
+      "blob_sha": "0a3b687423d1ad2ccdefd5e65ff80c1c42447d7f",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/web/admin/src/pages/ToolsPage.tsx",
+      "mode": "100644",
+      "blob_sha": "ab72994357b7cc0c9029b1ce336bc19b402906e0",
+      "module": "MOD-TOOL"
+    },
+    {
+      "path": "kbot-final/web/admin/src/pages/UsersPage.tsx",
+      "mode": "100644",
+      "blob_sha": "3927394ed09f9eee8f2beaa242ce422e8f460189",
+      "module": "MOD-IAM"
+    },
+    {
+      "path": "kbot-final/web/admin/src/pages/WorkspacesPage.tsx",
+      "mode": "100644",
+      "blob_sha": "19e6f334ce9d0da0cba1e90e91e242f4c35f1b84",
+      "module": "MOD-IAM"
+    },
+    {
+      "path": "kbot-final/web/admin/src/store/authStore.ts",
+      "mode": "100644",
+      "blob_sha": "5d7f52b32e674621157b7ac325017c1e0523c8b3",
+      "module": "MOD-IAM"
+    },
+    {
+      "path": "kbot-final/web/admin/src/store/uiStore.ts",
+      "mode": "100644",
+      "blob_sha": "9d1614e8bca39536e8b5cb76ca591b77779c59c8",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/web/admin/src/vite-env.d.ts",
+      "mode": "100644",
+      "blob_sha": "11f02fe2a0061d6e6e1f271b21da95423b448b32",
+      "module": "MOD-CORE"
+    },
+    {
+      "path": "kbot-final/web/admin/tsconfig.json",
+      "mode": "100644",
+      "blob_sha": "191f3addb503867c79513f159eeb3175362a5140",
+      "module": "MOD-DELIVERY"
+    },
+    {
+      "path": "kbot-final/web/admin/vite.config.ts",
+      "mode": "100644",
+      "blob_sha": "da7d6ffb47c018e7d1c2ea28a381f457b98ee44a",
+      "module": "MOD-DELIVERY"
+    }
+  ],
+  "related_files": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "mode": "100644",
+      "blob_sha": "cc95585abcbbd8ce504b2571ae86c1c892aa2b5d",
+      "module": "MOD-DELIVERY"
+    }
+  ]
+}

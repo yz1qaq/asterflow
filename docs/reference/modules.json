@@ -1,0 +1,233 @@
+{
+  "schema_version": 1,
+  "modules": [
+    {
+      "id": "MOD-CORE",
+      "name": "启动与公共契约",
+      "requirements": [
+        "FR-18"
+      ],
+      "epic": "EP-01",
+      "owner": "yz1qaq",
+      "status": "planned",
+      "target_area": "cmd/*、internal/config/domain/util、api公共层",
+      "dependencies": "无"
+    },
+    {
+      "id": "MOD-IAM",
+      "name": "身份与空间",
+      "requirements": [
+        "FR-01"
+      ],
+      "epic": "EP-02",
+      "owner": "yz1qaq",
+      "status": "planned",
+      "target_area": "platform/iam、api/middleware、api/v1/iam/auth",
+      "dependencies": "CORE/PG"
+    },
+    {
+      "id": "MOD-MODEL",
+      "name": "模型治理",
+      "requirements": [
+        "FR-03"
+      ],
+      "epic": "EP-03",
+      "owner": "yz1qaq",
+      "status": "planned",
+      "target_area": "platform/modelconfig、runtime/llm",
+      "dependencies": "CORE/IAM/PG"
+    },
+    {
+      "id": "MOD-PROMPT",
+      "name": "Prompt治理",
+      "requirements": [
+        "FR-02"
+      ],
+      "epic": "EP-04",
+      "owner": "yz1qaq",
+      "status": "planned",
+      "target_area": "platform/prompt、runtime/promptcache",
+      "dependencies": "IAM/MODEL/PG/Redis"
+    },
+    {
+      "id": "MOD-AGENT",
+      "name": "Agent与会话",
+      "requirements": [
+        "FR-07"
+      ],
+      "epic": "EP-05",
+      "owner": "yz1qaq",
+      "status": "planned",
+      "target_area": "platform/agent、runtime/engine、api/streaming",
+      "dependencies": "IAM/PROMPT/MODEL；TOOL/SKILL/KB按阶段"
+    },
+    {
+      "id": "MOD-TOOL",
+      "name": "工具与沙箱",
+      "requirements": [
+        "FR-04"
+      ],
+      "epic": "EP-06",
+      "owner": "yz1qaq",
+      "status": "planned",
+      "target_area": "platform/tool、runtime/tooling/sandbox、cmd/sandbox-runner",
+      "dependencies": "IAM/PG；APPROVAL用于敏感路径"
+    },
+    {
+      "id": "MOD-KB",
+      "name": "知识库与检索",
+      "requirements": [
+        "FR-06"
+      ],
+      "epic": "EP-07",
+      "owner": "yz1qaq",
+      "status": "planned",
+      "target_area": "platform/kb、connector、runtime/retriever",
+      "dependencies": "IAM/PG/Redis/CACHE"
+    },
+    {
+      "id": "MOD-SKILL",
+      "name": "Skills",
+      "requirements": [
+        "FR-05"
+      ],
+      "epic": "EP-08",
+      "owner": "yz1qaq",
+      "status": "planned",
+      "target_area": "platform/skill、runtime/skillrunner",
+      "dependencies": "IAM/TOOL/KB/AGENT"
+    },
+    {
+      "id": "MOD-APPROVAL",
+      "name": "审批与受控UI",
+      "requirements": [
+        "FR-08"
+      ],
+      "epic": "EP-09",
+      "owner": "yz1qaq",
+      "status": "planned",
+      "target_area": "platform/approval、runtime/engine审批、internal/a2ui",
+      "dependencies": "AGENT/TOOL/IAM/CACHE"
+    },
+    {
+      "id": "MOD-TEAM",
+      "name": "多Agent编排",
+      "requirements": [
+        "FR-09"
+      ],
+      "epic": "EP-10",
+      "owner": "yz1qaq",
+      "status": "planned",
+      "target_area": "platform/team、runtime/team、engine/team_runtime",
+      "dependencies": "AGENT/SKILL/TOOL"
+    },
+    {
+      "id": "MOD-GUARD",
+      "name": "运行治理",
+      "requirements": [
+        "FR-10"
+      ],
+      "epic": "EP-11",
+      "owner": "yz1qaq",
+      "status": "planned",
+      "target_area": "runtime/guard、platform/guardconfig",
+      "dependencies": "IAM/AGENT/MODEL/CACHE"
+    },
+    {
+      "id": "MOD-AUDIT",
+      "name": "审计与归档",
+      "requirements": [
+        "FR-11"
+      ],
+      "epic": "EP-12",
+      "owner": "yz1qaq",
+      "status": "planned",
+      "target_area": "platform/audit/maintenance、infra/objstore/partitioning",
+      "dependencies": "IAM/PG/MinIO/CACHE"
+    },
+    {
+      "id": "MOD-OBS",
+      "name": "可观测性",
+      "requirements": [
+        "FR-12"
+      ],
+      "epic": "EP-13",
+      "owner": "yz1qaq",
+      "status": "planned",
+      "target_area": "infrastructure/otel/metrics、runtime/* tracing",
+      "dependencies": "CORE/AGENT/MODEL/AUDIT"
+    },
+    {
+      "id": "MOD-EVAL",
+      "name": "评估与门禁",
+      "requirements": [
+        "FR-13"
+      ],
+      "epic": "EP-14",
+      "owner": "yz1qaq",
+      "status": "planned",
+      "target_area": "platform/eval、api/v1/eval",
+      "dependencies": "AGENT/MODEL/PG"
+    },
+    {
+      "id": "MOD-CACHE",
+      "name": "缓存与任务",
+      "requirements": [
+        "FR-14"
+      ],
+      "epic": "EP-15",
+      "owner": "yz1qaq",
+      "status": "planned",
+      "target_area": "runtime/cache、infrastructure/redis/jobs",
+      "dependencies": "CORE/Redis/PG"
+    },
+    {
+      "id": "MOD-CHANNEL",
+      "name": "渠道接入",
+      "requirements": [
+        "FR-15"
+      ],
+      "epic": "EP-16",
+      "owner": "yz1qaq",
+      "status": "planned",
+      "target_area": "integration、api/v1/integration、WS",
+      "dependencies": "IAM/AGENT/CACHE"
+    },
+    {
+      "id": "MOD-SDK",
+      "name": "SDK与CLI",
+      "requirements": [
+        "FR-16"
+      ],
+      "epic": "EP-17",
+      "owner": "yz1qaq",
+      "status": "planned",
+      "target_area": "pkg/sdk、cmd/asterctl、OpenAPI/静态托管",
+      "dependencies": "各已交付API"
+    },
+    {
+      "id": "MOD-BUSINESS",
+      "name": "独立业务与预设",
+      "requirements": [
+        "FR-17"
+      ],
+      "epic": "EP-18",
+      "owner": "yz1qaq",
+      "status": "planned",
+      "target_area": "business_systems/*、platform/preset、cmd/mockllm",
+      "dependencies": "TOOL/KB/SKILL/APPROVAL；业务可独立启动"
+    },
+    {
+      "id": "MOD-DELIVERY",
+      "name": "部署与工程质量",
+      "requirements": [
+        "FR-18"
+      ],
+      "epic": "EP-19",
+      "owner": "yz1qaq",
+      "status": "planned",
+      "target_area": "deploy、scripts、tests、.github、docs",
+      "dependencies": "所有模块分阶段"
+    }
+  ]
+}
