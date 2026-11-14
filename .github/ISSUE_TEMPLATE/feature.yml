@@ -1,0 +1,29 @@
+name: 功能任务
+description: 有明确交付边界的工程任务
+title: "[ENG-xxx] "
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: 业务场景与目标
+      description: 引用FR/MOD/Epic，说明问题和交付结果。
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 范围、接口与依赖
+      description: 可改路径、请求/响应、错误、权限、数据与并发约束。
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 验收条件
+      description: 后端、前端、测试和运维的可验证产出。
+    validations:
+      required: true
+  - type: textarea
+    id: plan
+    attributes:
+      label: 负责人方案、风险与待确认
