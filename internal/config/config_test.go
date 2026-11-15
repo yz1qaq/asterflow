@@ -2,10 +2,12 @@ package config
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
 func TestLoad(t *testing.T) {
+	t.Setenv("ASTERFLOW_DATABASE_URL", "postgres://unit@127.0.0.1:1/unit?sslmode=disable")
 	cases := []struct {
 		name    string
 		set     bool
@@ -49,6 +51,51 @@ func TestLoad(t *testing.T) {
 			}
 			if err != nil || got.HTTPAddr != tc.want {
 				t.Fatalf("want %q, got %#v, %v", tc.want, got, err)
+			}
+		})
+	}
+}
+
+func TestLoadDatabaseURL(t *testing.T) {
+	cases := []struct {
+		name    string
+		set     bool
+		value   string
+		wantErr bool
+	}{
+		{"missing", false, "", true},
+		{"empty", true, "", true},
+		{"spaces", true, "  \t\n", true},
+		{"unicode_space", true, "\u3000", true},
+		{"uri", true, "postgres://unit@127.0.0.1:1/unit?sslmode=disable", false},
+		{"keyword_configuration", true, "host=127.0.0.1 port=1 dbname=unit user=unit", false},
+		{"defer_parsing_to_postgres", true, "invalid-but-nonempty", false},
+		{"preserve_original_value", true, " host=127.0.0.1 dbname=unit ", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("ASTERFLOW_HTTP_ADDR", ":18090")
+			t.Setenv("ASTERFLOW_DATABASE_URL", tc.value)
+			if !tc.set {
+				if err := os.Unsetenv("ASTERFLOW_DATABASE_URL"); err != nil {
+					t.Fatal(err)
+				}
+			}
+			cfg, err := Load()
+			if tc.wantErr {
+				if err == nil || !strings.Contains(err.Error(), "ASTERFLOW_DATABASE_URL") {
+					t.Fatalf("want missing database configuration error, got %v", err)
+				}
+				if cfg != (Config{}) {
+					t.Fatal("configuration error returned a partial config")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected configuration error: %v", err)
+			}
+			if cfg.DatabaseURL != tc.value {
+				t.Fatal("Load did not preserve the original database configuration")
 			}
 		})
 	}

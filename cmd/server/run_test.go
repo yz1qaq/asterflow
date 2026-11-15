@@ -253,7 +253,44 @@ func TestMainProcess(t *testing.T) {
 	t.Run("invalid_config_exit_one", func(t *testing.T) {
 		assertStartupExitOne(t, binary, "", "ASTERFLOW_HTTP_ADDR")
 	})
+
+	t.Run("missing_database_config_exit_one", func(t *testing.T) {
+		t.Setenv("ASTERFLOW_TEST_DATABASE_URL", "")
+		assertStartupExitOne(t, binary, "127.0.0.1:18090", "ASTERFLOW_DATABASE_URL")
+	})
+	t.Run("invalid_database_config_exit_one", func(t *testing.T) {
+		const secret = "test-password-must-not-be-logged"
+		t.Setenv("ASTERFLOW_TEST_DATABASE_URL",
+			"postgres://unit:"+secret+"@127.0.0.1:invalid/unit")
+		output := assertStartupExitOne(t, binary, "127.0.0.1:18090", "open PostgreSQL")
+		if strings.Contains(output, secret) || strings.Contains(output, "starting HTTP server") {
+			t.Fatal("invalid database configuration exposed credentials or started HTTP")
+		}
+	})
+	t.Run("unavailable_database_does_not_bind_http", func(t *testing.T) {
+		// Empty private directory cannot contain a PostgreSQL Unix socket.
+		t.Setenv("ASTERFLOW_TEST_DATABASE_URL", "host="+t.TempDir()+" dbname=unit user=unit sslmode=disable")
+		probe, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		addr := probe.Addr().String()
+		probe.Close()
+		output := assertStartupExitOne(t, binary, addr, "open PostgreSQL")
+		if strings.Contains(output, "starting HTTP server") {
+			t.Fatal("HTTP startup proceeded after PostgreSQL connection failure")
+		}
+		listener, err := net.Listen("tcp", addr)
+		if err != nil {
+			t.Fatalf("failed startup left the HTTP port occupied: %v", err)
+		}
+		listener.Close()
+	})
+
 	t.Run("occupied_port_exit_one", func(t *testing.T) {
+		if os.Getenv("ASTERFLOW_TEST_DATABASE_URL") == "" {
+			t.Skip("set ASTERFLOW_TEST_DATABASE_URL for real PostgreSQL process verification")
+		}
 		listener, err := net.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
 			t.Fatal(err)
@@ -262,9 +299,15 @@ func TestMainProcess(t *testing.T) {
 		assertStartupExitOne(t, binary, listener.Addr().String(), "listen HTTP")
 	})
 	t.Run("sigint_health_and_exit_zero", func(t *testing.T) {
+		if os.Getenv("ASTERFLOW_TEST_DATABASE_URL") == "" {
+			t.Skip("set ASTERFLOW_TEST_DATABASE_URL for real PostgreSQL process verification")
+		}
 		assertSignalShutdown(t, binary, os.Interrupt)
 	})
 	t.Run("sigterm_health_and_exit_zero", func(t *testing.T) {
+		if os.Getenv("ASTERFLOW_TEST_DATABASE_URL") == "" {
+			t.Skip("set ASTERFLOW_TEST_DATABASE_URL for real PostgreSQL process verification")
+		}
 		assertSignalShutdown(t, binary, syscall.SIGTERM)
 	})
 }
@@ -273,17 +316,21 @@ func processEnvironment(addr string) []string {
 	env := make([]string, 0, len(os.Environ())+2)
 	for _, value := range os.Environ() {
 		if strings.HasPrefix(value, "ASTERFLOW_HTTP_ADDR=") ||
-			strings.HasPrefix(value, "GIN_MODE=") {
+			strings.HasPrefix(value, "GIN_MODE=") ||
+			strings.HasPrefix(value, "ASTERFLOW_DATABASE_URL=") {
 			continue
 		}
 		env = append(env, value)
 	}
-	return append(env, "ASTERFLOW_HTTP_ADDR="+addr, "GIN_MODE=test")
+	// Subprocesses may only use the explicitly selected test database.
+	databaseURL := os.Getenv("ASTERFLOW_TEST_DATABASE_URL")
+	return append(env, "ASTERFLOW_HTTP_ADDR="+addr, "GIN_MODE=test",
+		"ASTERFLOW_DATABASE_URL="+databaseURL)
 }
 
-func assertStartupExitOne(t *testing.T, binary, addr, message string) {
+func assertStartupExitOne(t *testing.T, binary, addr, message string) string {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()
 	command := exec.CommandContext(ctx, binary)
 	command.Env = processEnvironment(addr)
@@ -295,6 +342,7 @@ func assertStartupExitOne(t *testing.T, binary, addr, message string) {
 	if !strings.Contains(string(output), message) {
 		t.Fatalf("missing expected error %q in %s", message, output)
 	}
+	return string(output)
 }
 
 func assertSignalShutdown(t *testing.T, binary string, signal os.Signal) {
@@ -354,6 +402,15 @@ func assertSignalShutdown(t *testing.T, binary string, signal os.Signal) {
 	if !ready {
 		cleanup()
 		t.Fatalf("health endpoint was not ready\n%s", output.String())
+	}
+	resp, err := client.Get("http://" + addr + "/readyz")
+	if err != nil {
+		t.Fatalf("real PostgreSQL readiness failed: %v", err)
+	}
+	body, readErr := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if readErr != nil || resp.StatusCode != http.StatusOK || string(body) != "ok" {
+		t.Fatalf("want real readiness 200 ok, got %d %q %v", resp.StatusCode, body, readErr)
 	}
 	if err := command.Process.Signal(signal); err != nil {
 		t.Fatalf("send %v: %v", signal, err)

@@ -10,6 +10,7 @@ import (
 
 	"github.com/yz1qaq/asterflow/internal/api"
 	"github.com/yz1qaq/asterflow/internal/config"
+	"github.com/yz1qaq/asterflow/internal/infrastructure/postgres"
 )
 
 func main() {
@@ -30,7 +31,13 @@ func start() error {
 	)
 	defer stop()
 
-	handler := api.NewRouter()
+	pool, err := postgres.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return fmt.Errorf("open PostgreSQL: %w", err)
+	}
+	defer pool.Close()
+
+	handler := api.NewRouter(pool)
 	log.Printf("starting HTTP server on %s", cfg.HTTPAddr)
 
 	return run(ctx, handler, cfg.HTTPAddr)

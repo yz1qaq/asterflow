@@ -10,7 +10,8 @@ import (
 )
 
 type Config struct {
-	HTTPAddr string
+	HTTPAddr    string
+	DatabaseURL string
 }
 
 func Load() (Config, error) {
@@ -36,5 +37,16 @@ func Load() (Config, error) {
 			"ASTERFLOW_HTTP_ADDR port must be between 1 and 65535",
 		)
 	}
-	return Config{HTTPAddr: addr}, nil
+
+	databaseURL := os.Getenv("ASTERFLOW_DATABASE_URL")
+	if strings.TrimSpace(databaseURL) == "" {
+		return Config{}, fmt.Errorf(
+			"ASTERFLOW_DATABASE_URL is required",
+		)
+	}
+
+	return Config{
+		HTTPAddr:    addr,
+		DatabaseURL: databaseURL,
+	}, nil
 }
