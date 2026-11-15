@@ -1,10 +1,10 @@
 # AsterFlow架构设计
 
-目标架构版本0.1已通过设计PR #3；ENG-001基础HTTP已合并，ENG-002的PG连接/就绪切片在功能分支通过本地验收、待PR。其他模块仍为目标设计；约束来自[PRD](../product/PRD.md)。[ADR-0001](adr/0001-reference-and-boundaries.md)记录基线和取舍。
+目标架构版本0.1已通过设计PR #3；ENG-001基础HTTP已合并，ENG-002的PG连接/就绪切片已通过PR #6合并，固定HEAD Review及远程CI通过。其他模块仍为目标设计；约束来自[PRD](../product/PRD.md)。[ADR-0001](adr/0001-reference-and-boundaries.md)记录基线和取舍。
 
 ## 当前增量：PG基础设施
 
-ENG-001已合并；ENG-002在功能分支完成以下实际装配路径，本地真实PG/HTTP及中断恢复已验证，尚待PR/远程CI。其余系统图仍表示目标设计。
+ENG-001/ENG-002已合并；以下实际装配路径的本地真实PG/HTTP及中断恢复、远程CI和Review已验证。其余系统图仍表示目标设计。
 
 ```mermaid
 flowchart LR
@@ -19,7 +19,27 @@ flowchart LR
     P --> PG[(独立PostgreSQL)]
 ```
 
-ReadinessChecker定义在API消费方；API无需import postgres包，由main注入满足接口的pool。入口掌握资源生命周期，run退出后才关闭池。业务服务/Store和迁移尚未实现，不能将图中的PG连接当成业务持久化完成。
+ReadinessChecker定义在API消费方；API无需import postgres包，由main注入满足接口的pool。入口掌握资源生命周期，run退出后才关闭池。业务服务/Store尚未实现；ENG-003迁移进度见下文，不能将图中的PG连接当成业务持久化完成。
+
+## 当前增量：迁移命令
+
+ENG-003在独立分支实现迁移CLI与IAM初始SQL；严格query校验已修复并通过完整复验，开发public已实际应用000001。当前待提交/PR，尚未生产部署。
+
+```mermaid
+flowchart LR
+    CLI[cmd/migrate] --> FLAGS[参数校验 / URL与文件路径]
+    FLAGS --> MIG[golang-migrate]
+    FILE[migrations up/down SQL] --> MIG
+    MIG --> DRIVER[pgx5数据库驱动]
+    DRIVER --> TABLES[(目标schema: IAM七表)]
+    DRIVER --> VER[(schema_migrations: version / dirty)]
+    SERVER[cmd/server] --> POOL[postgres.Open / pgxpool]
+    POOL --> PG[(同一平台PG)]
+    TABLES --> PG
+    VER --> PG
+```
+
+迁移CLI与server各自管理连接，API层不负责DDL。框架版本表和业务表区分；测试临时schema与开发public区分。本轮分别记录临时schema验证与开发public首次up成功，详细证据见[ENG-003验收](../delivery/ENG-003-VERIFICATION.md)。
 
 ## 方案与取舍
 

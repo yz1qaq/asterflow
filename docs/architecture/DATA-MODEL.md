@@ -1,6 +1,6 @@
 # 数据模型与一致性
 
-目标设计，尚未建表。SQL与迁移由所属模块任务交付，数据模型需结合API契约共同评审。
+大部分为目标设计；ENG-003七表SQL已保存并在临时schema验证，开发库public已实际应用000001并实查version=1 dirty=false。SQL与迁移由所属模块任务交付，数据模型需结合API契约共同评审。
 
 | 领域 | 主要实体/关联 | 关键约束 |
 | --- | --- | --- |
@@ -19,7 +19,7 @@
 
 ## 标识和版本
 
-ID为全局唯一UUID；Version为同一主记录内的展示序号，不能混为一谈。ToolID/ToolVersionID/Name分别表示工具主记录/不可变版本/模型调用名。
+用户/角色及多数业务主记录使用UUID；工作空间主键与关联workspace_id按参考采用TEXT，允许default这样的可读slug，也能保存UUID字符串。各实体SQL类型以对应迁移为准；Version为同一主记录内的展示序号，不能与主键混为一谈。ToolID/ToolVersionID/Name分别表示工具主记录/不可变版本/模型调用名。
 dev/staging/prod是可变引用，不是复制三份业务实体。Conversation保存实际版本和运行配置，重新发布不改旧记录。
 SnapshotJSON保存装配配置，不保存动态执行栈；Checkpoint保存ADK中断状态，不替代消息历史。
 

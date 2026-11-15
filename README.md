@@ -6,7 +6,7 @@ AsterFlow 将模型、提示词、技能、工具、知识库与多Agent编排�
 
 ## 项目状态
 
-需求与架构已通过PR #3；ENG-001配置/Gin/HTTP生命周期已通过PR #4合并。ENG-002已在功能分支完成PostgreSQL连接池、启动装配和/readyz，本地真实PG及故障恢复验收通过；待作者提交/PR、远程CI和正式Review，尚未合并或部署发布。功能状态以[交付状态](docs/delivery/STATUS.md)为准，不将设计目标表述为现有能力。
+需求与架构已通过PR #3；ENG-001配置/Gin/HTTP生命周期已通过PR #4合并。ENG-002的PostgreSQL连接/就绪检查已通过PR #6合并，远程CI及固定提交AI Review完成，本地真实PG/故障恢复验收通过；尚无生产部署。当前ENG-003迁移CLI及IAM初始表已通过本地验收，开发库已应用000001；待提交/PR与远程CI/正式Review。功能状态以[交付状态](docs/delivery/STATUS.md)为准，不将设计目标表述为现有能力。
 
 目标范围包括：身份与空间权限、模型管理、Prompt治理、五源工具、Skills、知识检索、Agent/Team、审批与A2UI、Guard、Eval、审计观测、外部渠道、SDK/CLI、独立业务场景及部署。
 
@@ -47,6 +47,8 @@ git diff --check
 set -a
 source .env
 set +a
+make db-up
+make migrate-up
 make run
 ```
 
@@ -88,7 +90,7 @@ flowchart TD
     P --> S[stop信号监听 / 返回main]
 ```
 
-[本地验收记录](docs/delivery/ENG-002-VERIFICATION.md)列明已运行和待执行范围。本次不含业务表、迁移、认证、模型或Agent，不能代替完整产品验收。
+[本地验收记录](docs/delivery/ENG-002-VERIFICATION.md)列明已运行和待执行范围。该ENG-002切片不含业务表/迁移/认证/模型/Agent；当前迁移增量另见ENG-003，不能代替完整产品验收。
 
 ## 本地PostgreSQL
 
@@ -103,8 +105,8 @@ set +a
 make test-postgres
 ```
 
-Go不自动读取.env；source是当前终端显式加载本机可信配置。测试只读查询当前独立开发库，无建表/迁移。test-postgres要求显式测试URL；普通go test没有该变量时会跳过真实PG测试。
-默认只绑定127.0.0.1:25432，Compose项目asterflow使用独立容器和数据卷。镜像固定为官方PG16/pgvector多架构索引digest，支持AMD64/ARM64，本机已验证PG16.16；CI使用同一索引，远程结果仍待推送确认。数据未与旧项目共享。
+Go不自动读取.env；source是当前终端显式加载本机可信配置。test-postgres只读检查连接；新增迁移测试在临时schema执行DDL并清理，见下方数据库迁移说明。test-postgres要求显式测试URL；普通go test没有该变量时会跳过真实PG测试。
+默认只绑定127.0.0.1:25432，Compose项目asterflow使用独立容器和数据卷。镜像固定为官方PG16/pgvector多架构索引digest，支持AMD64/ARM64，本机已验证PG16.16；CI使用同一索引，ENG-002远程已通过；当前分支新增迁移用例的远程结果待推送确认。数据未与旧项目共享。
 
 ```bash
 make db-stop
@@ -114,6 +116,21 @@ make db-down
 
 stop停止数据库，up恢复启动；down移除本项目容器和网络并保留数据卷。修改.env密码不会修改已有数据卷中的角色密码。主程序已装配Open，先连接PG再启动HTTP；healthz不探测数据库，readyz实时检查。PG恢复后可重新就绪，无须重启Go服务。
 任务范围见[ENG-002](docs/tasks/ENG-002.md)，真实故障与集中检查证据见[验收记录](docs/delivery/ENG-002-VERIFICATION.md)。
+
+## 数据库迁移
+
+ENG-003迁移CLI和初始IAM七表SQL已完成本地验收，query解析缺陷已修复；本机开发库实际为version=1 dirty=false，详见[迁移验收](docs/delivery/ENG-003-VERIFICATION.md)。
+
+新环境在已导出.env的终端执行；已有数据库重复up会正常无变更：
+
+```bash
+make migrate-up
+make migrate-version
+```
+
+迁移由独立cmd/migrate命令管理；HTTP服务启动只连接PG，不自动修改表结构。版本000001包含七张表，schema_migrations记录当前版本及dirty。初始表存在不代表用户登录或权限接口已实现。
+
+make migrate-down会回退一个版本并删除该版本表及数据；自动回退验收仅在临时schema中执行。完整命令、失败处理与部署目录要求见[迁移操作说明](docs/operations/DATABASE-MIGRATIONS.md)。
 
 ## 协作
 
