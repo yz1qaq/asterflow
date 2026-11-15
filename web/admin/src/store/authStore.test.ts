@@ -39,4 +39,3 @@ describe('persisted login state', () => {
     expect(isSessionValid({ token: null, expiresAt: new Date(Date.now() + 60_000).toISOString() })).toBe(false)
   })
 })
-

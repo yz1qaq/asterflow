@@ -57,3 +57,22 @@ class RepositoryChecksTest(unittest.TestCase):
                 text=True, capture_output=True, check=False,
             )
             self.assertEqual(result.returncode, expected, result.stderr)
+
+    def test_untracked_file_whitespace_is_checked(self):
+        root = self.fixture()
+        subprocess.run(["git", "init", "-q", str(root)], check=True,
+                       capture_output=True)
+        candidate = root / "new-file.go"
+        candidate.write_text("package fixture \n\n")
+        command = ["python3", str(root / "scripts/check_repo.py")]
+        result = subprocess.run(command, cwd=root, text=True,
+                                capture_output=True, check=False)
+        self.assertNotEqual(result.returncode, 0,
+                            "new files must be checked before git add")
+        self.assertIn("new-file.go", result.stderr)
+        candidate.write_text("package fixture\n")
+        subprocess.run(["git", "add", "new-file.go"], cwd=root, check=True,
+                       capture_output=True)
+        result = subprocess.run(command, cwd=root, text=True,
+                                capture_output=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)

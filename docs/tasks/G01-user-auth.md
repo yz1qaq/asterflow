@@ -1,6 +1,6 @@
 # G01：用户与登录（ENG-004+005）
 
-关联[Issue #9](https://github.com/yz1qaq/asterflow/issues/9)。状态In Progress；User、5条SQL、生成代码和用户PG Store已保存；隔离PG验证通过；用户创建/密码/管理员Service及JWT登录/验证已保存并测试，Gin请求鉴权已保存并通过归组测试；三个用户Handler和公共解码/分页已保存并通过归组测试；路由/启动配置已由负责人保存，React对应页面已复用并桌面联调通过；集中make check通过，独立AI工作区预审无已证实P1/P2；等待负责人提交PR及最终head门禁。按[ROADMAP](../delivery/ROADMAP.md)一个需求组/分支/PR，组内分批讲解并集中验收。
+关联[Issue #9](https://github.com/yz1qaq/asterflow/issues/9)。状态In Progress；User、5条SQL、生成代码和用户PG Store已保存；隔离PG验证通过；用户创建/密码/管理员Service及JWT登录/验证已保存并测试，Gin请求鉴权已保存并通过归组测试；三个用户Handler和公共解码/分页已保存并通过归组测试；路由/启动配置已由负责人保存，React对应页面已复用并桌面联调通过；集中make check通过，独立AI工作区预审无已证实P1/P2；PR #10已创建，初版go/web成功、docs空白检查失败，本地修复待提交并复审新head。按[ROADMAP](../delivery/ROADMAP.md)一个需求组/分支/PR，组内分批讲解并集中验收。
 
 ## 学习目标与分工
 
@@ -32,7 +32,7 @@ ENG-003已由PR #8合并，迁移000001和开发库version1 clean已验收；本
 2. [x] 作者完成用户Store/PG适配与数据库错误/时间/ID映射；助手新增一个postgres_store_test.go，真实随机schema下5组场景和race通过。
 3. [x] 用户创建/密码/管理员初始化已由作者保存；助手新增一个service_test.go，输入校验、真实PG哈希/规范化、初始化幂等/并发及race通过。作者已保存auth.go；助手将真实PG登录/账号拒绝、JWT签名/有效期/算法/身份边界验证合入service_test.go，IAM包race通过。作者已保存Service.GetUser与Gin Auth/RequireGlobalAdmin；助手新增一个middleware/auth_test.go，9类请求/race通过（真实JWT、显式存储测试夹具）。真实业务路由已注册，真实HTTP/PG权限链路已验证。
 4. [x] Service.ListUsers、公共解码/分页、三个Handler、构造函数、Gin路由/配置/启动装配均已保存；对应React登录/用户/系统状态已迁入，真实HTTP+PG及桌面浏览器验收通过，测试调用已统一适配。
-5. [ ] 本地make check（含真实PG、全部Go包race/vet/build、前端18测试/类型检查/构建、文档）通过；独立AI工作区预审无已证实P1/P2。仍需作者提交同一分支PR，确认远程docs/go/web并按最终head Review后决定合并。
+5. [ ] 本地make check（含真实PG、全部Go包race/vet/build、前端18测试/类型检查/构建、文档）通过；独立AI工作区预审无已证实P1/P2。PR #10初版head 2a18e3e的go/web成功、docs空白检查失败；提交级AI COMMENT Review已发布。本地格式与门禁修复待负责人推送到同一PR，再确认新head门禁和Review。
 
 验收重点：重复邮箱/非法输入、哈希保存与不回显、管理员初始化幂等、登录成功与拒绝、token与可信身份、普通用户不能访问全局管理员接口、PG重启回读与Web刷新/退出。具体签名与测试随当前批次明确，不为未来模块预写假实现。
 

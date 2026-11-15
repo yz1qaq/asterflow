@@ -27,5 +27,3 @@ export function getUserManagementError(error: unknown, action: 'list' | 'create'
   }
   return error instanceof Error ? error.message : '操作失败，请稍后重试'
 }
-
-

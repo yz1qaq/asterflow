@@ -1,7 +1,7 @@
 # G01 本地验收记录
 
 日期：2026-11-15。需求：[G01](../tasks/G01-user-auth.md)，关联[Issue #9](https://github.com/yz1qaq/asterflow/issues/9)。
-分支feat/ENG-004-005-user-auth，基线8b64cb52e0e61bcd905b71d5a0981919bf7b8680。本组尚未提交，下面是工作区证据，不是固定PR head或远程CI结果。
+分支feat/ENG-004-005-user-auth，基线8b64cb52e0e61bcd905b71d5a0981919bf7b8680。本组已创建[PR #10](https://github.com/yz1qaq/asterflow/pull/10)，初版head为2a18e3e8557d0c1efa6146ed9f5b65f713f25ca5。原本地验收与后续远程结果分开记录。
 
 ## 实现范围与归属
 
@@ -25,7 +25,7 @@ React复用原管理端对应页面与公共样式，只迁移本组已接入的
 
 ## 集中门禁与评审状态
 
-显式加载.env及ASTERFLOW_TEST_DATABASE_URL后集中make check退出0；文档、依赖一致性、全部10个Go包（2个无测试）、race/vet/server+migrate构建、前端18测试/类型检查/构建通过。Web工作流定义已增加，远程docs/go/web Checks仍待负责人提交PR后确认。
+显式加载.env及ASTERFLOW_TEST_DATABASE_URL后集中make check退出0；文档、依赖一致性、全部10个Go包（2个无测试）、race/vet/server+migrate构建、前端18测试/类型检查/构建通过。Web工作流定义已增加，初版2a18e3e的push/PR两组go/web均SUCCESS，docs因5处空白FAILURE；修复后新head仍需重新确认远程结果。
 服务端当前已知必需状态仍是docs/go，未声称web已加入GitHub分支保护。
 独立AI只读工作区预审已完成，未发现已证实P1/P2。审阅了生产Go/SQL/生成代码、配置/路由/React/测试/CI；受审查环境Docker权限限制，未独立复跑PG/浏览器。不是GitHub独立Approve，不代替最终提交SHA的PR Review。非阻断建议：users在created_at同值时可追加id唯一排序；当前按固定参考单列排序，未将低概率单条写入边界夸大为已证实阻断缺陷。
 
@@ -39,3 +39,13 @@ make check
 
 没有ASTERFLOW_TEST_DATABASE_URL时，真实PG用例会明确跳过，不能据此声称PG验收完成。
 开发启动与前后端链路见[README](../../README.md)。本组未生产部署；后续完整能力按ROADMAP继续。
+
+## PR #10 提交级 Review 与 CI 修复
+
+[AI COMMENT Review](https://github.com/yz1qaq/asterflow/pull/10#pullrequestreview-5911499070)锚定2a18e3e8557d0c1efa6146ed9f5b65f713f25ca5，独立复核全部67文件，未发现已证实业务P1/P2。
+远程go/web在push和PR两组均SUCCESS；docs在git diff --check HEAD^ HEAD处失败。5个文件为domain/iam.go和4个Web文件，只有EOF空行/行尾空格。
+
+根因：先前本地git diff --check未覆盖未跟踪新文件，而CI针对已提交差异检查。本地已仅清理这5文件空白，未改变业务文本。
+门禁新增全部Git候选文件的空白检查（包含尚未git add的新文件，跳过符号链接/二进制），并检查暂存差异。
+新增未跟踪文件回归用例先失败、修复后通过；6项文档测试与完整候选检查通过。独立AI也复核了这次未提交门禁补丁，无已证实P1/P2。
+修复尚未推送，不能把本地通过当成远程已绿；负责人需在同一分支追加提交，更新原PR并重新确认新head。

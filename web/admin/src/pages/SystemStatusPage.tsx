@@ -126,7 +126,7 @@ export function SystemStatusPage() {
           <Typography.Paragraph className="status-overview-description">{description}</Typography.Paragraph>
         </div>
         {rows.map(row => <div key={row.endpoint} className="status-overview-row"><span>{row.name}</span><CheckStatus row={row} /></div>)}
-        
+
       </aside>
       </div>
     </section>

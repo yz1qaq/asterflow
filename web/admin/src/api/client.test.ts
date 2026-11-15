@@ -61,4 +61,3 @@ describe('authenticated requests', () => {
     expect(mocked.logout).not.toHaveBeenCalled()
   })
 })
-

@@ -6,7 +6,7 @@ AsterFlow 将模型、提示词、技能、工具、知识库与多Agent编排�
 
 ## 项目状态
 
-需求与架构已通过PR #3；ENG-001配置/Gin/HTTP生命周期已通过PR #4合并。ENG-002的PostgreSQL连接/就绪检查已通过PR #6合并，远程CI及固定提交AI Review完成，本地真实PG/故障恢复验收通过；尚无生产部署。ENG-003迁移CLI及IAM初始表已通过PR #8合并，开发库已应用000001；G01（用户与登录）正在实现：用户PG Store、密码/管理员初始化、JWT与Gin鉴权已保存并完成对应测试；用户Handler、启动装配和路由已接通；React系统状态/登录/用户页已增量复用，真实HTTP/PG与桌面浏览器验收通过，本地make check通过，独立AI工作区预审无已证实阻断问题；等待负责人提交PR和最终head的远程CI/Review。功能状态以[交付状态](docs/delivery/STATUS.md)为准，不将设计目标表述为现有能力。
+需求与架构已通过PR #3；ENG-001配置/Gin/HTTP生命周期已通过PR #4合并。ENG-002的PostgreSQL连接/就绪检查已通过PR #6合并，远程CI及固定提交AI Review完成，本地真实PG/故障恢复验收通过；尚无生产部署。ENG-003迁移CLI及IAM初始表已通过PR #8合并，开发库已应用000001；G01（用户与登录）正在实现：用户PG Store、密码/管理员初始化、JWT与Gin鉴权已保存并完成对应测试；用户Handler、启动装配和路由已接通；React系统状态/登录/用户页已增量复用，真实HTTP/PG与桌面浏览器验收通过，本地make check通过，独立AI工作区预审无已证实阻断问题；PR #10已创建，初版go/web通过、docs空白检查失败，格式与门禁修复待推送后重新确认CI/Review。功能状态以[交付状态](docs/delivery/STATUS.md)为准，不将设计目标表述为现有能力。
 
 目标范围包括：身份与空间权限、模型管理、Prompt治理、五源工具、Skills、知识检索、Agent/Team、审批与A2UI、Guard、Eval、审计观测、外部渠道、SDK/CLI、独立业务场景及部署。
 

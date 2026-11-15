@@ -6,6 +6,7 @@ docs-check:
 	python3 scripts/check_repo.py
 	python3 -m unittest discover -s scripts -p 'test_*.py' -v
 	git diff --check
+	git diff --cached --check
 
 deps-check:
 	$(ASTERFLOW_GO) mod tidy -diff
