@@ -17,7 +17,7 @@ class RepositoryChecksTest(unittest.TestCase):
         target = Path(temp.name) / "repo"
         shutil.copytree(
             ROOT, target,
-            ignore=shutil.ignore_patterns(".git", "__pycache__", "node_modules"),
+            ignore=shutil.ignore_patterns(".git", "__pycache__", "node_modules", "bin", "dist", "build", ".worktrees"),
         )
         return target
 

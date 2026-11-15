@@ -9,7 +9,7 @@
       ],
       "epic": "EP-01",
       "owner": "yz1qaq",
-      "status": "planned",
+      "status": "in_progress",
       "target_area": "cmd/*、internal/config/domain/util、api公共层",
       "dependencies": "无"
     },
@@ -225,7 +225,7 @@
       ],
       "epic": "EP-19",
       "owner": "yz1qaq",
-      "status": "planned",
+      "status": "in_progress",
       "target_area": "deploy、scripts、tests、.github、docs",
       "dependencies": "所有模块分阶段"
     }

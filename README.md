@@ -6,7 +6,7 @@ AsterFlow 将模型、提示词、技能、工具、知识库与多Agent编排�
 
 ## 项目状态
 
-当前处于需求与架构评审阶段，仓库包含产品文档、模块设计和协作检查工具，业务服务尚未实现。功能状态以[交付状态](docs/delivery/STATUS.md)为准，不将设计目标表述为现有能力。
+需求与架构已通过PR #3。本分支已实现配置、Gin健康接口、HTTP监听/优雅关闭与信号退出，完成本地验收，正在准备ENG-001功能PR；尚未合并到main或发布。功能状态以[交付状态](docs/delivery/STATUS.md)为准，不将设计目标表述为现有能力。
 
 目标范围包括：身份与空间权限、模型管理、Prompt治理、五源工具、Skills、知识检索、Agent/Team、审批与A2UI、Guard、Eval、审计观测、外部渠道、SDK/CLI、独立业务场景及部署。
 
@@ -37,7 +37,49 @@ python3 -m unittest discover -s scripts -p 'test_*.py' -v
 git diff --check
 ```
 
-业务运行与部署命令会随可用模块提交，当前没有Go/前端启动入口。
+当前后端命令和执行路径如下；前端尚未迁移。
+
+## 后端启动与检查
+
+本机需要make、Python3.9+及可用Go。Makefile以命令级固定Go1.26.6，不修改全局环境。
+
+```bash
+make run
+```
+
+默认监听:18090，另开终端：
+
+```bash
+curl -i http://127.0.0.1:18090/healthz
+```
+
+预期200、text/plain、正文ok；POST /healthz为405，未知路径或/healthz/为404。在服务终端Ctrl+C停止；SIGTERM同样触发最多5秒优雅关闭，超时关闭连接。普通Handler需配合context取消。
+
+```bash
+ASTERFLOW_HTTP_ADDR=127.0.0.1:18091 GIN_MODE=release make run
+make check
+make build
+./bin/asterflow
+```
+
+make check执行文档、依赖一致性、race测试、vet和构建；build生成的bin目录已忽略。配置变量未设置时用默认，显式空白或非法host:port/端口1–65535以错误退出。接口仅报告进程存活，不表示PG/Redis或任何业务能力已就绪。
+
+## 当前启动与退出路径
+
+```mermaid
+flowchart LR
+    A[main] --> B[start: 配置 / 信号监听 / Gin路由]
+    B --> C[run: 监听与Serve]
+    C --> D[GET /healthz: 200 ok]
+    E[SIGINT / SIGTERM] --> F[ctx取消]
+    F --> G[Shutdown: 最多5秒]
+    G -->|完成| H[等待Serve返回]
+    G -->|超时| I[Close关闭连接]
+    I --> H
+    H --> J[start清理并返回main]
+```
+
+[本地验收记录](docs/delivery/ENG-001-VERIFICATION.md)列明已运行和未运行范围。数据库、认证、模型、Agent及其他目标模块后续按Backlog实现，不以本切片代替完整产品验收。
 
 ## 协作
 
