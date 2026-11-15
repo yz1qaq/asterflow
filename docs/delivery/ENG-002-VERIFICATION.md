@@ -1,5 +1,7 @@
 # ENG-002本地验收记录
 
+> 合并状态更新：ENG-002已通过PR #6合并，提交699e38f4a01efa23647a04a64fde2b545d10114e；固定HEAD AI COMMENT与远程docs/go通过，Issue #5已关闭。下文为功能分支验收时的历史快照，当前工作以STATUS为准。
+
 日期2026-11-15，分支feat/ENG-002-postgres-readiness。状态：实现及本地验收通过，尚未提交/推送/PR；远程CI与按新head SHA正式PR Review待执行。
 
 ## 当前实现与归属

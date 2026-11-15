@@ -41,7 +41,7 @@ jobs:
           cache-dependency-path: go.sum
       - name: Check module consistency
         run: go mod tidy -diff
-      - name: Test with race detector
+      - name: Test with race detector and isolated PostgreSQL migrations
         run: go test -race -count=1 ./...
       - name: Vet
         run: go vet ./...
