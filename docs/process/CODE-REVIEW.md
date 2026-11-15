@@ -25,7 +25,7 @@ P0：密钥泄漏/数据破坏等必须立即停止；P1：功能/权限/并发�
 
 ## 当前个人仓库的实际限制
 
-PR作者不能批准自己的PR。当前GitHub独立批准人数设为0，要求PR+docs检查+解决讨论；这不等于已有另一名人类审批。AI可以使用当前账号提交明确标注的COMMENT review，但不能伪装独立Approve。
+PR作者不能批准自己的PR。当前GitHub独立批准人数设为0，要求PR+docs/go检查+解决讨论；这不等于已有另一名人类审批。AI可以使用当前账号提交明确标注的COMMENT review，但不能伪装独立Approve。
 引入另一名真实协作者并获得授权后，再将独立批准人数改为1，按需要启用Code Owner。当前不要求作者给自己发Review request。
 
 官方说明：[审查PR](https://docs.github.com/en/pull-requests/how-tos/review-pull-requests/reviewing-proposed-changes-in-a-pull-request)。实际保护配置见[治理记录](REPOSITORY-GOVERNANCE.md)。

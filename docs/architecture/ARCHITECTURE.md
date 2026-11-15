@@ -1,13 +1,13 @@
 # AsterFlow架构设计
 
-版本0.1，待评审。约束来自[PRD](../product/PRD.md)；当前为目标架构，尚未实现。[ADR-0001](adr/0001-reference-and-boundaries.md)记录基线和取舍。
+目标架构版本0.1已通过设计PR #3；当前ENG-001仅实现配置/Gin/HTTP生命周期切片，其他模块仍为目标设计。约束来自[PRD](../product/PRD.md)；当前为目标架构，尚未实现。[ADR-0001](adr/0001-reference-and-boundaries.md)记录基线和取舍。
 
 ## 方案与取舍
 
 采用模块化Go平台，server/worker独立进程，共享PG/Redis；Sandbox Runner独立服务；业务系统独立进程/数据库。该方案复用固定技术基线的控制面/运行时边界，事务边界清楚、单机可部署，后续通过既有HTTP/任务协议拆分。
 将每个模块立即拆成微服务会引入额外鉴权/网络/事务协调，偏离当前基线；单进程同时持有Docker Socket又无法保持执行隔离。因此选前者，不新增服务网格等未要求设施。
 
-技术：Go 1.26.6、chi、pgx/sqlc、PostgreSQL/pgvector、Redis/Asynq、Eino v0.9.15、React/TypeScript/Ant Design/Vite、MinIO、OTel/Prometheus/Langfuse。依赖版本进入对应实现PR时锁定，不能仅凭此文档声称已安装。
+技术：Go 1.26.6、Gin v1.12.0、pgx/sqlc、PostgreSQL/pgvector、Redis/Asynq、Eino v0.9.15、React/TypeScript/Ant Design/Vite、MinIO、OTel/Prometheus/Langfuse。依赖版本进入对应实现PR时锁定，不能仅凭此文档声称已安装。
 
 ## 系统与部署边界
 
@@ -104,3 +104,13 @@ LocalEmbedder仅用于流程验证，实际语义质量需要明确模型和语�
 ## 演进边界
 
 当前不新增SSO/OIDC、OpenSearch、Kubernetes/HA等上游尚未实现的系统。真正落地范围为PRD与固定已实现基线；任何差异按ADR/PR记录。
+
+
+## HTTP接入适配
+
+负责人2026-11-15确认后端采用Gin，前端保留React；详见[ADR-0003](adr/0003-gin-http-adapter.md)。NewRouter保持返回http.Handler，Server生命周期不依赖具体框架。gin.Context只在API/中间件使用，业务/运行时继续传c.Request.Context()得到的标准context.Context。框架替换不改变既定权限、事件、状态码和主要业务逻辑；差异逐项以契约测试核对。
+
+
+## ENG-001实现切片
+
+cmd/server/main.go中的main只处理日志/退出码，start装配config.Load/Gin/信号并调用run；run.go集中监听与关闭，配置/API各保留单一职责。35个场景含真实进程和信号已本地通过，详见[验收](../delivery/ENG-001-VERIFICATION.md)；未推送/合并，不代表目标图中PG、Agent、前端等已完成。

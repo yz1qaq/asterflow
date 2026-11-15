@@ -17,6 +17,8 @@
 
 ## 目标映射差异
 
+- HTTP后端：参考chi→Gin v1.12.0；前端继续React。接入层/中间件适配，业务/运行时维持标准context.Context与完整行为，见[ADR-0003](../architecture/adr/0003-gin-http-adapter.md)。固定上游清单和SHA不修改。
+
 - 上游kbot产品标识→AsterFlow；module→github.com/yz1qaq/asterflow；CLI kbotctl→asterctl；配置前缀计划ASTERFLOW_。协议资源/字段随任务评审，不做破坏语义的机械替换。
 - projects/crossborder、projects/insurance→business_systems/crossborder、business_systems/insurance，独立module/进程/PG数据库。参考内存业务示例改为PG适配，业务行为不削减。
 - internal/platform/coursepreset→internal/platform/preset，保留全部场景资产/初始化能力。

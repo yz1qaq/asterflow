@@ -1,6 +1,6 @@
 # 需求到交付追踪
 
-当前仅建立需求/模块归属，没有业务实现或验收通过。每个Epic派生ENG任务后，在任务/PR记录实际文件和证据，不用下表替代测试。
+当前FR-18的ENG-001基础服务已本地验收，待PR/CI/Review；其余模块未交付。每个Epic派生ENG任务后，在任务/PR记录实际文件和证据，不用下表替代测试。
 
 | 需求 | 主责模块 | Epic | 当前实现 |
 | --- | --- | --- | --- |
@@ -21,7 +21,7 @@
 | FR-15 | MOD-CHANNEL | EP-16 | 未实现 |
 | FR-16 | MOD-SDK | EP-17 | 未实现 |
 | FR-17 | MOD-BUSINESS | EP-18 | 未实现 |
-| FR-18 | MOD-CORE、MOD-DELIVERY | EP-01、EP-19 | 未实现 |
+| FR-18 | MOD-CORE、MOD-DELIVERY | EP-01、EP-19 | 部分：ENG-001本地通过，待提交/Review；完整部署/质量范围未完成 |
 
 完整验收链：FR→MOD→Epic→ENG/Issue→PR/head→测试/集成/桌面/部署证据→合并/Verified。当前DOC-001负责项目契约和协作流程，不将它标记为FR-18全部完成。
 固定参考每个文件的主责模块在[upstream-files.json](upstream-files.json)；后续按模块补“目标路径/验收证据”差异清单。上游目录存在不能作为本仓库能力。
