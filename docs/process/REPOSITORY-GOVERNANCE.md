@@ -1,6 +1,6 @@
 # 仓库治理与实际配置
 
-更新日期2026-11-15。仓库：[yz1qaq/asterflow](https://github.com/yz1qaq/asterflow)，公开，main为默认分支。初始化README是bootstrap提交；需求/架构PR #3已由负责人合并；当前ENG-001功能分支feat/ENG-001-config-health尚待作者提交/推送/PR，不自动合并。
+更新日期2026-11-15。仓库：[yz1qaq/asterflow](https://github.com/yz1qaq/asterflow)，公开，main为默认分支。初始化README是bootstrap提交；需求/架构PR #3已由负责人合并；ENG-001已通过PR #4由负责人合并，docs/go检查通过，但没有合并前正式PR Review。当前ENG-002分支feat/ENG-002-postgres-readiness本地验收通过，待作者提交/推送/PR，不自动合并。
 
 ## 已经实际配置并通过API回读
 
@@ -18,7 +18,7 @@
 独立批准人数0：当前只有作者账号，GitHub不允许作者批准自己的PR。服务端要求PR和CI/解决讨论，但不保证“另一名人类已经看过”。
 AI可以留下COMMENT review并锚定当前head，标注发现和证据。邀请真实有权限协作者后，再评审是否设为1个独立批准/Code Owner；不创建虚构账号或自批准记录。
 
-本功能分支已有docs和go工作流：Go包含依赖一致性、race、vet、build。main服务端已要求两项，但本分支尚未push，远程Go结果尚未产生；工作流文件与保护要求不等于Checks通过。前端/PG/Docker门禁随对应源码/依赖引入，不能用当前Go/文档绿色代替那些验证。
+本功能分支已有docs和go工作流：Go包含依赖一致性、race、vet、build。main服务端已要求两项，但本分支尚未push，远程Go结果尚未产生；工作流文件与保护要求不等于Checks通过。ENG-002本分支已加入独立PG服务和明确测试URL，待远程执行确认；前端/Runner业务门禁后续按对应实现引入，不能用本地Go/文档绿色代替远程或其他依赖验收。
 CI检查失败必须修复；不能为合并关闭保护或将required check改成空。仓库所有者仍可修改设置，这不是组织级不可绕过安全边界。
 
 ## 核验命令

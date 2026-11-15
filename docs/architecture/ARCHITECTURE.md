@@ -1,6 +1,25 @@
 # AsterFlow架构设计
 
-目标架构版本0.1已通过设计PR #3；当前ENG-001仅实现配置/Gin/HTTP生命周期切片，其他模块仍为目标设计。约束来自[PRD](../product/PRD.md)；当前为目标架构，尚未实现。[ADR-0001](adr/0001-reference-and-boundaries.md)记录基线和取舍。
+目标架构版本0.1已通过设计PR #3；ENG-001基础HTTP已合并，ENG-002的PG连接/就绪切片在功能分支通过本地验收、待PR。其他模块仍为目标设计；约束来自[PRD](../product/PRD.md)。[ADR-0001](adr/0001-reference-and-boundaries.md)记录基线和取舍。
+
+## 当前增量：PG基础设施
+
+ENG-001已合并；ENG-002在功能分支完成以下实际装配路径，本地真实PG/HTTP及中断恢复已验证，尚待PR/远程CI。其余系统图仍表示目标设计。
+
+```mermaid
+flowchart LR
+    S[start] --> O[postgres.Open]
+    O --> P[pgxpool.Pool]
+    S --> R[api.NewRouter: 接口注入]
+    P -. 作为参数传入 .-> R
+    R --> H[healthz: 不查PG]
+    R --> RD[readyz Handler]
+    RD --> I[ReadinessChecker.Ping]
+    I --> P
+    P --> PG[(独立PostgreSQL)]
+```
+
+ReadinessChecker定义在API消费方；API无需import postgres包，由main注入满足接口的pool。入口掌握资源生命周期，run退出后才关闭池。业务服务/Store和迁移尚未实现，不能将图中的PG连接当成业务持久化完成。
 
 ## 方案与取舍
 
@@ -113,4 +132,4 @@ LocalEmbedder仅用于流程验证，实际语义质量需要明确模型和语�
 
 ## ENG-001实现切片
 
-cmd/server/main.go中的main只处理日志/退出码，start装配config.Load/Gin/信号并调用run；run.go集中监听与关闭，配置/API各保留单一职责。35个场景含真实进程和信号已本地通过，详见[验收](../delivery/ENG-001-VERIFICATION.md)；未推送/合并，不代表目标图中PG、Agent、前端等已完成。
+cmd/server/main.go中的main只处理日志/退出码，start装配config.Load/Gin/信号并调用run；run.go集中监听与关闭，配置/API各保留单一职责。35个场景含真实进程和信号已本地通过，详见[验收](../delivery/ENG-001-VERIFICATION.md)；该历史切片已通过PR #4合并。PG增量见上文ENG-002；Agent、前端等其他目标功能尚未完成。

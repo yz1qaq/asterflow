@@ -24,3 +24,24 @@ run:
 	$(ASTERFLOW_GO) run ./cmd/server
 
 check: docs-check deps-check test vet build
+
+# Local PostgreSQL only; existing project containers and volumes are untouched.
+ASTERFLOW_COMPOSE := docker compose --env-file .env -f deploy/compose.yaml
+
+.PHONY: db-up db-stop db-down db-status test-postgres
+
+db-up:
+	$(ASTERFLOW_COMPOSE) up -d --wait --wait-timeout 60 postgres
+
+db-stop:
+	$(ASTERFLOW_COMPOSE) stop postgres
+
+db-down:
+	$(ASTERFLOW_COMPOSE) down
+
+db-status:
+	$(ASTERFLOW_COMPOSE) ps
+
+test-postgres:
+	@test -n "$${ASTERFLOW_TEST_DATABASE_URL:-}" || { echo "Export ASTERFLOW_TEST_DATABASE_URL before running test-postgres"; exit 1; }
+	$(ASTERFLOW_GO) test -race -count=1 -v ./internal/infrastructure/postgres

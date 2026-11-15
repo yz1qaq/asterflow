@@ -17,6 +17,22 @@ jobs:
     env:
       GIN_MODE: test
       GOTOOLCHAIN: local
+      ASTERFLOW_TEST_DATABASE_URL: postgres://asterflow:asterflow-ci-only@127.0.0.1:5432/asterflow?sslmode=disable
+    services:
+      postgres:
+        image: pgvector/pgvector@sha256:484e838076e04939d27d3e176e91c86eea96236126023be8d3059761122e579f
+        env:
+          POSTGRES_USER: asterflow
+          POSTGRES_DB: asterflow
+          # Disposable CI database only; this is not a deployment secret.
+          POSTGRES_PASSWORD: asterflow-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U asterflow -d asterflow"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0

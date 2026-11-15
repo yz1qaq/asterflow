@@ -1,0 +1,23 @@
+name: asterflow
+
+services:
+  postgres:
+    # Fixed multi-platform PG16 index (linux/amd64 and linux/arm64).
+    image: pgvector/pgvector@sha256:484e838076e04939d27d3e176e91c86eea96236126023be8d3059761122e579f
+    environment:
+      POSTGRES_USER: asterflow
+      POSTGRES_DB: asterflow
+      POSTGRES_PASSWORD: ${ASTERFLOW_POSTGRES_PASSWORD:?set ASTERFLOW_POSTGRES_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:${ASTERFLOW_POSTGRES_PORT:-25432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+      start_period: 5s
+
+volumes:
+  postgres_data:
