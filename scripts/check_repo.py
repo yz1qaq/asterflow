@@ -3,6 +3,7 @@
 import hashlib
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
@@ -100,8 +101,35 @@ def check_root(root):
     return errors
 
 
+def check_whitespace(root):
+    """Check working files, including new files not yet added to Git."""
+    root = Path(root).resolve()
+    result = subprocess.run(
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+        cwd=root, text=True, capture_output=True, check=False,
+    )
+    if result.returncode != 0:
+        return ["cannot enumerate repository files for whitespace checks"]
+    errors = []
+    for name in sorted(set(result.stdout.split("\0")) - {""}):
+        path = root / name
+        if path.is_symlink() or not path.is_file():
+            continue
+        data = path.read_bytes()
+        if b"\0" in data:
+            continue
+        lines = data.splitlines()
+        for number, line in enumerate(lines, 1):
+            if line.endswith((b" ", b"\t")):
+                errors.append("%s:%d: trailing whitespace" % (name, number))
+        if lines and not lines[-1].strip(b" \t"):
+            errors.append("%s:%d: blank line at EOF" % (name, len(lines)))
+    return errors
+
+
 def main():
-    errors = check_root(Path(__file__).resolve().parents[1])
+    root = Path(__file__).resolve().parents[1]
+    errors = check_root(root) + check_whitespace(root)
     if errors:
         for error in errors:
             print("ERROR: " + error, file=sys.stderr)

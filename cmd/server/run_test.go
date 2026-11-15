@@ -317,7 +317,9 @@ func processEnvironment(addr string) []string {
 	for _, value := range os.Environ() {
 		if strings.HasPrefix(value, "ASTERFLOW_HTTP_ADDR=") ||
 			strings.HasPrefix(value, "GIN_MODE=") ||
-			strings.HasPrefix(value, "ASTERFLOW_DATABASE_URL=") {
+			strings.HasPrefix(value, "ASTERFLOW_DATABASE_URL=") ||
+			strings.HasPrefix(value, "ASTERFLOW_JWT_SECRET_KEY=") ||
+			strings.HasPrefix(value, "ASTERFLOW_AUTOSEED_") {
 			continue
 		}
 		env = append(env, value)
@@ -325,7 +327,9 @@ func processEnvironment(addr string) []string {
 	// Subprocesses may only use the explicitly selected test database.
 	databaseURL := os.Getenv("ASTERFLOW_TEST_DATABASE_URL")
 	return append(env, "ASTERFLOW_HTTP_ADDR="+addr, "GIN_MODE=test",
-		"ASTERFLOW_DATABASE_URL="+databaseURL)
+		"ASTERFLOW_DATABASE_URL="+databaseURL,
+		"ASTERFLOW_JWT_SECRET_KEY=process-fixture-key-at-least-32-bytes",
+		"ASTERFLOW_AUTOSEED_ADMIN=false")
 }
 
 func assertStartupExitOne(t *testing.T, binary, addr, message string) string {

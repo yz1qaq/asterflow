@@ -10,8 +10,12 @@ import (
 )
 
 type Config struct {
-	HTTPAddr    string
-	DatabaseURL string
+	HTTPAddr              string
+	DatabaseURL           string
+	JWTSecretKey          string
+	AutoseedAdmin         bool
+	AutoseedAdminEmail    string
+	AutoseedAdminPassword string
 }
 
 func Load() (Config, error) {
@@ -45,8 +49,40 @@ func Load() (Config, error) {
 		)
 	}
 
+	jwtSecretKey := os.Getenv("ASTERFLOW_JWT_SECRET_KEY")
+	if len(jwtSecretKey) < 32 || strings.TrimSpace(jwtSecretKey) == "" {
+		return Config{}, fmt.Errorf(
+			"ASTERFLOW_JWT_SECRET_KEY must contain at least 32 bytes and not be all whitespace",
+		)
+	}
+
+	autoseedAdmin := false
+	if raw, exists := os.LookupEnv("ASTERFLOW_AUTOSEED_ADMIN"); exists {
+		autoseedAdmin, err = strconv.ParseBool(raw)
+		if err != nil {
+			return Config{}, fmt.Errorf(
+				"ASTERFLOW_AUTOSEED_ADMIN must be a boolean",
+			)
+		}
+	}
+
+	adminEmail := strings.TrimSpace(
+		os.Getenv("ASTERFLOW_AUTOSEED_ADMIN_EMAIL"),
+	)
+	adminPassword := os.Getenv("ASTERFLOW_AUTOSEED_ADMIN_PASSWORD")
+
+	if autoseedAdmin && (adminEmail == "" || adminPassword == "") {
+		return Config{}, fmt.Errorf(
+			"admin email and password are required when ASTERFLOW_AUTOSEED_ADMIN is enabled",
+		)
+	}
+
 	return Config{
-		HTTPAddr:    addr,
-		DatabaseURL: databaseURL,
+		HTTPAddr:              addr,
+		DatabaseURL:           databaseURL,
+		JWTSecretKey:          jwtSecretKey,
+		AutoseedAdmin:         autoseedAdmin,
+		AutoseedAdminEmail:    adminEmail,
+		AutoseedAdminPassword: adminPassword,
 	}, nil
 }
