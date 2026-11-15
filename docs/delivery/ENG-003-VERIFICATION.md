@@ -1,5 +1,7 @@
 # ENG-003集中验收记录
 
+> 合并状态更新：ENG-003已通过PR #8合并，Squash为8b64cb52e0e61bcd905b71d5a0981919bf7b8680，与固定head ed6c1e6的树一致；远程docs/go通过。合并前GitHub Reviews为空，本轮合并后固定head复核无新增发现，不能补称前置Review。下文保留原验收快照，当前状态以STATUS为准。
+
 日期2026-11-15，分支feat/ENG-003-database-migrations，基线699e38f4a01efa23647a04a64fde2b545d10114e。
 状态：生产实现及本地验收通过，开发库已应用000001；待作者提交/推送/PR，远程CI及按真实head的正式Review尚未完成。
 

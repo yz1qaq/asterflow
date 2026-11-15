@@ -7,10 +7,12 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/yz1qaq/asterflow/internal/api"
 	"github.com/yz1qaq/asterflow/internal/config"
 	"github.com/yz1qaq/asterflow/internal/infrastructure/postgres"
+	"github.com/yz1qaq/asterflow/internal/platform/iam"
 )
 
 func main() {
@@ -37,7 +39,24 @@ func start() error {
 	}
 	defer pool.Close()
 
-	handler := api.NewRouter(pool)
+	store := iam.NewPostgresStore(pool)
+	iamService := iam.NewService(store, []byte(cfg.JWTSecretKey))
+
+	if cfg.AutoseedAdmin {
+		seedCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		err := iamService.EnsureSeedAdmin(
+			seedCtx,
+			cfg.AutoseedAdminEmail,
+			cfg.AutoseedAdminPassword,
+		)
+		cancel()
+
+		if err != nil {
+			return fmt.Errorf("initialize admin: %w", err)
+		}
+	}
+
+	handler := api.NewRouter(pool, iamService)
 	log.Printf("starting HTTP server on %s", cfg.HTTPAddr)
 
 	return run(ctx, handler, cfg.HTTPAddr)

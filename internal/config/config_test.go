@@ -7,6 +7,8 @@ import (
 )
 
 func TestLoad(t *testing.T) {
+	t.Setenv("ASTERFLOW_JWT_SECRET_KEY", "config-fixture-key-at-least-32-bytes")
+	t.Setenv("ASTERFLOW_AUTOSEED_ADMIN", "false")
 	t.Setenv("ASTERFLOW_DATABASE_URL", "postgres://unit@127.0.0.1:1/unit?sslmode=disable")
 	cases := []struct {
 		name    string
@@ -57,6 +59,8 @@ func TestLoad(t *testing.T) {
 }
 
 func TestLoadDatabaseURL(t *testing.T) {
+	t.Setenv("ASTERFLOW_JWT_SECRET_KEY", "config-fixture-key-at-least-32-bytes")
+	t.Setenv("ASTERFLOW_AUTOSEED_ADMIN", "false")
 	cases := []struct {
 		name    string
 		set     bool
@@ -96,6 +100,52 @@ func TestLoadDatabaseURL(t *testing.T) {
 			}
 			if cfg.DatabaseURL != tc.value {
 				t.Fatal("Load did not preserve the original database configuration")
+			}
+		})
+	}
+}
+
+func TestLoadAuthConfiguration(t *testing.T) {
+	for _, tc := range []struct {
+		name, key, seed, email, password string
+		unsetSeed, wantErr               bool
+	}{
+		{"valid defaults", strings.Repeat("x", 32), "", "", "", true, false},
+		{"missing key", "", "false", "", "", false, true},
+		{"short key", "private-short-key", "false", "", "", false, true},
+		{"blank key", strings.Repeat(" ", 32), "false", "", "", false, true},
+		{"invalid flag", strings.Repeat("x", 32), "sometimes", "", "", false, true},
+		{"seed credentials", strings.Repeat("x", 32), "true", " admin@example.test ", " password123 ", false, false},
+		{"missing email", strings.Repeat("x", 32), "true", " ", "password123", false, true},
+		{"missing password", strings.Repeat("x", 32), "true", "admin@example.test", "", false, true},
+		{"disabled seed", strings.Repeat("x", 32), "false", "", "", false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("ASTERFLOW_HTTP_ADDR", ":18090")
+			t.Setenv("ASTERFLOW_DATABASE_URL", "host=unit dbname=unit")
+			t.Setenv("ASTERFLOW_JWT_SECRET_KEY", tc.key)
+			t.Setenv("ASTERFLOW_AUTOSEED_ADMIN", tc.seed)
+			t.Setenv("ASTERFLOW_AUTOSEED_ADMIN_EMAIL", tc.email)
+			t.Setenv("ASTERFLOW_AUTOSEED_ADMIN_PASSWORD", tc.password)
+			if tc.unsetSeed {
+				_ = os.Unsetenv("ASTERFLOW_AUTOSEED_ADMIN")
+			}
+			cfg, err := Load()
+			if tc.wantErr {
+				if err == nil || cfg != (Config{}) {
+					t.Fatal("invalid auth configuration accepted")
+				}
+				if tc.key != "" && strings.TrimSpace(tc.key) != "" && strings.Contains(err.Error(), tc.key) {
+					t.Fatal("secret leaked in configuration error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if cfg.JWTSecretKey != tc.key || cfg.AutoseedAdmin != (tc.seed == "true") ||
+				cfg.AutoseedAdminEmail != strings.TrimSpace(tc.email) || cfg.AutoseedAdminPassword != tc.password {
+				t.Fatal("auth configuration was not preserved")
 			}
 		})
 	}

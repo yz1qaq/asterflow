@@ -1,6 +1,6 @@
 # 仓库治理与实际配置
 
-更新日期2026-11-15。仓库：[yz1qaq/asterflow](https://github.com/yz1qaq/asterflow)，公开，main为默认分支。初始化README是bootstrap提交；需求/架构PR #3已由负责人合并；ENG-001已通过PR #4由负责人合并，docs/go检查通过，但没有合并前正式PR Review。ENG-002已通过PR #6合并，固定HEAD AI COMMENT和docs/go通过；当前ENG-003分支已修复query校验并通过本地验收，准备作者提交/PR，不自动合并。
+更新日期2026-11-15。仓库：[yz1qaq/asterflow](https://github.com/yz1qaq/asterflow)，公开，main为默认分支。初始化README是bootstrap提交；需求/架构PR #3已由负责人合并；ENG-001已通过PR #4由负责人合并，docs/go检查通过，但没有合并前正式PR Review。ENG-002已通过PR #6合并，固定HEAD AI COMMENT和docs/go通过；ENG-003已由负责人合并PR #8，当前准备G01；003合并前没有固定SHA正式GitHub Review，本轮合并后复核不能补称前置审查，不自动合并后续PR。
 
 ## 已经实际配置并通过API回读
 

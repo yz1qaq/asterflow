@@ -6,7 +6,7 @@ AsterFlow 将模型、提示词、技能、工具、知识库与多Agent编排�
 
 ## 项目状态
 
-需求与架构已通过PR #3；ENG-001配置/Gin/HTTP生命周期已通过PR #4合并。ENG-002的PostgreSQL连接/就绪检查已通过PR #6合并，远程CI及固定提交AI Review完成，本地真实PG/故障恢复验收通过；尚无生产部署。当前ENG-003迁移CLI及IAM初始表已通过本地验收，开发库已应用000001；待提交/PR与远程CI/正式Review。功能状态以[交付状态](docs/delivery/STATUS.md)为准，不将设计目标表述为现有能力。
+需求与架构已通过PR #3；ENG-001配置/Gin/HTTP生命周期已通过PR #4合并。ENG-002的PostgreSQL连接/就绪检查已通过PR #6合并，远程CI及固定提交AI Review完成，本地真实PG/故障恢复验收通过；尚无生产部署。ENG-003迁移CLI及IAM初始表已通过PR #8合并，开发库已应用000001；G01（用户与登录）正在实现：用户PG Store、密码/管理员初始化、JWT与Gin鉴权已保存并完成对应测试；用户Handler、启动装配和路由已接通；React系统状态/登录/用户页已增量复用，真实HTTP/PG与桌面浏览器验收通过，本地make check通过，独立AI工作区预审无已证实阻断问题；等待负责人提交PR和最终head的远程CI/Review。功能状态以[交付状态](docs/delivery/STATUS.md)为准，不将设计目标表述为现有能力。
 
 目标范围包括：身份与空间权限、模型管理、Prompt治理、五源工具、Skills、知识检索、Agent/Team、审批与A2UI、Guard、Eval、审计观测、外部渠道、SDK/CLI、独立业务场景及部署。
 
@@ -20,6 +20,7 @@ AsterFlow 将模型、提示词、技能、工具、知识库与多Agent编排�
 | [数据模型](docs/architecture/DATA-MODEL.md) | 实体、版本、事务和租约 |
 | [接口约定](docs/architecture/API-CONVENTIONS.md) | HTTP、事件、错误和权限 |
 | [迭代Backlog](docs/delivery/BACKLOG.md) | Epic、任务顺序与验收 |
+| [需求组合并计划](docs/delivery/ROADMAP.md) | ENG-001至038，后续22组、同组集中交付 |
 | [协作规范](CONTRIBUTING.md) | 分支、提交、PR与合并 |
 | [代码评审](docs/process/CODE-REVIEW.md) | 评审维度、问题分级和复审 |
 | [完成标准](docs/process/DEFINITION-OF-DONE.md) | 交付必须具备的证据 |
@@ -37,11 +38,11 @@ python3 -m unittest discover -s scripts -p 'test_*.py' -v
 git diff --check
 ```
 
-当前后端命令和执行路径如下；前端尚未迁移。
+当前前后端启动命令如下；仅已接入系统状态、登录和用户管理。
 
 ## 后端启动与检查
 
-本机需要make、Python3.9+及可用Go。Makefile以命令级固定Go1.26.6，不修改全局环境。ENG-002已要求ASTERFLOW_DATABASE_URL；先按下方本地PG说明准备可信的.env，在每个新终端显式导出。Go不会自动加载.env。
+本机需要make、Python3.9+及可用Go。Makefile以命令级固定Go1.26.6，不修改全局环境。当前要求ASTERFLOW_DATABASE_URL及至少32字节的ASTERFLOW_JWT_SECRET_KEY；先按下方本地PG说明准备可信的.env，在每个新终端显式导出。Go不会自动加载.env。
 
 ```bash
 set -a
@@ -68,7 +69,7 @@ make build
 ./bin/asterflow
 ```
 
-make check执行文档、依赖一致性、race测试、vet和构建；build生成的bin目录已忽略。HTTP地址未设置时用默认，显式空白或非法host:port/端口1–65535以错误退出。数据库URL必需，启动连接失败退出1；运行期间的PG故障由readyz返回503，healthz仍报告存活。没有Redis或业务能力就绪检查。
+首次先make web-install安装前端锁定依赖；make check执行文档、Go依赖一致性、race/vet/build及前端测试/类型检查/构建；build生成的bin目录已忽略。HTTP地址未设置时用默认，显式空白或非法host:port/端口1–65535以错误退出。数据库URL必需，启动连接失败退出1；运行期间的PG故障由readyz返回503，healthz仍报告存活。没有Redis或业务能力就绪检查。
 
 ## 当前启动与退出路径
 
@@ -131,6 +132,47 @@ make migrate-version
 迁移由独立cmd/migrate命令管理；HTTP服务启动只连接PG，不自动修改表结构。版本000001包含七张表，schema_migrations记录当前版本及dirty。初始表存在不代表用户登录或权限接口已实现。
 
 make migrate-down会回退一个版本并删除该版本表及数据；自动回退验收仅在临时schema中执行。完整命令、失败处理与部署目录要求见[迁移操作说明](docs/operations/DATABASE-MIGRATIONS.md)。
+
+
+## 用户登录与管理端
+
+在后端启动后，另开终端：
+
+```bash
+make web-install
+make web-dev
+```
+
+打开[管理端](http://127.0.0.1:15174/)。前端代理/healthz、/readyz、/api到18090，保留旧项目15173端口。
+管理员初始化默认关闭；本机忽略的.env已显式开启并准备随机凭据，可在本机查看ASTERFLOW_AUTOSEED_ADMIN_EMAIL/PASSWORD。生产和新环境必须显式提供配置，不提供公开固定密码。已有管理员重启后保留原密码。
+普通用户可登录，创建/查询用户仅全局管理员可用。创建用户成功201，重复邮箱409，缺身份401，权限不足403。
+
+```bash
+make web-check
+ASTERFLOW_WEB_PORT=15176 ASTERFLOW_DEV_API_TARGET=http://127.0.0.1:18092 make web-dev
+```
+
+前后端分别在各自终端Ctrl+C停止，重新执行原命令启动。改后端端口时同步设置前端代理目标。
+前端部署静态托管将在后续SDK/部署需求组接入，当前通过独立Vite开发进程访问。
+
+```mermaid
+flowchart LR
+    UI[React 登录与用户页] --> Client[Axios 相对路径 / Bearer]
+    Client --> Proxy[Vite 开发代理]
+    Proxy --> Gin[Gin 路由]
+    Gin --> Login[公开 Login Handler]
+    Gin --> Auth[Auth: JWT / 查询最新用户]
+    Auth --> Admin[RequireGlobalAdmin]
+    Admin --> Handler[创建用户 / 用户列表 Handler]
+    Login --> Service[IAM Service: bcrypt / JWT / 用户业务]
+    Handler --> Service
+    Auth --> Service
+    Service --> Store[PostgresStore]
+    Store --> Queries[sqlc Queries]
+    Queries --> PG[(PostgreSQL)]
+```
+
+[管理端说明](web/admin/README.md)和[G01验收记录](docs/delivery/G01-VERIFICATION.md)区分测试夹具、真实PG、桌面浏览器与远程Checks。
 
 ## 协作
 

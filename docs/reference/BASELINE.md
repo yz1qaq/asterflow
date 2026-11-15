@@ -11,7 +11,7 @@
 
 ## 范围规则
 
-全部已实现的生产模块、API/协议、页面、SDK/CLI、业务预设、迁移/部署/验证都进入Backlog。辅助Memory实现纳入阅读/契约对照；Go生成文件由sqlc产生，不要求手工复制。原迁移26组按表/索引/约束/修复语义对齐，编号和文件数不是完成指标。
+全部已实现的生产模块、API/协议、页面、SDK/CLI、业务预设、迁移/部署/验证都进入Backlog。辅助Memory实现纳入阅读/契约对照，按负责人批准的ADR-0004不要求复制无生产调用方的过渡业务Store；Go生成文件由sqlc产生，不要求手工复制。原迁移26组按表/索引/约束/修复语义对齐，编号和文件数不是完成指标。
 
 上游README明确列为演进的OpenSearch/Outbox、OpenAPI3生成、SSO/OIDC/API Key鉴权、Secret Manager、Kubernetes/HA/灾备不冒充当前已有功能；如后续新增需新需求。MinIO实际承担归档/导出，当前知识来源是Markdown，不凭对象存储就宣称PDF/Word摄取。
 
@@ -24,6 +24,10 @@
 - internal/platform/coursepreset→internal/platform/preset，保留全部场景资产/初始化能力。
 - 来源文件/测试名/目录拆分可不同；最终必须补目标路径和证据映射。清单中模块标记是分工，不是自动审查了每行代码。
 - 不复制其他工程实现或沿用其“第N天完成”状态。本工程从需求/设计开始，所有功能验收从零记录。
+
+## 已批准的交付与精简
+
+按[ROADMAP](../delivery/ROADMAP.md)的22个后续需求组合并交付，代码组织和运行时取舍见[ADR-0004](../architecture/adr/0004-feature-groups-and-runtime-scope.md)。直接PG/统一ADK，省去过渡/无用重复实现；保留同步薄适配、框架接口和全部正式功能/失败语义。固定488文件对象清单不修改，最终以功能映射解释替代实现与验证，不用复制数量衡量完整性。
 
 ## 验证边界
 

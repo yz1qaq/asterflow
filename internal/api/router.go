@@ -6,14 +6,21 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yz1qaq/asterflow/internal/api/middleware"
+	v1 "github.com/yz1qaq/asterflow/internal/api/v1"
+	"github.com/yz1qaq/asterflow/internal/platform/iam"
 )
 
 type ReadinessChecker interface {
 	Ping(ctx context.Context) error
 }
 
-func NewRouter(checker ReadinessChecker) http.Handler {
+func NewRouter(
+	checker ReadinessChecker,
+	iamService *iam.Service,
+) http.Handler {
 	router := gin.New()
+	router.Use(gin.Recovery())
 	//路径存在但是方法错误,返回405
 	router.HandleMethodNotAllowed = true
 	//关闭尾斜杠重定向,返回404
@@ -42,5 +49,18 @@ func NewRouter(checker ReadinessChecker) http.Handler {
 
 		c.String(http.StatusOK, "ok")
 	})
+	iamHandler := v1.NewIAMHandler(iamService)
+
+	v1Routes := router.Group("/api/v1")
+	v1Routes.POST("/auth/login", iamHandler.Login)
+
+	adminRoutes := v1Routes.Group("")
+	adminRoutes.Use(
+		middleware.Auth(iamService),
+		middleware.RequireGlobalAdmin(),
+	)
+	adminRoutes.POST("/auth/register", iamHandler.CreateUser)
+	adminRoutes.GET("/users", iamHandler.ListUsers)
+
 	return router
 }
