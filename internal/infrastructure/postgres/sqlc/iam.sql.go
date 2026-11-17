@@ -7,9 +7,24 @@ package pgstore
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const countWorkspaceOwners = `-- name: CountWorkspaceOwners :one
+SELECT COUNT(*)
+FROM workspace_members
+WHERE workspace_id = $1 AND role = 'owner'
+`
+
+func (q *Queries) CountWorkspaceOwners(ctx context.Context, workspaceID string) (int64, error) {
+	row := q.db.QueryRow(ctx, countWorkspaceOwners, workspaceID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
 
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (
@@ -58,6 +73,63 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
+const createWorkspace = `-- name: CreateWorkspace :one
+INSERT INTO workspaces (
+    id,
+    name,
+    description,
+    parent_id,
+    created_at,
+    updated_at
+)
+VALUES ($1, $2, $3, $4, now(), now())
+RETURNING id, name, description, parent_id, created_at, updated_at
+`
+
+type CreateWorkspaceParams struct {
+	ID          string
+	Name        string
+	Description string
+	ParentID    pgtype.Text
+}
+
+func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) (Workspace, error) {
+	row := q.db.QueryRow(ctx, createWorkspace,
+		arg.ID,
+		arg.Name,
+		arg.Description,
+		arg.ParentID,
+	)
+	var i Workspace
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.ParentID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const deleteWorkspaceMember = `-- name: DeleteWorkspaceMember :execrows
+DELETE FROM workspace_members
+WHERE workspace_id = $1 AND user_id = $2
+`
+
+type DeleteWorkspaceMemberParams struct {
+	WorkspaceID string
+	UserID      uuid.UUID
+}
+
+func (q *Queries) DeleteWorkspaceMember(ctx context.Context, arg DeleteWorkspaceMemberParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteWorkspaceMember, arg.WorkspaceID, arg.UserID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
 SELECT id, email, password_hash, name, role, status, created_at, updated_at
 FROM users
@@ -104,6 +176,105 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 	return i, err
 }
 
+const getWorkspaceByID = `-- name: GetWorkspaceByID :one
+SELECT id, name, description, parent_id, created_at, updated_at
+FROM workspaces
+WHERE id = $1
+LIMIT 1
+`
+
+func (q *Queries) GetWorkspaceByID(ctx context.Context, id string) (Workspace, error) {
+	row := q.db.QueryRow(ctx, getWorkspaceByID, id)
+	var i Workspace
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.ParentID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getWorkspaceMember = `-- name: GetWorkspaceMember :one
+SELECT wm.workspace_id, wm.user_id, u.email, u.name, wm.role, wm.created_at
+FROM workspace_members wm
+JOIN users u ON u.id = wm.user_id
+WHERE wm.workspace_id = $1 AND wm.user_id = $2
+LIMIT 1
+`
+
+type GetWorkspaceMemberParams struct {
+	WorkspaceID string
+	UserID      uuid.UUID
+}
+
+type GetWorkspaceMemberRow struct {
+	WorkspaceID string
+	UserID      uuid.UUID
+	Email       string
+	Name        string
+	Role        string
+	CreatedAt   time.Time
+}
+
+func (q *Queries) GetWorkspaceMember(ctx context.Context, arg GetWorkspaceMemberParams) (GetWorkspaceMemberRow, error) {
+	row := q.db.QueryRow(ctx, getWorkspaceMember, arg.WorkspaceID, arg.UserID)
+	var i GetWorkspaceMemberRow
+	err := row.Scan(
+		&i.WorkspaceID,
+		&i.UserID,
+		&i.Email,
+		&i.Name,
+		&i.Role,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const listUserWorkspaces = `-- name: ListUserWorkspaces :many
+SELECT w.id, w.name, w.description, w.parent_id, w.created_at, w.updated_at
+FROM workspaces w
+JOIN workspace_members wm ON wm.workspace_id = w.id
+WHERE wm.user_id = $1
+ORDER BY w.created_at DESC, w.id DESC
+LIMIT $2 OFFSET $3
+`
+
+type ListUserWorkspacesParams struct {
+	UserID uuid.UUID
+	Limit  int32
+	Offset int32
+}
+
+func (q *Queries) ListUserWorkspaces(ctx context.Context, arg ListUserWorkspacesParams) ([]Workspace, error) {
+	rows, err := q.db.Query(ctx, listUserWorkspaces, arg.UserID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Workspace{}
+	for rows.Next() {
+		var i Workspace
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.ParentID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUsers = `-- name: ListUsers :many
 SELECT id, email, password_hash, name, role, status, created_at, updated_at
 FROM users
@@ -145,6 +316,102 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 	return items, nil
 }
 
+const listWorkspaceMembers = `-- name: ListWorkspaceMembers :many
+SELECT wm.workspace_id, wm.user_id, u.email, u.name, wm.role, wm.created_at
+FROM workspace_members wm
+JOIN users u ON u.id = wm.user_id
+WHERE wm.workspace_id = $1
+ORDER BY wm.created_at ASC, wm.user_id ASC
+`
+
+type ListWorkspaceMembersRow struct {
+	WorkspaceID string
+	UserID      uuid.UUID
+	Email       string
+	Name        string
+	Role        string
+	CreatedAt   time.Time
+}
+
+func (q *Queries) ListWorkspaceMembers(ctx context.Context, workspaceID string) ([]ListWorkspaceMembersRow, error) {
+	rows, err := q.db.Query(ctx, listWorkspaceMembers, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListWorkspaceMembersRow{}
+	for rows.Next() {
+		var i ListWorkspaceMembersRow
+		if err := rows.Scan(
+			&i.WorkspaceID,
+			&i.UserID,
+			&i.Email,
+			&i.Name,
+			&i.Role,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listWorkspaces = `-- name: ListWorkspaces :many
+SELECT id, name, description, parent_id, created_at, updated_at
+FROM workspaces
+ORDER BY created_at DESC, id DESC
+LIMIT $1 OFFSET $2
+`
+
+type ListWorkspacesParams struct {
+	Limit  int32
+	Offset int32
+}
+
+func (q *Queries) ListWorkspaces(ctx context.Context, arg ListWorkspacesParams) ([]Workspace, error) {
+	rows, err := q.db.Query(ctx, listWorkspaces, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Workspace{}
+	for rows.Next() {
+		var i Workspace
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.ParentID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const lockWorkspace = `-- name: LockWorkspace :one
+SELECT id
+FROM workspaces
+WHERE id = $1
+FOR UPDATE
+`
+
+func (q *Queries) LockWorkspace(ctx context.Context, id string) (string, error) {
+	row := q.db.QueryRow(ctx, lockWorkspace, id)
+	err := row.Scan(&id)
+	return id, err
+}
+
 const setUserRole = `-- name: SetUserRole :exec
 UPDATE users
 SET role = $2,
@@ -160,4 +427,34 @@ type SetUserRoleParams struct {
 func (q *Queries) SetUserRole(ctx context.Context, arg SetUserRoleParams) error {
 	_, err := q.db.Exec(ctx, setUserRole, arg.ID, arg.Role)
 	return err
+}
+
+const upsertWorkspaceMember = `-- name: UpsertWorkspaceMember :one
+INSERT INTO workspace_members (
+    workspace_id,
+    user_id,
+    role
+)
+VALUES ($1, $2, $3)
+ON CONFLICT (workspace_id, user_id)
+DO UPDATE SET role = EXCLUDED.role
+RETURNING workspace_id, user_id, role, created_at
+`
+
+type UpsertWorkspaceMemberParams struct {
+	WorkspaceID string
+	UserID      uuid.UUID
+	Role        string
+}
+
+func (q *Queries) UpsertWorkspaceMember(ctx context.Context, arg UpsertWorkspaceMemberParams) (WorkspaceMember, error) {
+	row := q.db.QueryRow(ctx, upsertWorkspaceMember, arg.WorkspaceID, arg.UserID, arg.Role)
+	var i WorkspaceMember
+	err := row.Scan(
+		&i.WorkspaceID,
+		&i.UserID,
+		&i.Role,
+		&i.CreatedAt,
+	)
+	return i, err
 }

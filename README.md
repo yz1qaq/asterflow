@@ -6,7 +6,7 @@ AsterFlow 将模型、提示词、技能、工具、知识库与多Agent编排�
 
 ## 项目状态
 
-需求与架构已通过PR #3；ENG-001配置/Gin/HTTP生命周期已通过PR #4合并。ENG-002的PostgreSQL连接/就绪检查已通过PR #6合并，远程CI及固定提交AI Review完成，本地真实PG/故障恢复验收通过；尚无生产部署。ENG-003迁移CLI及IAM初始表已通过PR #8合并，开发库已应用000001；G01（用户与登录）正在实现：用户PG Store、密码/管理员初始化、JWT与Gin鉴权已保存并完成对应测试；用户Handler、启动装配和路由已接通；React系统状态/登录/用户页已增量复用，真实HTTP/PG与桌面浏览器验收通过，本地make check通过，独立AI工作区预审无已证实阻断问题；PR #10已创建，初版go/web通过、docs空白检查失败，格式与门禁修复待推送后重新确认CI/Review。功能状态以[交付状态](docs/delivery/STATUS.md)为准，不将设计目标表述为现有能力。
+需求与基础工程、G01登录用户管理已合并。G02已接通真实PG空间/成员事务、Gin权限中间件及React空间/成员/当前空间选择；预审发现的并发撤权问题已由负责人修复，2026-11-17全套本地检查通过，正式工作区复审通过，待负责人提交G02 PR及最终head的CI/Review。详见[交付状态](docs/delivery/STATUS.md)。尚无生产部署。
 
 目标范围包括：身份与空间权限、模型管理、Prompt治理、五源工具、Skills、知识检索、Agent/Team、审批与A2UI、Guard、Eval、审计观测、外部渠道、SDK/CLI、独立业务场景及部署。
 
@@ -120,7 +120,7 @@ stop停止数据库，up恢复启动；down移除本项目容器和网络并保�
 
 ## 数据库迁移
 
-ENG-003迁移CLI和初始IAM七表SQL已完成本地验收，query解析缺陷已修复；本机开发库实际为version=1 dirty=false，详见[迁移验收](docs/delivery/ENG-003-VERIFICATION.md)。
+ENG-003迁移CLI和初始IAM七表SQL已完成本地验收，query解析缺陷已修复；ENG-003验收时开发库为version=1 dirty=false；2026-11-16已通过G02隔离验证并应用000002，当前实查version=2 dirty=false，详见[迁移验收](docs/delivery/ENG-003-VERIFICATION.md)。
 
 新环境在已导出.env的终端执行；已有数据库重复up会正常无变更：
 
@@ -131,7 +131,7 @@ make migrate-version
 
 迁移由独立cmd/migrate命令管理；HTTP服务启动只连接PG，不自动修改表结构。版本000001包含七张表，schema_migrations记录当前版本及dirty。初始表存在不代表用户登录或权限接口已实现。
 
-make migrate-down会回退一个版本并删除该版本表及数据；自动回退验收仅在临时schema中执行。完整命令、失败处理与部署目录要求见[迁移操作说明](docs/operations/DATABASE-MIGRATIONS.md)。
+make migrate-down回退一版，具体影响以down脚本为准：000002移除角色约束和索引，000001会删除七表及数据；自动回退验收仅在临时schema中执行。完整命令、失败处理与部署目录要求见[迁移操作说明](docs/operations/DATABASE-MIGRATIONS.md)。
 
 
 ## 用户登录与管理端
@@ -157,17 +157,22 @@ ASTERFLOW_WEB_PORT=15176 ASTERFLOW_DEV_API_TARGET=http://127.0.0.1:18092 make we
 
 ```mermaid
 flowchart LR
-    UI[React 登录与用户页] --> Client[Axios 相对路径 / Bearer]
+    UI["React 登录 / 用户 / 空间 / 成员页"] --> Client["Axios：Bearer / X-Workspace-ID"]
     Client --> Proxy[Vite 开发代理]
     Proxy --> Gin[Gin 路由]
     Gin --> Login[公开 Login Handler]
-    Gin --> Auth[Auth: JWT / 查询最新用户]
+    Gin --> Auth["Auth：JWT / 最新用户"]
+    Auth --> SpaceHandler[空间与成员 Handler]
+    Auth --> Workspace["Workspace：空间存在性 / 角色 / 操作"]
+    Workspace --> ContextHandler[当前空间 Context Handler]
     Auth --> Admin[RequireGlobalAdmin]
-    Admin --> Handler[创建用户 / 用户列表 Handler]
-    Login --> Service[IAM Service: bcrypt / JWT / 用户业务]
-    Handler --> Service
+    Admin --> UserHandler[创建用户 / 用户列表 Handler]
+    Login --> Service["IAM Service：用户 / 空间 / 成员权限"]
+    UserHandler --> Service
+    SpaceHandler --> Service
     Auth --> Service
-    Service --> Store[PostgresStore]
+    Workspace --> Service
+    Service --> Store["PostgresStore：事务 / 空间行锁"]
     Store --> Queries[sqlc Queries]
     Queries --> PG[(PostgreSQL)]
 ```

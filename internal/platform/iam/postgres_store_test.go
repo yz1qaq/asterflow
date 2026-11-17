@@ -170,12 +170,14 @@ func newIAMTestPool(t *testing.T) *pgxpool.Pool {
 	if _, err := conn.Exec(ctx, "SET search_path TO "+quoted); err != nil {
 		t.Fatal(err)
 	}
-	migration, err := os.ReadFile("../../../migrations/000001_init_iam.up.sql")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := conn.Exec(ctx, string(migration)); err != nil {
-		t.Fatalf("initialize isolated IAM schema: %v", err)
+	for _, filename := range []string{"000001_init_iam.up.sql", "000002_workspace_rbac.up.sql"} {
+		migration, err := os.ReadFile("../../../migrations/" + filename)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := conn.Exec(ctx, string(migration)); err != nil {
+			t.Fatalf("initialize isolated IAM schema: %v", err)
+		}
 	}
 	cfg, err := pgxpool.ParseConfig(raw)
 	if err != nil {

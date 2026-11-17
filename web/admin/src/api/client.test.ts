@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AxiosError } from 'axios'
 
 const mocked = vi.hoisted(() => ({
-  state: { token: null as string | null, expiresAt: null as string | null },
+  state: { token: null as string | null, expiresAt: null as string | null, workspaceId: null as string | null },
   logout: vi.fn(),
 }))
 vi.mock('@/store/authStore', async () => {
@@ -14,6 +14,7 @@ import { api } from './client'
 beforeEach(() => {
   mocked.logout.mockReset()
   mocked.state.token = 'test-token'
+  mocked.state.workspaceId = null
   mocked.state.expiresAt = new Date(Date.now() + 60_000).toISOString()
 })
 
@@ -55,6 +56,43 @@ describe('authenticated requests', () => {
   it('lets the login form handle its own 401 without clearing another session', async () => {
     await expect(api.post('/auth/login', {}, { adapter: async config => {
       throw new AxiosError('unauthorized', undefined, config, undefined, {
+        data: '', status: 401, statusText: '', headers: {}, config,
+      })
+    } })).rejects.toBeInstanceOf(AxiosError)
+    expect(mocked.logout).not.toHaveBeenCalled()
+  })
+
+  it('adds the selected workspace to scoped business requests', async () => {
+    mocked.state.workspaceId = 'space-a'
+    let workspace: unknown
+    await api.get('/models', { adapter: async config => {
+      workspace = config.headers.get('X-Workspace-ID')
+      return { data: [], status: 200, statusText: 'OK', headers: {}, config }
+    } })
+    expect(workspace).toBe('space-a')
+  })
+  it('preserves the explicit workspace being checked before switching', async () => {
+    mocked.state.workspaceId = 'space-a'
+    let workspace: unknown
+    await api.get('/context', { headers: { 'X-Workspace-ID': 'space-b' }, adapter: async config => {
+      workspace = config.headers.get('X-Workspace-ID')
+      return { data: {}, status: 200, statusText: 'OK', headers: {}, config }
+    } })
+    expect(workspace).toBe('space-b')
+  })
+  it('keeps global and URL-scoped member APIs independent of selection', async () => {
+    mocked.state.workspaceId = 'space-a'
+    for (const url of ['/me', '/users', '/workspaces', '/workspaces/space-b/members']) {
+      await api.get(url, { adapter: async config => {
+        expect(config.headers.has('X-Workspace-ID')).toBe(false)
+        return { data: [], status: 200, statusText: 'OK', headers: {}, config }
+      } })
+    }
+  })
+  it('does not log out a newer session after an old request receives 401', async () => {
+    await expect(api.get('/context', { adapter: async config => {
+      mocked.state.token = 'new-session-token'
+      throw new AxiosError('old request rejected', undefined, config, undefined, {
         data: '', status: 401, statusText: '', headers: {}, config,
       })
     } })).rejects.toBeInstanceOf(AxiosError)

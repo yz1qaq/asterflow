@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/yz1qaq/asterflow/internal/domain"
@@ -15,12 +16,14 @@ import (
 )
 
 type PostgresStore struct {
-	q *pgstore.Queries
+	q  *pgstore.Queries
+	db *pgxpool.Pool
 }
 
 func NewPostgresStore(db *pgxpool.Pool) *PostgresStore {
 	return &PostgresStore{
-		q: pgstore.New(db),
+		q:  pgstore.New(db),
+		db: db,
 	}
 }
 
@@ -152,4 +155,62 @@ func userLookupError(err error) error {
 		return ErrUserNotFound
 	}
 	return fmt.Errorf("query user: %w", err)
+}
+
+func (s *PostgresStore) CreateWorkspaceWithOwner(
+	ctx context.Context,
+	workspace *domain.Workspace,
+	userID string,
+) error {
+	if workspace == nil {
+		return fmt.Errorf("workspace is required")
+	}
+	ownerID, err := uuid.Parse(userID)
+	if err != nil {
+		return fmt.Errorf("parse owner user id: %w", err)
+	}
+
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin workspace transaction: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
+
+	q := s.q.WithTx(tx)
+	row, err := q.CreateWorkspace(ctx, pgstore.CreateWorkspaceParams{
+		ID:          workspace.ID,
+		Name:        workspace.Name,
+		Description: workspace.Description,
+		ParentID:    textFromPtr(workspace.ParentID),
+	})
+	if err != nil {
+		return fmt.Errorf("create workspace: %w", err)
+	}
+
+	if _, err := q.UpsertWorkspaceMember(ctx, pgstore.UpsertWorkspaceMemberParams{
+		WorkspaceID: row.ID,
+		UserID:      ownerID,
+		Role:        WorkspaceRoleOwner,
+	}); err != nil {
+		return fmt.Errorf("create workspace owner: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit workspace transaction: %w", err)
+	}
+
+	*workspace = *workspaceFromRow(row)
+	return nil
+}
+
+func textFromPtr(value *string) pgtype.Text {
+	if value == nil {
+		return pgtype.Text{}
+	}
+	return pgtype.Text{
+		String: *value,
+		Valid:  true,
+	}
 }

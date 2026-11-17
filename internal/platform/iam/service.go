@@ -15,6 +15,12 @@ import (
 const (
 	GlobalRoleAdmin  = "admin"
 	GlobalRoleMember = "member"
+
+	WorkspaceRoleOwner  = "owner"
+	WorkspaceRoleAdmin  = "admin"
+	WorkspaceRoleEditor = "editor"
+	WorkspaceRoleMember = "member"
+	WorkspaceRoleViewer = "viewer"
 )
 
 var (
@@ -24,6 +30,10 @@ var (
 	ErrInvalidEmail = errors.New("invalid email")
 	ErrWeakPassword = errors.New("password must be at least 8 bytes")
 	ErrNameRequired = errors.New("name is required")
+
+	ErrWorkspaceNotFound = errors.New("workspace not found")
+
+	ErrWorkspaceMemberNotFound = errors.New("workspace member not found")
 )
 
 type Store interface {
@@ -32,6 +42,50 @@ type Store interface {
 	CreateUser(ctx context.Context, user *domain.User) error
 	ListUsers(ctx context.Context, limit, offset int32) ([]*domain.User, error)
 	SetUserRole(ctx context.Context, userID, role string) error
+
+	GetWorkspaceByID(
+		ctx context.Context,
+		workspaceID string,
+	) (*domain.Workspace, error)
+
+	ListWorkspaces(
+		ctx context.Context,
+		limit, offset int32,
+	) ([]*domain.Workspace, error)
+
+	ListUserWorkspaces(
+		ctx context.Context,
+		userID string,
+		limit, offset int32,
+	) ([]*domain.Workspace, error)
+
+	CreateWorkspaceWithOwner(
+		ctx context.Context,
+		workspace *domain.Workspace,
+		userID string,
+	) error
+
+	GetWorkspaceMember(
+		ctx context.Context,
+		workspaceID, userID string,
+	) (*domain.WorkspaceMember, error)
+
+	ListWorkspaceMembers(
+		ctx context.Context,
+		workspaceID string,
+	) ([]*domain.WorkspaceMember, error)
+
+	UpsertWorkspaceMemberGuarded(
+		ctx context.Context,
+		actorID string,
+		member *domain.WorkspaceMember,
+	) error
+
+	DeleteWorkspaceMemberGuarded(
+		ctx context.Context,
+		actorID string,
+		workspaceID, userID string,
+	) (bool, error)
 }
 
 type Service struct {

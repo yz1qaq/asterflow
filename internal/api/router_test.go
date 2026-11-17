@@ -285,12 +285,14 @@ func newUserHTTPTestPool(t *testing.T) *pgxpool.Pool {
 	if _, err := conn.Exec(ctx, "SET search_path TO "+quoted); err != nil {
 		t.Fatal(err)
 	}
-	sql, err := os.ReadFile("../../migrations/000001_init_iam.up.sql")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := conn.Exec(ctx, string(sql)); err != nil {
-		t.Fatal(err)
+	for _, name := range []string{"000001_init_iam.up.sql", "000002_workspace_rbac.up.sql"} {
+		sql, err := os.ReadFile("../../migrations/" + name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := conn.Exec(ctx, string(sql)); err != nil {
+			t.Fatal(err)
+		}
 	}
 	cfg, err := pgxpool.ParseConfig(raw)
 	if err != nil {
@@ -303,4 +305,246 @@ func newUserHTTPTestPool(t *testing.T) *pgxpool.Pool {
 	}
 	t.Cleanup(pool.Close)
 	return pool
+}
+func TestWorkspaceHTTP(t *testing.T) {
+	pool := newUserHTTPTestPool(t)
+	store := iam.NewPostgresStore(pool)
+	service := iam.NewService(store, []byte("workspace-http-fixture-key-at-least-32-bytes"))
+	ctx := context.Background()
+	alice, err := service.CreateUser(ctx, "ws-alice@example.test", "password123", "Alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bob, err := service.CreateUser(ctx, "ws-bob@example.test", "password123", "Bob")
+	if err != nil {
+		t.Fatal(err)
+	}
+	admin, err := service.CreateUser(ctx, "ws-admin@example.test", "password123", "Admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SetUserRole(ctx, admin.ID, iam.GlobalRoleAdmin); err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(NewRouter(pool, service))
+	defer server.Close()
+	request := func(method, path, token, body string, want int) json.RawMessage {
+		t.Helper()
+		req, err := http.NewRequest(method, server.URL+path, strings.NewReader(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := server.Client().Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		if want == 204 {
+			if resp.StatusCode != want {
+				t.Fatalf("delete status %d", resp.StatusCode)
+			}
+			return nil
+		}
+		var data json.RawMessage
+		decoder := json.NewDecoder(resp.Body)
+		if err := decoder.Decode(&data); err != nil {
+			t.Fatal(err)
+		}
+		var extra any
+		if err := decoder.Decode(&extra); err != io.EOF {
+			t.Fatalf("%s %s: response must contain exactly one JSON value", method, path)
+		}
+		if resp.StatusCode != want {
+			t.Fatalf("%s %s: got %d want %d: %s", method, path, resp.StatusCode, want, data)
+		}
+		return data
+	}
+	login := func(email string) string {
+		t.Helper()
+		var resp iam.LoginResponse
+		if err := json.Unmarshal(request("POST", "/api/v1/auth/login", "", "{\"email\":\""+email+"\",\"password\":\"password123\"}", 200), &resp); err != nil {
+			t.Fatal(err)
+		}
+		return resp.Token
+	}
+	a, b, g := login(alice.Email), login(bob.Email), login(admin.Email)
+	request("GET", "/api/v1/me", "", "", 401)
+	request("GET", "/api/v1/workspaces", "", "", 401)
+	request("POST", "/api/v1/workspaces", "", "{}", 401)
+	var me struct {
+		UserID string `json:"user_id"`
+		Role   string `json:"global_role"`
+	}
+	if err := json.Unmarshal(request("GET", "/api/v1/me", a, "", 200), &me); err != nil || me.UserID != alice.ID || me.Role != iam.GlobalRoleMember {
+		t.Fatal("identity mismatch")
+	}
+	var ws domain.Workspace
+	if err := json.Unmarshal(request("POST", "/api/v1/workspaces", a, "{\"name\":\" Alice Space \",\"description\":\"demo\"}", 201), &ws); err != nil || ws.Name != "Alice Space" {
+		t.Fatal("create response mismatch")
+	}
+	member, err := store.GetWorkspaceMember(ctx, ws.ID, alice.ID)
+	if err != nil || member.Role != iam.WorkspaceRoleOwner {
+		t.Fatal("missing creator owner")
+	}
+	request("POST", "/api/v1/workspaces", b, "{\"name\":\"Bob Space\"}", 201)
+	var list []domain.Workspace
+	if err := json.Unmarshal(request("GET", "/api/v1/workspaces", a, "", 200), &list); err != nil || len(list) != 1 || list[0].ID != ws.ID {
+		t.Fatal("ordinary list scope")
+	}
+	if err := json.Unmarshal(request("GET", "/api/v1/workspaces", g, "", 200), &list); err != nil || len(list) != 2 {
+		t.Fatal("global list scope")
+	}
+	request("GET", "/api/v1/workspaces?limit=0", a, "", 400)
+	request("POST", "/api/v1/workspaces", a, "{\"name\":\" \"}", 400)
+	request("POST", "/api/v1/workspaces", a, "{\"name\":\"spoof\",\"user_id\":\""+bob.ID+"\"}", 400)
+	request("DELETE", "/api/v1/workspaces/"+ws.ID+"/members/"+alice.ID, a, "", 409)
+	request("DELETE", "/api/v1/workspaces/"+ws.ID+"/members/"+alice.ID, "", "", 401)
+	request("DELETE", "/api/v1/workspaces/"+ws.ID+"/members/"+alice.ID, b, "", 403)
+	memberPath := "/api/v1/workspaces/" + ws.ID + "/members"
+	var members []domain.WorkspaceMember
+	if err := json.Unmarshal(request("GET", memberPath, a, "", 200), &members); err != nil || len(members) != 1 || members[0].Role != iam.WorkspaceRoleOwner {
+		t.Fatal("initial member list mismatch")
+	}
+	request("GET", memberPath, b, "", 403)
+	var saved domain.WorkspaceMember
+	if err := json.Unmarshal(request("PUT", memberPath+"/"+bob.ID, a, "{\"role\":\"admin\"}", 200), &saved); err != nil || saved.Role != iam.WorkspaceRoleAdmin || saved.Email != bob.Email {
+		t.Fatal("member upsert response mismatch")
+	}
+	request("GET", memberPath, b, "", 200)
+	request("PUT", memberPath+"/"+alice.ID, b, "{\"role\":\"viewer\"}", 403)
+	request("PUT", memberPath+"/"+bob.ID, b, "{\"role\":\"owner\"}", 403)
+	request("PUT", memberPath+"/"+admin.ID, g, "{\"role\":\"viewer\"}", 200)
+	request("PUT", memberPath+"/"+bob.ID, a, "{\"role\":\"viewer\"}", 200)
+	request("GET", memberPath, b, "", 403)
+	request("PUT", memberPath+"/"+bob.ID, a, "{\"role\":\"invalid\"}", 400)
+	request("PUT", memberPath+"/not-a-uuid", a, "{\"role\":\"member\"}", 400)
+	request("PUT", memberPath+"/"+uuid.NewString(), a, "{\"role\":\"member\"}", 404)
+	request("PUT", memberPath+"/"+bob.ID, a, "{\"role\":\"viewer\",\"actor_id\":\"spoof\"}", 400)
+	request("DELETE", "/api/v1/workspaces/"+ws.ID+"/members/"+bob.ID, a, "", 204)
+	request("DELETE", "/api/v1/workspaces/"+ws.ID+"/members/"+bob.ID, a, "", 404)
+	request("DELETE", "/api/v1/workspaces/"+ws.ID+"/members/not-a-uuid", a, "", 400)
+
+}
+
+func TestWorkspaceMemberErrorResponses(t *testing.T) {
+	pool := newUserHTTPTestPool(t)
+	service := iam.NewService(iam.NewPostgresStore(pool), []byte("member-error-fixture-key-at-least-32-bytes"))
+	ctx := context.Background()
+	owner, err := service.CreateUser(ctx, "error-owner@example.test", "password123", "Owner")
+	if err != nil {
+		t.Fatal(err)
+	}
+	outsider, err := service.CreateUser(ctx, "error-outsider@example.test", "password123", "Outsider")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ws, err := service.CreateWorkspaceForUser(ctx, owner.ID, "Error response", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	login := func(email string) string {
+		t.Helper()
+		response, err := service.Login(ctx, iam.LoginRequest{Email: email, Password: "password123"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return response.Token
+	}
+	ownerToken, outsiderToken := login(owner.Email), login(outsider.Email)
+	router := NewRouter(pool, service)
+	for _, tc := range []struct {
+		name, method, path, token, body string
+		status                          int
+	}{
+		{"list forbidden", "GET", "/api/v1/workspaces/" + ws.ID + "/members", outsiderToken, "", 403},
+		{"upsert invalid role", "PUT", "/api/v1/workspaces/" + ws.ID + "/members/" + outsider.ID, ownerToken, "{\"role\":\"invalid\"}", 400},
+		{"upsert forbidden", "PUT", "/api/v1/workspaces/" + ws.ID + "/members/" + outsider.ID, outsiderToken, "{\"role\":\"member\"}", 403},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(tc.method, tc.path, strings.NewReader(tc.body))
+			req.Header.Set("Authorization", "Bearer "+tc.token)
+			req.Header.Set("Content-Type", "application/json")
+			recorder := httptest.NewRecorder()
+			router.ServeHTTP(recorder, req)
+			if recorder.Code != tc.status {
+				t.Fatalf("status=%d want=%d", recorder.Code, tc.status)
+			}
+			if !json.Valid(recorder.Body.Bytes()) {
+				t.Fatalf("expected one valid JSON response, got %q", recorder.Body.String())
+			}
+		})
+	}
+}
+
+func TestWorkspaceContextHTTP(t *testing.T) {
+	pool := newUserHTTPTestPool(t)
+	store := iam.NewPostgresStore(pool)
+	service := iam.NewService(store, []byte("context-http-fixture-key-at-least-32-bytes"))
+	ctx := context.Background()
+	users := make([]*domain.User, 3)
+	tokens := make([]string, 3)
+	for i := range users {
+		u, err := service.CreateUser(ctx, uuid.NewString()+"@example.test", "password123", "Context user")
+		if err != nil {
+			t.Fatal(err)
+		}
+		users[i] = u
+		if i == 2 {
+			if err := store.SetUserRole(ctx, u.ID, iam.GlobalRoleAdmin); err != nil {
+				t.Fatal(err)
+			}
+		}
+		login, err := service.Login(ctx, iam.LoginRequest{Email: u.Email, Password: "password123"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		tokens[i] = login.Token
+	}
+	ws, err := service.CreateWorkspaceForUser(ctx, users[0].ID, "Context", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	router := NewRouter(pool, service)
+	check := func(token, header, query string, want int, wantRole string) {
+		t.Helper()
+		req := httptest.NewRequest("GET", "/api/v1/context"+query, nil)
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		if header != "" {
+			req.Header.Set("X-Workspace-ID", header)
+		}
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+		if rec.Code != want {
+			t.Fatalf("context status=%d want=%d: %s", rec.Code, want, rec.Body.String())
+		}
+		if want == 200 {
+			var data map[string]string
+			if err := json.Unmarshal(rec.Body.Bytes(), &data); err != nil || data["workspace_id"] != ws.ID || data["workspace_role"] != wantRole || data["user_id"] == "" {
+				t.Fatalf("context mismatch: %s", rec.Body.String())
+			}
+		}
+	}
+	check("", ws.ID, "", 401, "")
+	check(tokens[0], "", "", 400, "")
+	check(tokens[0], ws.ID, "", 200, iam.WorkspaceRoleOwner)
+	check(tokens[0], "", "?workspace_id="+ws.ID, 200, iam.WorkspaceRoleOwner)
+	check(tokens[0], ws.ID, "?workspace_id=missing", 200, iam.WorkspaceRoleOwner)
+	check(tokens[0], "missing", "?workspace_id="+ws.ID, 404, "")
+	check(tokens[1], ws.ID, "", 403, "")
+	check(tokens[2], ws.ID, "", 200, iam.WorkspaceRoleAdmin)
+	check(tokens[2], "missing", "", 404, "")
+	if _, err := service.UpsertWorkspaceMember(ctx, users[0].ID, ws.ID, users[1].ID, iam.WorkspaceRoleViewer); err != nil {
+		t.Fatal(err)
+	}
+	check(tokens[1], ws.ID, "", 200, iam.WorkspaceRoleViewer)
+	if err := service.DeleteWorkspaceMember(ctx, users[0].ID, ws.ID, users[1].ID); err != nil {
+		t.Fatal(err)
+	}
+	check(tokens[1], ws.ID, "", 403, "")
 }

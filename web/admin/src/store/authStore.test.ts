@@ -30,12 +30,30 @@ describe('persisted login state', () => {
     useAuthStore.getState().setAuth('test-token', user, new Date(Date.now() + 60_000).toISOString())
     useAuthStore.getState().logout()
     const persisted = JSON.parse(values.get('asterflow-auth-v1') ?? '{}').state
-    expect(persisted).toEqual({ token: null, user: null, expiresAt: null })
+    expect(persisted).toEqual({ token: null, user: null, expiresAt: null, workspaceId: null })
   })
   it('rejects expired and incomplete sessions', async () => {
     const { isSessionValid } = await import('./authStore')
     expect(isSessionValid({ token: 'test-token', expiresAt: new Date(Date.now() - 60_000).toISOString() })).toBe(false)
     expect(isSessionValid({ token: 'test-token', expiresAt: null })).toBe(false)
     expect(isSessionValid({ token: null, expiresAt: new Date(Date.now() + 60_000).toISOString() })).toBe(false)
+  })
+
+  it('restores only the selected workspace ID with the session', async () => {
+    const first = await import('./authStore')
+    first.useAuthStore.getState().setAuth('test-token', user, new Date(Date.now() + 60_000).toISOString())
+    first.useAuthStore.getState().setWorkspace('space-1')
+    vi.resetModules()
+    const second = await import('./authStore')
+    expect(second.useAuthStore.getState().workspaceId).toBe('space-1')
+    expect(JSON.parse(values.get('asterflow-auth-v1') ?? '{}').state).not.toHaveProperty('workspaceRole')
+  })
+  it('does not carry a workspace selection into another login', async () => {
+    const { useAuthStore } = await import('./authStore')
+    const expiry = new Date(Date.now() + 60_000).toISOString()
+    useAuthStore.getState().setAuth('old-token', user, expiry)
+    useAuthStore.getState().setWorkspace('old-space')
+    useAuthStore.getState().setAuth('new-token', { ...user, id: 'user-2' }, expiry)
+    expect(useAuthStore.getState().workspaceId).toBeNull()
   })
 })
