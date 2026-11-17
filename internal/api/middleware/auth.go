@@ -15,6 +15,8 @@ type contextKey int
 const (
 	contextKeyUserID contextKey = iota
 	contextKeyGlobalRole
+	contextKeyWorkspaceID
+	contextKeyWorkspaceRole
 )
 
 func Auth(service *iam.Service) gin.HandlerFunc {
@@ -96,3 +98,5 @@ func RequireGlobalAdmin() gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+//

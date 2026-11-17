@@ -1,11 +1,11 @@
 # 交付Backlog与迭代组织
 
-ENG-001已由PR #4合并；ENG-002已由PR #6合并；ENG-003已由PR #8合并；[G01](../tasks/G01-user-auth.md)用户与登录（ENG-004+005）已完成本地实现/验收，待PR/最终head门禁，其余业务任务未交付；排期依据依赖和验收能力滚动确定，不用固定截止日削减范围。按可独立评审的小任务领取，Epic不是一次性大PR。首项[ENG-001](../tasks/ENG-001.md)合并和CI事实见[STATUS](STATUS.md)；该PR缺少合并前正式Review，后续任务不得以CI代替评审。
+ENG-001已由PR #4合并；ENG-002已由PR #6合并；ENG-003已由PR #8合并；[G01](../tasks/G01-user-auth.md)用户与登录（ENG-004+005）已由PR #10合并，最终head门禁/Review完成，其余业务任务未交付；排期依据依赖和验收能力滚动确定，不用固定截止日削减范围。按可独立评审的小任务领取，Epic不是一次性大PR。首项[ENG-001](../tasks/ENG-001.md)合并和CI事实见[STATUS](STATUS.md)；该PR缺少合并前正式Review，后续任务不得以CI代替评审。
 
 ## 已批准的需求组合并
 
 负责人2026-11-15确认[ROADMAP](ROADMAP.md)：保留001/002历史、003按当前流程收尾；004至038合为G01至G22共22个需求组。后续同组默认一个Issue/分支/集中验收/PR，前后端及测试文档随组交付，不按函数或技术层反复提交。大组可跨学习日，实际范围与完成证据分别记录。
-G01（ENG-004+005用户与登录）正在提交前收尾；合并后推进G02工作空间与成员。同步/流式共享执行、过渡实现精简按[ADR-0004](../architecture/adr/0004-feature-groups-and-runtime-scope.md)，原完整范围不削减。
+G01（ENG-004+005用户与登录）已合并；[G02](../tasks/G02-workspaces.md)工作空间与成员已完成本地实现和验收、P1修复已落地，正式工作区复审通过，Ready for PR，关联Issue #11。同步/流式共享执行、过渡实现精简按[ADR-0004](../architecture/adr/0004-feature-groups-and-runtime-scope.md)，原完整范围不削减。
 
 ## 入口与阶段
 

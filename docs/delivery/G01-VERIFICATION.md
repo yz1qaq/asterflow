@@ -49,3 +49,10 @@ make check
 门禁新增全部Git候选文件的空白检查（包含尚未git add的新文件，跳过符号链接/二进制），并检查暂存差异。
 新增未跟踪文件回归用例先失败、修复后通过；6项文档测试与完整候选检查通过。独立AI也复核了这次未提交门禁补丁，无已证实P1/P2。
 修复尚未推送，不能把本地通过当成远程已绿；负责人需在同一分支追加提交，更新原PR并重新确认新head。
+
+## 合并归档
+
+负责人2026-11-15手动Squash合并[PR #10](https://github.com/yz1qaq/asterflow/pull/10)；Issue #9自动关闭。
+最终head为22ec0ea80c221c2461838d1349ccc1ad272bd96a，合并提交b82d826e46e8112fca2cb9cf836b76ec62685272，二者Git树均dd4245f9265f20bc77c814313c8f01fcad45469d，确认本地main已同步。
+最终head的push/PR两组docs/go/web均SUCCESS；[AI提交级复审5911532605](https://github.com/yz1qaq/asterflow/pull/10#pullrequestreview-5911532605)在合并前完成，无已证实P1/P2，不等同独立人类Approve。
+前述“修复尚未推送”是初版历史证据，已由本节最终状态收尾。没有生产部署声明。

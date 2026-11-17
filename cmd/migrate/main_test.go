@@ -106,11 +106,12 @@ func TestMigrateCLI(t *testing.T) {
 	})
 
 	t.Run("postgres_upgrade_constraints_rollback_rebuild", func(t *testing.T) {
+		base := migrationFiles(t, root, "000001_init_iam")
 		db := newMigrationDB(t)
 		env := map[string]string{"ASTERFLOW_DATABASE_URL": db.url}
 		runCLI := func(want string, args ...string) {
 			t.Helper()
-			out, code := migrationCommand(t, binary, root, env, args...)
+			out, code := migrationCommand(t, binary, root, env, append([]string{"-path", base}, args...)...)
 			if code != 0 || !strings.Contains(out, want) {
 				t.Fatalf("want %q and exit 0, got exit %d: %s", want, code, out)
 			}
@@ -195,6 +196,89 @@ func TestMigrateCLI(t *testing.T) {
 		runCLI("migrations applied", "-up")
 		runCLI("version=1 dirty=false", "-version")
 		assertMigrationTables(t, db, true)
+	})
+
+	t.Run("workspace_rbac_upgrade_rollback_and_rebuild", func(t *testing.T) {
+		db := newMigrationDB(t)
+		base := migrationFiles(t, root, "000001_init_iam")
+		both := migrationFiles(t, root, "000001_init_iam", "000002_workspace_rbac")
+		env := map[string]string{"ASTERFLOW_DATABASE_URL": db.url}
+		runCLI := func(directory, want string, args ...string) {
+			t.Helper()
+			out, code := migrationCommand(t, binary, root, env,
+				append([]string{"-path", directory}, args...)...)
+			if code != 0 || !strings.Contains(out, want) {
+				t.Fatalf("want %q with exit 0, got %d: %s", want, code, out)
+			}
+		}
+		runCLI(base, "migrations applied", "-up")
+		runCLI(base, "version=1 dirty=false", "-version")
+		const userID = "11111111-1111-4111-8111-111111111111"
+		db.exec(t, "INSERT INTO users(id,email) VALUES($1,'rbac@example.test')", userID)
+		db.exec(t, "INSERT INTO workspaces(id,name) VALUES('rbac-space','RBAC')")
+		db.exec(t, "INSERT INTO workspace_members(workspace_id,user_id,role) VALUES('rbac-space',$1,'owner')", userID)
+
+		runCLI(both, "migrations applied", "-up")
+		runCLI(both, "version=2 dirty=false", "-version")
+		assertMigrationTables(t, db, true)
+		for _, role := range []string{"admin", "member"} {
+			db.exec(t, "UPDATE users SET role=$1 WHERE id=$2", role, userID)
+		}
+		for _, role := range []string{"owner", "admin", "editor", "member", "viewer"} {
+			db.exec(t, "UPDATE workspace_members SET role=$1 WHERE workspace_id='rbac-space'", role)
+		}
+		db.wantCode(t, "23514", "UPDATE users SET role='owner' WHERE id=$1", userID)
+		db.wantCode(t, "23514", "UPDATE workspace_members SET role='supervisor' WHERE workspace_id='rbac-space'")
+		if got := db.count(t, "SELECT count(*) FROM pg_indexes WHERE schemaname=current_schema() AND indexname='workspace_members_workspace_role'"); got != 1 {
+			t.Fatal("workspace/role index missing")
+		}
+
+		runCLI(both, "rolled back 1 migration(s)", "-down", "1")
+		runCLI(both, "version=1 dirty=false", "-version")
+		assertMigrationTables(t, db, true)
+		if db.count(t, "SELECT count(*) FROM users") != 1 || db.count(t, "SELECT count(*) FROM workspace_members") != 1 {
+			t.Fatal("RBAC rollback removed existing records")
+		}
+		if db.count(t, "SELECT count(*) FROM pg_indexes WHERE schemaname=current_schema() AND indexname='workspace_members_workspace_role'") != 0 {
+			t.Fatal("RBAC index survived rollback")
+		}
+		db.exec(t, "UPDATE users SET role='owner' WHERE id=$1", userID)
+		db.exec(t, "UPDATE workspace_members SET role='supervisor' WHERE workspace_id='rbac-space'")
+		db.exec(t, "UPDATE users SET role='member' WHERE id=$1", userID)
+		db.exec(t, "UPDATE workspace_members SET role='owner' WHERE workspace_id='rbac-space'")
+
+		runCLI(both, "migrations applied", "-up")
+		runCLI(both, "version=2 dirty=false", "-version")
+		runCLI(both, "migrations are up to date", "-up")
+		db.wantCode(t, "23514", "UPDATE users SET role='owner' WHERE id=$1", userID)
+		runCLI(both, "rolled back 2 migration(s)", "-down", "2")
+		runCLI(both, "version=none", "-version")
+		assertMigrationTables(t, db, false)
+		runCLI(both, "migrations applied", "-up")
+		runCLI(both, "version=2 dirty=false", "-version")
+		assertMigrationTables(t, db, true)
+	})
+
+	t.Run("workspace_rbac_rejects_invalid_existing_roles", func(t *testing.T) {
+		db := newMigrationDB(t)
+		base := migrationFiles(t, root, "000001_init_iam")
+		both := migrationFiles(t, root, "000001_init_iam", "000002_workspace_rbac")
+		env := map[string]string{"ASTERFLOW_DATABASE_URL": db.url}
+		if out, code := migrationCommand(t, binary, root, env, "-path", base, "-up"); code != 0 {
+			t.Fatalf("initialize version 1: %s", out)
+		}
+		db.exec(t, "INSERT INTO users(id,email,role) VALUES('11111111-1111-4111-8111-111111111111','legacy@example.test','owner')")
+		out, code := migrationCommand(t, binary, root, env, "-path", both, "-up")
+		if code != 1 || !strings.Contains(out, "apply migrations") {
+			t.Fatalf("invalid stored role did not reject upgrade: %d", code)
+		}
+		out, code = migrationCommand(t, binary, root, env, "-path", both, "-version")
+		if code != 0 || !strings.Contains(out, "version=2 dirty=true") {
+			t.Fatalf("failed role upgrade must remain dirty: %d %s", code, out)
+		}
+		if db.count(t, "SELECT count(*) FROM users WHERE role='owner'") != 1 {
+			t.Fatal("failed migration changed the existing user")
+		}
 	})
 
 	t.Run("schemes_special_path_and_custom_environment", func(t *testing.T) {
@@ -412,4 +496,22 @@ func assertMigrationTables(t *testing.T, db *migrationDB, up bool) {
 			}
 		}
 	}
+}
+
+func migrationFiles(t *testing.T, root string, names ...string) string {
+	t.Helper()
+	directory := t.TempDir()
+	for _, name := range names {
+		for _, suffix := range []string{".up.sql", ".down.sql"} {
+			filename := name + suffix
+			data, err := os.ReadFile(filepath.Join(root, "migrations", filename))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(directory, filename), data, 0600); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	return directory
 }

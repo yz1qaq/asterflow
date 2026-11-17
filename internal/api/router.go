@@ -54,6 +54,30 @@ func NewRouter(
 	v1Routes := router.Group("/api/v1")
 	v1Routes.POST("/auth/login", iamHandler.Login)
 
+	protected := v1Routes.Group("")
+	protected.Use(middleware.Auth(iamService))
+
+	protected.GET("/me", iamHandler.Me)
+	protected.GET("/workspaces", iamHandler.ListWorkspaces)
+	protected.POST("/workspaces", iamHandler.CreateWorkspace)
+	protected.DELETE("/workspaces/:workspace_id/members/:user_id",
+		iamHandler.DeleteWorkspaceMember)
+
+	protected.GET(
+		"/workspaces/:workspace_id/members",
+		iamHandler.ListWorkspaceMembers,
+	)
+
+	protected.PUT(
+		"/workspaces/:workspace_id/members/:user_id",
+		iamHandler.UpsertWorkspaceMember,
+	)
+	protected.GET(
+		"/context",
+		middleware.Workspace(iamService),
+		iamHandler.Context,
+	)
+
 	adminRoutes := v1Routes.Group("")
 	adminRoutes.Use(
 		middleware.Auth(iamService),

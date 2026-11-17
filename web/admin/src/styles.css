@@ -248,3 +248,12 @@ body {
 .overview-link:hover { color: var(--primary-hover); background: oklch(0.96 0.02 267); }
 
 .app-shell .ant-btn:disabled { color: var(--subtle-text); background: var(--page-background); border-color: var(--line); opacity: .6; box-shadow: none; }
+
+.members-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.members-heading h3.ant-typography { margin: 0 0 8px; }
+.members-help, .members-count { color: var(--subtle-text); }
+.member-target { padding: 12px 0; overflow-wrap: anywhere; }
+.workspace-members-drawer .workspace-text { overflow-wrap: anywhere; }
+.member-edit-modal .ant-form-item-extra { color: var(--subtle-text); }
+
+.workspace-current { padding: 16px 20px; margin-bottom: 20px; background: var(--soft-blue, #f3f6ff); border-radius: 8px; }
