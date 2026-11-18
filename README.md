@@ -6,7 +6,7 @@ AsterFlow 将模型、提示词、技能、工具、知识库与多Agent编排�
 
 ## 项目状态
 
-需求与基础工程、G01登录用户管理已合并。G02已接通真实PG空间/成员事务、Gin权限中间件及React空间/成员/当前空间选择；预审发现的并发撤权问题已由负责人修复，2026-11-17全套本地检查通过，正式工作区复审通过，待负责人提交G02 PR及最终head的CI/Review。详见[交付状态](docs/delivery/STATUS.md)。尚无生产部署。
+需求与基础工程、G01登录用户管理和G02空间/成员治理已合并。G02最终head的Documentation/Go/Web CI与AI复审通过，已接通真实PG、Gin权限及React空间/成员/当前空间选择。G03模型配置进行中，账户、部署、方案版本和环境绑定已完成隔离 PostgreSQL 与桌面联调；本地完整检查与独立 AI 工作区复审已通过，待创建 PR。详见[交付状态](docs/delivery/STATUS.md)。尚无生产部署。
 
 目标范围包括：身份与空间权限、模型管理、Prompt治理、五源工具、Skills、知识检索、Agent/Team、审批与A2UI、Guard、Eval、审计观测、外部渠道、SDK/CLI、独立业务场景及部署。
 
@@ -38,11 +38,11 @@ python3 -m unittest discover -s scripts -p 'test_*.py' -v
 git diff --check
 ```
 
-当前前后端启动命令如下；仅已接入系统状态、登录和用户管理。
+当前前后端启动命令如下；已接入系统状态、登录、用户、空间/成员和模型账户管理。
 
 ## 后端启动与检查
 
-本机需要make、Python3.9+及可用Go。Makefile以命令级固定Go1.26.6，不修改全局环境。当前要求ASTERFLOW_DATABASE_URL及至少32字节的ASTERFLOW_JWT_SECRET_KEY；先按下方本地PG说明准备可信的.env，在每个新终端显式导出。Go不会自动加载.env。
+本机需要make、Python3.9+及可用Go。Makefile以命令级固定Go1.26.6，不修改全局环境。当前要求ASTERFLOW_DATABASE_URL，以及各自至少32字节的ASTERFLOW_JWT_SECRET_KEY和ASTERFLOW_CREDENTIAL_SECRET_KEY；先按下方本地PG说明准备可信的.env，在每个新终端显式导出。Go不会自动加载.env。
 
 ```bash
 set -a
@@ -120,7 +120,7 @@ stop停止数据库，up恢复启动；down移除本项目容器和网络并保�
 
 ## 数据库迁移
 
-ENG-003迁移CLI和初始IAM七表SQL已完成本地验收，query解析缺陷已修复；ENG-003验收时开发库为version=1 dirty=false；2026-11-16已通过G02隔离验证并应用000002，当前实查version=2 dirty=false，详见[迁移验收](docs/delivery/ENG-003-VERIFICATION.md)。
+ENG-003迁移CLI和初始IAM七表SQL已完成本地验收，query解析缺陷已修复；ENG-003验收时开发库为version=1 dirty=false；2026-11-16已通过G02隔离验证并应用000002，G03已应用000003至000005，当前实查version=5 dirty=false，环境绑定表和约束已确认存在，详见[迁移验收](docs/delivery/ENG-003-VERIFICATION.md)。
 
 新环境在已导出.env的终端执行；已有数据库重复up会正常无变更：
 
@@ -131,7 +131,7 @@ make migrate-version
 
 迁移由独立cmd/migrate命令管理；HTTP服务启动只连接PG，不自动修改表结构。版本000001包含七张表，schema_migrations记录当前版本及dirty。初始表存在不代表用户登录或权限接口已实现。
 
-make migrate-down回退一版，具体影响以down脚本为准：000002移除角色约束和索引，000001会删除七表及数据；自动回退验收仅在临时schema中执行。完整命令、失败处理与部署目录要求见[迁移操作说明](docs/operations/DATABASE-MIGRATIONS.md)。
+make migrate-down回退一版，具体影响以down脚本为准：000005删除环境绑定及其限额配置，000004删除Profile/版本表，000003删除账户/部署表及配置，000002移除角色约束和索引，000001会删除七表及数据；自动回退验收仅在临时schema中执行。完整命令、失败处理与部署目录要求见[迁移操作说明](docs/operations/DATABASE-MIGRATIONS.md)。
 
 
 ## 用户登录与管理端
@@ -178,6 +178,25 @@ flowchart LR
 ```
 
 [管理端说明](web/admin/README.md)和[G01验收记录](docs/delivery/G01-VERIFICATION.md)区分测试夹具、真实PG、桌面浏览器与远程Checks。
+
+
+## 模型配置的当前调用链
+
+```mermaid
+flowchart LR
+    Page["React 账户 / 部署 / 方案版本 / 环境绑定"] --> Client["Axios：Bearer / 显式空间Header"]
+    Client --> Auth["Gin Auth"]
+    Auth --> Workspace["Workspace：角色与操作权限"]
+    Workspace --> Handler["ModelConfigHandler：解析与可信身份"]
+    Handler --> Service["modelconfig.Service：校验 / 加密 / 空间归属 / 预算计价检查"]
+    Config["Config：持久化加密主密钥"] --> Cipher["Cipher：AES-GCM"]
+    Service --> Cipher
+    Service --> Store["Model PostgresStore：Profile与首版事务 / 版本分配 / 工作空间行锁"]
+    Store --> Queries["sqlc账户 / 部署 / Profile / 环境绑定查询"]
+    Queries --> PG[("PostgreSQL 模型配置表 / project_model_bindings")]
+```
+
+账户、部署、Profile版本及环境绑定的Store/Service/HTTP/Web均已接入。绑定以空间和环境为键，指向指定方案版本。更新绑定和更新计价通过同一空间行锁协调，已启用月预算的环境不会因并发改价失去必需价格。当前只保存预算、RPM和TPM配置；模型Gateway在G06接入，配额执行在G15实现。完整进度及证据见[G03验证记录](docs/delivery/G03-VERIFICATION.md)。
 
 ## 协作
 

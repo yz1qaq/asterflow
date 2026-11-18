@@ -257,3 +257,21 @@ body {
 .member-edit-modal .ant-form-item-extra { color: var(--subtle-text); }
 
 .workspace-current { padding: 16px 20px; margin-bottom: 20px; background: var(--soft-blue, #f3f6ff); border-radius: 8px; }
+
+/* Model account management reuses the existing workspace and table surfaces. */
+.model-workspace { margin-bottom: 24px; }
+.model-section-heading { display: flex; align-items: baseline; gap: 18px; margin: 20px 0 16px; }
+.model-section-heading h3.ant-typography { margin: 0; font-size: 18px; font-weight: 600; }
+.model-section-heading > .ant-typography:last-child { color: var(--subtle-text); font-size: 13px; }
+
+.model-section-heading { justify-content: space-between; align-items: center; }
+.model-section-heading > div > .ant-typography:last-child { color: var(--subtle-text); font-size: 13px; }
+.model-config-tabs .ant-table-wrapper { padding: 8px 16px; background: white; border-radius: 14px; }
+.deployment-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
+.deployment-price-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 12px; }
+.deployment-form-grid .ant-input-number, .deployment-price-grid .ant-input-number { width: 100%; }
+.deployment-prices { display: flex; flex-direction: column; gap: 4px; font-variant-numeric: tabular-nums; }
+
+.model-binding-card { background: white; border: 1px solid var(--line, #e3e9f4); border-radius: 14px; padding: 16px 20px; }
+.model-binding-actions { display: flex; gap: 8px; }
+.model-binding-card > .ant-typography:last-child { display: block; margin-top: 12px; }

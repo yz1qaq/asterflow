@@ -5,7 +5,7 @@ ENG-001已由PR #4合并；ENG-002已由PR #6合并；ENG-003已由PR #8合并�
 ## 已批准的需求组合并
 
 负责人2026-11-15确认[ROADMAP](ROADMAP.md)：保留001/002历史、003按当前流程收尾；004至038合为G01至G22共22个需求组。后续同组默认一个Issue/分支/集中验收/PR，前后端及测试文档随组交付，不按函数或技术层反复提交。大组可跨学习日，实际范围与完成证据分别记录。
-G01（ENG-004+005用户与登录）已合并；[G02](../tasks/G02-workspaces.md)工作空间与成员已完成本地实现和验收、P1修复已落地，正式工作区复审通过，Ready for PR，关联Issue #11。同步/流式共享执行、过渡实现精简按[ADR-0004](../architecture/adr/0004-feature-groups-and-runtime-scope.md)，原完整范围不削减。
+G01（ENG-004+005用户与登录）已合并；[G02](../tasks/G02-workspaces.md)工作空间与成员已由PR #12合并，Issue #11已关闭；[G03](../tasks/G03-model-config.md)模型配置In Progress，关联Issue #13，账户、部署、方案版本与环境绑定已联调，预审修复已复验，准备提交同组 PR。同步/流式共享执行、过渡实现精简按[ADR-0004](../architecture/adr/0004-feature-groups-and-runtime-scope.md)，原完整范围不削减。
 
 ## 入口与阶段
 

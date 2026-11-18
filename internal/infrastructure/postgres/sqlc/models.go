@@ -22,6 +22,68 @@ type ApiKey struct {
 	CreatedAt  time.Time
 }
 
+type ModelDeployment struct {
+	ID                         uuid.UUID
+	WorkspaceID                string
+	ProviderAccountID          uuid.UUID
+	Name                       string
+	ModelName                  string
+	Region                     string
+	TimeoutMs                  int32
+	MaxRetries                 int32
+	InputPricePerMillion       pgtype.Numeric
+	OutputPricePerMillion      pgtype.Numeric
+	CachedInputPricePerMillion pgtype.Numeric
+	Status                     string
+	CreatedBy                  string
+	CreatedAt                  time.Time
+	UpdatedAt                  time.Time
+}
+
+type ModelProfile struct {
+	ID          uuid.UUID
+	WorkspaceID string
+	Name        string
+	Description string
+	CreatedBy   string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type ModelProfileVersion struct {
+	ID                    uuid.UUID
+	ProfileID             uuid.UUID
+	Version               int32
+	PrimaryDeploymentID   uuid.UUID
+	FallbackDeploymentIds []byte
+	ClassificationMax     string
+	CreatedBy             string
+	CreatedAt             time.Time
+}
+
+type ProjectModelBinding struct {
+	WorkspaceID           string
+	Env                   string
+	ModelProfileVersionID uuid.UUID
+	MonthlyBudget         pgtype.Numeric
+	RpmLimit              int32
+	TpmLimit              int32
+	UpdatedAt             time.Time
+}
+
+type Provider struct {
+	ID               uuid.UUID
+	WorkspaceID      string
+	Name             string
+	Kind             string
+	BaseUrl          string
+	ApiKeyCiphertext []byte
+	Status           string
+	CreatedBy        string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
 type Role struct {
 	ID          uuid.UUID
 	Name        string

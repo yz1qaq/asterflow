@@ -107,3 +107,11 @@ version=1 dirty=false → migrations applied → version=2 dirty=false。
 原独立AI Reviewer只读复审正式未提交工作区，确认P1可以关闭、两个写入口和所有调用均已切换actorID、没有旧bool或fallback，owner/admin及最后owner规则保持。结论为可进入PR；复审没有修改代码/索引/分支，没有操作DB或发送GitHub消息。这不是最终提交SHA审查，也不是人类Approve。
 
 当前状态Ready for PR：尚未提交/推送/创建G02 PR；负责人使用docs/delivery/G02-PR.md提交正文，随后检查实际head的远程CI并按该SHA评审，由负责人手动合并。暂不自动开始G03，保留用户执行Git的学习边界。
+
+## 2026-11-17 PR合并与本地同步
+
+远程PR #12已由负责人手动Squash合并，merged_at=2026-11-17T04:53:51Z；Issue #11已completed关闭。最终head为2fec0f621f65ccc8c0563bfc96e9a9ae44b06d6a，merge为ad533f7cbc8082353fa51e2ec27a05b7e4c171bf，本地main已同步且初始工作区干净；两提交tree都为32ead78d98ae701ac0944163e31f7a4481298226。
+
+最终head的PR触发Documentation(run44016203016)、Go(run44016202994)、Web(run44016203086)均SUCCESS，Go包含真实PG/race/vet/build。固定SHA独立AI复审无新增阻断，P1关闭；本对话未向GitHub发布COMMENT Review，不将AI复审称作独立人类Approve。
+
+本组已交付。PR正文及此前Ready描述是创建当时的快照，最新结论以本段及STATUS为准。下一组为G03（Issue #13），新文档随G03分支提交，不为状态更新单独增加一次main提交。

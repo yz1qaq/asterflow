@@ -9,6 +9,7 @@ import (
 	"github.com/yz1qaq/asterflow/internal/api/middleware"
 	v1 "github.com/yz1qaq/asterflow/internal/api/v1"
 	"github.com/yz1qaq/asterflow/internal/platform/iam"
+	"github.com/yz1qaq/asterflow/internal/platform/modelconfig"
 )
 
 type ReadinessChecker interface {
@@ -18,6 +19,7 @@ type ReadinessChecker interface {
 func NewRouter(
 	checker ReadinessChecker,
 	iamService *iam.Service,
+	modelService *modelconfig.Service,
 ) http.Handler {
 	router := gin.New()
 	router.Use(gin.Recovery())
@@ -76,6 +78,67 @@ func NewRouter(
 		"/context",
 		middleware.Workspace(iamService),
 		iamHandler.Context,
+	)
+
+	modelHandler := v1.NewModelConfigHandler(modelService)
+
+	workspaceRoutes := protected.Group("")
+	workspaceRoutes.Use(middleware.Workspace(iamService))
+
+	workspaceRoutes.POST(
+		"/model-accounts",
+		modelHandler.CreateProviderAccount,
+	)
+	workspaceRoutes.GET(
+		"/model-accounts",
+		modelHandler.ListProviderAccounts,
+	)
+	workspaceRoutes.PUT(
+		"/model-accounts/:account_id/api-key",
+		modelHandler.RotateProviderAPIKey,
+	)
+
+	workspaceRoutes.POST(
+		"/model-deployments",
+		modelHandler.CreateDeployment,
+	)
+	workspaceRoutes.GET(
+		"/model-deployments",
+		modelHandler.ListDeployments,
+	)
+	workspaceRoutes.PUT(
+		"/model-deployments/:deployment_id/pricing",
+		modelHandler.UpdateDeploymentPricing,
+	)
+
+	workspaceRoutes.POST(
+		"/model-profiles",
+		modelHandler.CreateProfile,
+	)
+	workspaceRoutes.GET(
+		"/model-profiles",
+		modelHandler.ListProfiles,
+	)
+	workspaceRoutes.POST(
+		"/model-profiles/:profile_id/versions",
+		modelHandler.CreateProfileVersion,
+	)
+	workspaceRoutes.GET(
+		"/model-profiles/:profile_id/versions",
+		modelHandler.ListProfileVersions,
+	)
+
+	workspaceRoutes.GET(
+		"/model-profile-versions",
+		modelHandler.ListWorkspaceProfileVersions,
+	)
+	workspaceRoutes.GET(
+		"/model-bindings",
+		modelHandler.GetProjectBinding,
+	)
+	workspaceRoutes.PUT(
+		"/model-bindings",
+		modelHandler.BindProject,
 	)
 
 	adminRoutes := v1Routes.Group("")

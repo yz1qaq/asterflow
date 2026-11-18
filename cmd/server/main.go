@@ -13,6 +13,7 @@ import (
 	"github.com/yz1qaq/asterflow/internal/config"
 	"github.com/yz1qaq/asterflow/internal/infrastructure/postgres"
 	"github.com/yz1qaq/asterflow/internal/platform/iam"
+	"github.com/yz1qaq/asterflow/internal/platform/modelconfig"
 )
 
 func main() {
@@ -42,6 +43,16 @@ func start() error {
 	store := iam.NewPostgresStore(pool)
 	iamService := iam.NewService(store, []byte(cfg.JWTSecretKey))
 
+	credentialCipher, err := modelconfig.NewCipher(
+		[]byte(cfg.CredentialSecretKey),
+	)
+	if err != nil {
+		return fmt.Errorf("initialize credential cipher: %w", err)
+	}
+
+	modelStore := modelconfig.NewPostgresStore(pool)
+	modelService := modelconfig.NewService(modelStore, credentialCipher)
+
 	if cfg.AutoseedAdmin {
 		seedCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		err := iamService.EnsureSeedAdmin(
@@ -56,7 +67,7 @@ func start() error {
 		}
 	}
 
-	handler := api.NewRouter(pool, iamService)
+	handler := api.NewRouter(pool, iamService, modelService)
 	log.Printf("starting HTTP server on %s", cfg.HTTPAddr)
 
 	return run(ctx, handler, cfg.HTTPAddr)
