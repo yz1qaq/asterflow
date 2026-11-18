@@ -233,7 +233,13 @@ func TestModelConfigHTTP(t *testing.T) {
 		t.Fatal("version writeback mismatch")
 	}
 	persistedVersion, err := store.GetProfileVersion(ctx, v2.ID)
-	if err != nil || !reflect.DeepEqual(persistedVersion, &v2) {
+	if err != nil {
+		t.Fatalf("read persisted profile version: %v", err)
+	}
+	// pgx can return a Local timestamp while JSON with Z decodes as UTC.
+	stored, response := *persistedVersion, v2
+	stored.CreatedAt, response.CreatedAt = stored.CreatedAt.UTC(), response.CreatedAt.UTC()
+	if !reflect.DeepEqual(stored, response) {
 		t.Fatal("HTTP version differs from PG")
 	}
 	raw = call("GET", versionPath, viewerLogin.Token, a.ID, "", 200)

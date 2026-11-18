@@ -184,3 +184,9 @@ React 新增环境绑定页签，只有返回 404 且 code 为 model_binding_not
 独立 AI 工作区复审确认四项 P2 已关闭，无新阻断。保留 P3 后续项：在之后的迁移补齐价格有限值和直接 SQL 写入的跨空间引用约束；禁止复用 JWT 与凭据主密钥；编辑权限被降级时主动清空打开的编辑表单。当前服务层检查和后端授权已验证，P3 不等同于新活动的越权写入。开发库迁移仍为已实查的5/false，本轮未修改开发库。
 
 [PR 正文](G03-PR.md)已准备。负责人完成提交和推送后核对实际 head SHA、远程 CI 和复审；此工作区结论不是远程 CI 或人类 Approve。
+
+## PR #14 首个提交的 Go CI 修复（2026-11-18）
+
+[PR #14](https://github.com/yz1qaq/asterflow/pull/14) 为 Draft，首个提交 cfd61f07311ba1a8a3334132989bf3ab25c214fa。Documentation、Web 均通过。PR Go 运行44319482527和分支推送 Go 运行44319462917均在 TestModelConfigHTTP 的版本读回断言失败。固定提交的独立 AI 复审确认四项 P2 修复已提交，无新增业务阻断。
+
+在 TZ=UTC 和显式测试库下复现。隔离诊断确认 PostgreSQL 和 HTTP JSON 的 CreatedAt 表示同一时刻，但保存的 Go 时区对象不同。两方拷贝统一 UTC 后，完整记录比较一致。修复只调整现有测试的时间比较，并继续校验所有字段。上海时区的针对性 HTTP/race 测试与 UTC 下完整 make check 均已通过，包含真实 PostgreSQL 和62项 Web 测试。补丁未推送，待按新 head 复核远程 CI。
