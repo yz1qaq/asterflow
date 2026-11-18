@@ -1,7 +1,7 @@
 # G02：工作空间与成员权限（ENG-006+007）
 
 关联[Issue #11](https://github.com/yz1qaq/asterflow/issues/11)，FR-01 / MOD-IAM / EP-02。
-状态：本地实现与集中验收通过，预审P1已由负责人修复并通过真实PG回归，正式工作区复审通过，Ready for PR；尚未提交或创建PR。
+状态Done：PR #12已手动合并为ad533f7cbc8082353fa51e2ec27a05b7e4c171bf，本地main已同步；最终head的CI与AI复审通过。
 分支feat/ENG-006-007-workspaces，基线为G01合并提交b82d826e46e8112fca2cb9cf836b76ec62685272。
 
 ## 需求结果
@@ -42,7 +42,7 @@
 - [x] Gin身份/路径权限/context及React空间、成员与当前空间流程完成本地联调。
 - [x] 2026-11-17完整make check通过，前端34项测试及构建通过。
 - [x] 正式工作区修复复审通过，P1关闭。
-- [ ] 负责人提交、推送并创建同组PR。
-- [ ] 实际最终head的远程CI与Review通过，负责人手动合并。
+- [x] 负责人提交、推送并创建同组PR #12。
+- [x] 最终head 2fec0f6的远程CI/AI复审通过，负责人手动Squash合并。
 
 真实数据库、桌面、修复复现和历史预验证分别记录在[G02验收记录](../delivery/G02-VERIFICATION.md)。工作区预审不等于未来提交SHA审查，也不等于人类Approve。

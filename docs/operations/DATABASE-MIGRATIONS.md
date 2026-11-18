@@ -1,6 +1,6 @@
 # 数据库迁移操作
 
-ENG-003迁移CLI已通过PR #8合并。G02首批迁移于2026-11-16完成隔离验证并应用开发public，当前实查version=2 dirty=false；见[G02验收记录](../delivery/G02-VERIFICATION.md)。
+ENG-003迁移CLI已通过PR #8合并。G02首批迁移于2026-11-16完成隔离验证并应用开发public，当时实查version=2 dirty=false；G03最新已实查version=5 dirty=false，绑定表和约束存在；见[G02验收记录](../delivery/G02-VERIFICATION.md)。
 
 ## 命令与目录
 
@@ -20,7 +20,7 @@ make migrate-up执行所有尚未应用的版本；已最新时正常无变更�
 -database-env默认ASTERFLOW_DATABASE_URL，可切换到专用环境变量。CLI由golang-migrate的pgx5驱动管理独立连接，不复用server的pgxpool；两个命令生命周期独立。
 
 当前000001一次建立七张表；schema_migrations由框架维护，记录当前版本和dirty，不按表数量计算版本。
-G01用户认证已交付；000002补角色约束，空间Store/Service/API仍在G02实现。工作空间主键及关联列TEXT，支持slug；用户/角色主键UUID。
+G01用户认证已交付；000002补角色约束，空间Store/Service/API与Web已由G02 PR #12交付。工作空间主键及关联列TEXT，支持slug；用户/角色主键UUID。
 
 ## 回退与失败
 
@@ -28,7 +28,7 @@ G01用户认证已交付；000002补角色约束，空间Store/Service/API仍在
 make migrate-down
 ```
 
-该命令明确回退一个版本；当前从2回到1仅移除角色约束与联合索引，表和数据保留。继续回退000001才会删除七张表及其中数据。自动回退测试只针对临时schema，不对开发库执行。
+该命令明确回退一个版本；从4回到3删除Profile和版本表；从3回到2会删除账户/部署两表及其记录；从2回到1仅移除角色约束与联合索引，表和数据保留。继续回退000001才会删除七张表及其中数据。自动回退测试只针对临时schema，不对开发库执行。
 需要指定其他步数时可使用迁移二进制的-down N；N必须正数。固定步数回退在无版本时会非零退出，不假报完成。
 多个迁移版本的执行不是跨版本整体事务，错误后需核对实际版本；不能把命令失败理解为此前所有版本自动撤销。
 
@@ -56,5 +56,10 @@ CI已有独立PG服务与显式测试URL，当前go job会自动包含cmd/migrat
 | --- | --- | --- |
 | 000001_init_iam | 000001_init_iam | 七张IAM表，已应用 |
 | 000002_workspace_rbac | 000016_workspace_rbac | 两个角色CHECK与空间角色索引，已应用 |
+| 000003_model_accounts_deployments | 000008/000013/000023模型控制面子集 | 账户/部署、密文与计价；已由负责人应用，助手核对开发库3/false及两表存在 |
+| 000004_model_profiles | 000013模型方案与版本子集 | 已由负责人应用；本轮实查4/false及Profile/版本两表存在 |
+| 000005_project_model_bindings | 模型控制面中的环境绑定 | 独立保存空间与环境的版本绑定、月预算及RPM/TPM；隔离验证通过，负责人已应用；实查5/false及表和约束存在 |
 
-编号按本项目依赖顺序安排，功能语义保持；完整26组参考迁移语义由后续各组记录，最终G22核验，不以当前两版冒充完整数据库。
+编号按本项目依赖顺序安排，功能语义保持；完整26组参考迁移语义由后续各组记录，最终G22核验，后续仍有未交付的迁移。
+
+G03补充：000005的down会删除project_model_bindings中的环境绑定及限额配置，方案与版本保留。000003的down会删除model_deployments和providers，包括其中配置与密文；开发库本轮未执行down。迁移CLI只读取数据库配置，服务加密主密钥由独立ASTERFLOW_CREDENTIAL_SECRET_KEY提供。

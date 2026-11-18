@@ -319,6 +319,7 @@ func processEnvironment(addr string) []string {
 			strings.HasPrefix(value, "GIN_MODE=") ||
 			strings.HasPrefix(value, "ASTERFLOW_DATABASE_URL=") ||
 			strings.HasPrefix(value, "ASTERFLOW_JWT_SECRET_KEY=") ||
+			strings.HasPrefix(value, "ASTERFLOW_CREDENTIAL_SECRET_KEY=") ||
 			strings.HasPrefix(value, "ASTERFLOW_AUTOSEED_") {
 			continue
 		}
@@ -329,6 +330,7 @@ func processEnvironment(addr string) []string {
 	return append(env, "ASTERFLOW_HTTP_ADDR="+addr, "GIN_MODE=test",
 		"ASTERFLOW_DATABASE_URL="+databaseURL,
 		"ASTERFLOW_JWT_SECRET_KEY=process-fixture-key-at-least-32-bytes",
+		"ASTERFLOW_CREDENTIAL_SECRET_KEY=process-credential-fixture-at-least-32-bytes",
 		"ASTERFLOW_AUTOSEED_ADMIN=false")
 }
 

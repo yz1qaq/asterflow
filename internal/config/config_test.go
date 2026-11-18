@@ -7,6 +7,7 @@ import (
 )
 
 func TestLoad(t *testing.T) {
+	t.Setenv("ASTERFLOW_CREDENTIAL_SECRET_KEY", "credential-fixture-key-at-least-32-bytes")
 	t.Setenv("ASTERFLOW_JWT_SECRET_KEY", "config-fixture-key-at-least-32-bytes")
 	t.Setenv("ASTERFLOW_AUTOSEED_ADMIN", "false")
 	t.Setenv("ASTERFLOW_DATABASE_URL", "postgres://unit@127.0.0.1:1/unit?sslmode=disable")
@@ -59,6 +60,7 @@ func TestLoad(t *testing.T) {
 }
 
 func TestLoadDatabaseURL(t *testing.T) {
+	t.Setenv("ASTERFLOW_CREDENTIAL_SECRET_KEY", "credential-fixture-key-at-least-32-bytes")
 	t.Setenv("ASTERFLOW_JWT_SECRET_KEY", "config-fixture-key-at-least-32-bytes")
 	t.Setenv("ASTERFLOW_AUTOSEED_ADMIN", "false")
 	cases := []struct {
@@ -106,6 +108,7 @@ func TestLoadDatabaseURL(t *testing.T) {
 }
 
 func TestLoadAuthConfiguration(t *testing.T) {
+	t.Setenv("ASTERFLOW_CREDENTIAL_SECRET_KEY", "credential-fixture-key-at-least-32-bytes")
 	for _, tc := range []struct {
 		name, key, seed, email, password string
 		unsetSeed, wantErr               bool
@@ -146,6 +149,46 @@ func TestLoadAuthConfiguration(t *testing.T) {
 			if cfg.JWTSecretKey != tc.key || cfg.AutoseedAdmin != (tc.seed == "true") ||
 				cfg.AutoseedAdminEmail != strings.TrimSpace(tc.email) || cfg.AutoseedAdminPassword != tc.password {
 				t.Fatal("auth configuration was not preserved")
+			}
+		})
+	}
+}
+
+func TestLoadCredentialSecretKey(t *testing.T) {
+	t.Setenv("ASTERFLOW_HTTP_ADDR", ":18090")
+	t.Setenv("ASTERFLOW_DATABASE_URL", "host=unit dbname=unit")
+	t.Setenv("ASTERFLOW_JWT_SECRET_KEY", strings.Repeat("j", 32))
+	t.Setenv("ASTERFLOW_AUTOSEED_ADMIN", "false")
+	for _, tc := range []struct {
+		name, value    string
+		unset, wantErr bool
+	}{
+		{"missing", "", true, true},
+		{"empty", "", false, true},
+		{"short", "private-short-fixture", false, true},
+		{"blank", strings.Repeat(" ", 32), false, true},
+		{"valid", strings.Repeat("c", 32), false, false},
+		{"preserve", " " + strings.Repeat("c", 32) + " ", false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("ASTERFLOW_CREDENTIAL_SECRET_KEY", tc.value)
+			if tc.unset {
+				if err := os.Unsetenv("ASTERFLOW_CREDENTIAL_SECRET_KEY"); err != nil {
+					t.Fatal(err)
+				}
+			}
+			got, err := Load()
+			if tc.wantErr {
+				if err == nil || got != (Config{}) || !strings.Contains(err.Error(), "ASTERFLOW_CREDENTIAL_SECRET_KEY") {
+					t.Fatal("invalid credential secret was accepted")
+				}
+				if strings.TrimSpace(tc.value) != "" && strings.Contains(err.Error(), tc.value) {
+					t.Fatal("credential secret leaked in error")
+				}
+				return
+			}
+			if err != nil || got.CredentialSecretKey != tc.value {
+				t.Fatal("credential secret was not preserved")
 			}
 		})
 	}

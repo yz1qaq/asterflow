@@ -16,6 +16,7 @@ type Config struct {
 	AutoseedAdmin         bool
 	AutoseedAdminEmail    string
 	AutoseedAdminPassword string
+	CredentialSecretKey   string
 }
 
 func Load() (Config, error) {
@@ -56,6 +57,14 @@ func Load() (Config, error) {
 		)
 	}
 
+	credentialSecretKey := os.Getenv("ASTERFLOW_CREDENTIAL_SECRET_KEY")
+	if len(credentialSecretKey) < 32 ||
+		strings.TrimSpace(credentialSecretKey) == "" {
+		return Config{}, fmt.Errorf(
+			"ASTERFLOW_CREDENTIAL_SECRET_KEY must contain at least 32 bytes and not be all whitespace",
+		)
+	}
+
 	autoseedAdmin := false
 	if raw, exists := os.LookupEnv("ASTERFLOW_AUTOSEED_ADMIN"); exists {
 		autoseedAdmin, err = strconv.ParseBool(raw)
@@ -81,6 +90,7 @@ func Load() (Config, error) {
 		HTTPAddr:              addr,
 		DatabaseURL:           databaseURL,
 		JWTSecretKey:          jwtSecretKey,
+		CredentialSecretKey:   credentialSecretKey,
 		AutoseedAdmin:         autoseedAdmin,
 		AutoseedAdminEmail:    adminEmail,
 		AutoseedAdminPassword: adminPassword,
