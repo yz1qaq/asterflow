@@ -117,5 +117,6 @@ func workspaceMethodAllowed(role, method, path string) bool {
 	return strings.HasSuffix(path, "/chat") ||
 		strings.HasSuffix(path, "/search") ||
 		strings.HasSuffix(path, "/runs") ||
+		strings.HasSuffix(path, "/conversations") ||
 		strings.Contains(path, "/stream/")
 }

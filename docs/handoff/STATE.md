@@ -4,7 +4,8 @@
 
 - 项目：AsterFlow（GitHub yz1qaq/asterflow）；Go、Gin、PostgreSQL/SQLC、React。kbot 只读，固定基线和识别方法见 [交接入口](START-HERE.md)。
 - 上组：G03 模型账户、部署计价、方案版本与环境绑定由 PR #14 已合并，Squash 为 `b85be3818a44d26180c7efd10da08f33b3679915`。实际 PR head 的 Documentation、Go、Web 与独立 AI 复审通过。确认过首次 PR Go 失败是 PG 与 JSON 的时区对象差异，测试统一 UTC 后通过；不要误认成版本持久化错误。
-- 当前：`feat/ENG-010-011-prompt-governance`，HEAD 即上述 G03 Squash。G04 未提交，工作区有用户的有效未提交文件，请保留。G04 涉及 ENG-010/011、FR-02。**学习第 1 天已通过桌面验收**；G04 整组仍在开发，未提交、未上 CI。
+- 上组：G04 提示词治理由 PR #15 合并，Squash `db1422bb665e4cb84eecd4529cd6178eb71b457d`；head `d0f15a4` 的 docs/go/web 全部通过，本地整组验收见 [G04 记录](../delivery/G04-VERIFICATION.md)。
+- 当前：`feat/ENG-012-013-agent-conversation`，基于上述 G04 Squash。G05 进行中：Agent 核心迁移/类型/查询与创建、追加 Store 已保存并隔离验证；读取与发布为候选。G05 涉及 ENG-012/013、FR-07。
 - Go 命令沿用项目 Makefile；本机曾用 `env -u GOROOT GOTOOLCHAIN=go1.26.6 go ...` 规避工具链冲突。新设备按当前 go.mod 和 Makefile 核对，不改全局环境。一键联调：`make up`（加载 .env、启动 PG+Redis、应用迁移、同时启动后端与前端，Ctrl-C 停止两个应用）。
 
 | 范围 | 事实 |
@@ -32,8 +33,12 @@
 | 环境发布事件 | 迁移 `000008`、domain 类型、查询与 `PublishEnv` 已保存；`Promote`/`Rollback` 改为带 actor 的 `publishEnv`（published/rolled_back），Handler 传当前用户。助手修正 Rollback Handler 的语法错误并补 HTTP 断言：dev 发布 v1→v2、回滚 v2→v1，staging 首次发布 from=NULL，actor 为 owner；Prompt/API/cache 隔离 PG/race 通过。 |
 | 环境事件读取 | 学员已保存读取路径与完成上线的 env 事件（published、detail `rollout completed`，同事务）。助手补 HTTP 断言（dev 最新在前、staging 首次发布、完成后第三条事件、跨空间 404、非法/空环境 400）与页面「发布记录」（环境选择、最新在前、首次发布、操作人、时间），真实 Chromium + 临时 PG 验证发布/回滚/完成上线三条记录；`make web-check` 84 个测试与生产构建通过，SQL 复核 3 条 env 事件。 |
 | Redis 跨进程失效 | `promptcache.Cache`、Redis 发布/订阅、`NewServiceWithCache`、缓存命中与发布/回滚/完成广播、`config.RedisURL`、main 装配均已保存。正式测试含真实 Redis 的订阅失效与双进程发布后 B 读取新版本；全量 Go race 在一次性 PG+Redis 通过。 |
-| 剩余 G04 | 整组验收（全量命令与证据核对）、文档收尾和 PR；完成后按计划进入 G05。 |
+| G04 交付 | PR #15 已合并；本地全量门禁、桌面与双进程验收通过，远程 docs/go/web 通过。 |
+| Agent 核心 | 迁移 000009（snapshot 用 TEXT + `pg_input_is_valid`）、`domain.Agent/AgentVersion`、`queries/agent.sql` 与 SQLC、Store 全部方法（创建/追加/读取/环境发布）已保存。正式 `postgres_store_test.go` 在隔离 PG/race 通过：原子创建、锁父行递增、并发 v2–v5、跨空间、复合外键、快照原样、未绑定环境与发布指针。 |
+| Agent Service/Web | Service（快照构建与 Prompt/模型引用校验、创建/追加/发布/读取）、7 个 Gin 路由、main 装配与 `/agents` 管理页已保存。正式 `TestAgentServiceSnapshotAndPublish` 与 `TestAgentHTTP` 通过；Chromium 实测创建 v1、追加 v2、发布 dev v2、环境卡片与快照显示正确，SQL 复核 agent_versions=2、dev=v2。 |
+| 会话与历史 | 迁移 000010、会话 Store（租约 Claim/Renew/Commit/Release）、Service/HTTP（用户私有、owner/admin 全量、409/404 语义）与 `/conversations` 历史页已完成。正式 Store/HTTP 测试与桌面验收通过。 |
+| G05 状态 | 功能完成，本地整组验收通过，待提交与 PR。 |
 
-核验：前批 `make build`、`go vet ./...` 与 `git diff --check` 通过；本轮 `make docs-check` 报 `internal/platform/modelconfig/postgres_store.go:152` 末尾空行，由学员处理。Go 集成和桌面各用一次性的 PG 容器，不碰开发库；未运行远程 CI。
+核验：G05 分支 `make build`、`go vet ./...`、`make docs-check`、`git diff --check` 通过；全量 Go race 在一次性 PostgreSQL+Redis 通过；桌面与 SQL 复核通过；未运行远程 CI。
 
-学习接续：学习第 1 天的桌面门槛已达到，但仍留在 G04。环境 Store、Service、`promote` 与环境渲染已保存并验证，下一批是环境指针列表、页面发布与按环境预览，见 [NEXT](NEXT.md)。主记录、版本和环境指针的关系不变：创建写 v1 并使 dev 指向 v1；追加 v2 和指定版本预览都不改 dev。本组完整需求见 [G04 任务单](../tasks/G04-prompt-governance.md) 和 [G04 验收](../delivery/G04-VERIFICATION.md)。
+学习接续：G05 功能与本地验收已完成，按 [NEXT](NEXT.md) 进入提交与 PR。版本与环境关系：创建写 v1 并使 dev 指向 v1；追加不改指针；发布/回滚只移动目标环境；会话固定 agent_version_id。本组范围见 [G05 验收](../delivery/G05-VERIFICATION.md)。

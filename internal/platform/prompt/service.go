@@ -700,3 +700,17 @@ func (s *Service) ListRolloutEvents(
 	}
 	return s.store.ListRolloutEvents(ctx, workspaceID, id.String())
 }
+
+// 确保version存在
+func (s *Service) EnsureVersion(ctx context.Context, workspaceID, versionID string) error {
+	workspaceID = strings.TrimSpace(workspaceID)
+	if workspaceID == "" {
+		return fmt.Errorf("%w: workspace_id is required", ErrInvalidArgument)
+	}
+	vid, err := uuid.Parse(strings.TrimSpace(versionID))
+	if err != nil {
+		return fmt.Errorf("%w: version_id must be a UUID", ErrInvalidArgument)
+	}
+	_, err = s.store.GetPromptVersion(ctx, workspaceID, vid.String())
+	return err
+}
