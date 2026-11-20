@@ -2,6 +2,7 @@ package modelconfig
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -217,4 +218,41 @@ func (s *Service) CreateProfileVersion(
 	}
 
 	return version, nil
+}
+
+
+//判断ProfileVersion的profile是否属于这个workspace
+func (s *Service) ValidateProfileVersion(
+	ctx context.Context, workspaceID, versionID string,
+) error {
+	workspaceID = strings.TrimSpace(workspaceID)
+	if workspaceID == "" {
+		return fmt.Errorf("%w: workspace_id is required", ErrInvalidArgument)
+	}
+
+	versionID = strings.TrimSpace(versionID)
+	if versionID == "" {
+		return nil
+	}
+
+	id, err := uuid.Parse(versionID)
+	if err != nil {
+		return fmt.Errorf(
+			"%w: model_profile_version_id must be a UUID",
+			ErrInvalidArgument,
+		)
+	}
+
+	version, err := s.store.GetProfileVersion(ctx, id.String())
+	if err != nil {
+		return fmt.Errorf("get model profile version: %w", err)
+	}
+
+	if _, err := s.GetProfile(ctx, workspaceID, version.ProfileID); err != nil {
+		if errors.Is(err, ErrProfileNotFound) {
+			return ErrProfileVersionNotFound
+		}
+		return err
+	}
+	return nil
 }

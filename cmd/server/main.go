@@ -9,11 +9,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/yz1qaq/asterflow/internal/api"
 	"github.com/yz1qaq/asterflow/internal/config"
 	"github.com/yz1qaq/asterflow/internal/infrastructure/postgres"
 	"github.com/yz1qaq/asterflow/internal/platform/iam"
 	"github.com/yz1qaq/asterflow/internal/platform/modelconfig"
+	"github.com/yz1qaq/asterflow/internal/platform/prompt"
+	"github.com/yz1qaq/asterflow/internal/runtime/promptcache"
 )
 
 func main() {
@@ -53,6 +56,33 @@ func start() error {
 	modelStore := modelconfig.NewPostgresStore(pool)
 	modelService := modelconfig.NewService(modelStore, credentialCipher)
 
+	redisOptions, err := redis.ParseURL(cfg.RedisURL)
+	if err != nil {
+		return fmt.Errorf("parse Redis URL: %w", err)
+	}
+	redisClient := redis.NewClient(redisOptions)
+	defer redisClient.Close()
+	pingCtx, cancelPing := context.WithTimeout(ctx, 5*time.Second)
+	err = redisClient.Ping(pingCtx).Err()
+	cancelPing()
+	if err != nil {
+		return fmt.Errorf("connect Redis: %w", err)
+	}
+
+	promptStore := prompt.NewPostgresStore(pool)
+	promptCache := promptcache.NewCache()
+	promptService := prompt.NewServiceWithCache(
+		promptStore,
+		modelService,
+		promptCache,
+		promptcache.NewRedisPublisher(redisClient),
+	)
+	go func() {
+		if err := promptcache.NewSubscriber(redisClient, promptCache).Run(ctx); err != nil && ctx.Err() == nil {
+			log.Printf("prompt cache subscriber stopped: %v", err)
+		}
+	}()
+
 	if cfg.AutoseedAdmin {
 		seedCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		err := iamService.EnsureSeedAdmin(
@@ -67,7 +97,7 @@ func start() error {
 		}
 	}
 
-	handler := api.NewRouter(pool, iamService, modelService)
+	handler := api.NewRouter(pool, iamService, modelService, promptService)
 	log.Printf("starting HTTP server on %s", cfg.HTTPAddr)
 
 	return run(ctx, handler, cfg.HTTPAddr)

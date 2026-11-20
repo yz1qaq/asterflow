@@ -190,3 +190,7 @@ React 新增环境绑定页签，只有返回 404 且 code 为 model_binding_not
 [PR #14](https://github.com/yz1qaq/asterflow/pull/14) 为 Draft，首个提交 cfd61f07311ba1a8a3334132989bf3ab25c214fa。Documentation、Web 均通过。PR Go 运行44319482527和分支推送 Go 运行44319462917均在 TestModelConfigHTTP 的版本读回断言失败。固定提交的独立 AI 复审确认四项 P2 修复已提交，无新增业务阻断。
 
 在 TZ=UTC 和显式测试库下复现。隔离诊断确认 PostgreSQL 和 HTTP JSON 的 CreatedAt 表示同一时刻，但保存的 Go 时区对象不同。两方拷贝统一 UTC 后，完整记录比较一致。修复只调整现有测试的时间比较，并继续校验所有字段。上海时区的针对性 HTTP/race 测试与 UTC 下完整 make check 均已通过，包含真实 PostgreSQL 和62项 Web 测试。补丁未推送，待按新 head 复核远程 CI。
+
+## G03 合并确认（2026-11-18）
+
+[PR #14](https://github.com/yz1qaq/asterflow/pull/14) 已由负责人 Squash 合并为 b85be3818a44d26180c7efd10da08f33b3679915；最终 head 为 40e1cd8953d0c8dd65ad4d47f4b98a7cbf748174，合并前后的树均为 b612895f375614bb2b028ddef23e5869cfbf4465。该 head 的 PR 触发 [Documentation](https://github.com/yz1qaq/asterflow/actions/runs/44321330151)、[Go](https://github.com/yz1qaq/asterflow/actions/runs/44321329836) 和 [Web](https://github.com/yz1qaq/asterflow/actions/runs/44321329924) 均通过，Go 包括真实 PostgreSQL/race、Vet、Build。实际 head 的独立 AI 复审无新增阻断。G04 分支从该 main 提交开始，详见 [G04 开发任务](../tasks/G04-prompt-governance.md)。

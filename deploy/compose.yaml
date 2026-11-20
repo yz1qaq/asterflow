@@ -19,5 +19,17 @@ services:
       retries: 15
       start_period: 5s
 
+  redis:
+    # Pub/Sub only; persistence is intentionally disabled.
+    image: redis@sha256:39353c6a2f310da333374e1290c91805d15a85def073b5090f58e4ac646d284c
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:${ASTERFLOW_REDIS_PORT:-25433}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
 volumes:
   postgres_data:

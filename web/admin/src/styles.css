@@ -275,3 +275,16 @@ body {
 .model-binding-card { background: white; border: 1px solid var(--line, #e3e9f4); border-radius: 14px; padding: 16px 20px; }
 .model-binding-actions { display: flex; gap: 8px; }
 .model-binding-card > .ant-typography:last-child { display: block; margin-top: 12px; }
+
+.prompt-text { margin: 8px 0 16px; padding: 12px; background: var(--page-background); border: 1px solid var(--line); border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.prompt-env-item { display: flex; flex-direction: column; gap: 4px; min-width: 140px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--page-background); }
+.prompt-experiment-card { gap: 8px; margin-bottom: 8px; }
+.prompt-timeline { border-top: 1px solid var(--line); padding-top: 8px; }
+.prompt-timeline ul { margin: 6px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.prompt-timeline li { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.prompt-detail { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+.prompt-diff { margin: 8px 0 16px; padding: 12px; background: var(--page-background); border: 1px solid var(--line); border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+.prompt-diff span { display: block; }
+.prompt-diff .diff-add { background: #ecfdf3; color: #067647; }
+.prompt-diff .diff-del { background: #fef3f2; color: #b42318; }
+.prompt-diff .diff-file { font-weight: 600; margin-top: 8px; }

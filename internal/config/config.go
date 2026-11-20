@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 type Config struct {
 	HTTPAddr              string
 	DatabaseURL           string
+	RedisURL              string
 	JWTSecretKey          string
 	AutoseedAdmin         bool
 	AutoseedAdminEmail    string
@@ -86,6 +88,17 @@ func Load() (Config, error) {
 		)
 	}
 
+	redisURL := strings.TrimSpace(os.Getenv("ASTERFLOW_REDIS_URL"))
+	if redisURL == "" {
+		redisURL = "redis://127.0.0.1:25433/0"
+	}
+	parsedRedis, err := url.Parse(redisURL)
+	if err != nil || (parsedRedis.Scheme != "redis" && parsedRedis.Scheme != "rediss") || parsedRedis.Host == "" {
+		return Config{}, fmt.Errorf(
+			"ASTERFLOW_REDIS_URL must be a redis:// or rediss:// URL",
+		)
+	}
+
 	return Config{
 		HTTPAddr:              addr,
 		DatabaseURL:           databaseURL,
@@ -94,5 +107,6 @@ func Load() (Config, error) {
 		AutoseedAdmin:         autoseedAdmin,
 		AutoseedAdminEmail:    adminEmail,
 		AutoseedAdminPassword: adminPassword,
+		RedisURL:              redisURL,
 	}, nil
 }

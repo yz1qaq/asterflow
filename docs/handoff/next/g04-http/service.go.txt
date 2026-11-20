@@ -1,0 +1,194 @@
+package prompt
+
+import (
+	"context"
+	"crypto/sha256"
+	"errors"
+	"fmt"
+	"strings"
+
+	"github.com/google/uuid"
+	"github.com/yz1qaq/asterflow/internal/domain"
+	"github.com/yz1qaq/asterflow/internal/runtime/promptcache"
+)
+
+var ErrInvalidArgument = errors.New("invalid prompt argument")
+
+type Store interface {
+	CreatePromptWithInitialVersion(context.Context, *Prompt, *PromptVersion) error
+	AppendPromptVersion(context.Context, string, *PromptVersion) error
+	GetPromptVersion(context.Context, string, string) (*PromptVersion, error)
+	GetPrompt(context.Context, string, string) (*Prompt, error)
+	ListPrompts(context.Context, string) ([]*Prompt, error)
+	ListPromptVersions(context.Context, string, string) ([]*PromptVersion, error)
+}
+
+type ModelProfileValidator interface {
+	ValidateProfileVersion(context.Context, string, string) error
+}
+
+type Service struct {
+	store  Store
+	models ModelProfileValidator
+}
+
+func NewService(store Store, models ModelProfileValidator) *Service {
+	return &Service{store: store, models: models}
+}
+
+type VersionInput struct {
+	Template              string                  `json:"template"`
+	VariablesSchema       string                  `json:"variables_schema"`
+	ModelProfileVersionID string                  `json:"model_profile_version_id"`
+	GenerationConfig      domain.GenerationConfig `json:"generation_config"`
+}
+
+type CreatePromptRequest struct {
+	WorkspaceID string `json:"-"`
+	CreatedBy   string `json:"-"`
+	Name        string `json:"name"`
+	Category    string `json:"category"`
+	VersionInput
+}
+
+type CreateVersionRequest struct {
+	WorkspaceID string `json:"-"`
+	CreatedBy   string `json:"-"`
+	VersionInput
+}
+
+func (s *Service) prepareVersion(
+	ctx context.Context, workspaceID, promptID, createdBy string, input VersionInput,
+) (*PromptVersion, error) {
+	versionID := uuid.NewString()
+	schema := input.VariablesSchema
+	if strings.TrimSpace(schema) == "" {
+		schema = "{}"
+	}
+	compiled, err := promptcache.Compile(versionID, input.Template, schema)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrInvalidArgument, err)
+	}
+
+	modelVersionID := strings.TrimSpace(input.ModelProfileVersionID)
+	if modelVersionID != "" {
+		if s.models == nil {
+			return nil, fmt.Errorf("model profile validator is unavailable")
+		}
+		if err := s.models.ValidateProfileVersion(ctx, workspaceID, modelVersionID); err != nil {
+			return nil, fmt.Errorf("validate prompt model profile version: %w", err)
+		}
+	}
+
+	sum := sha256.Sum256([]byte(input.Template))
+	return &PromptVersion{
+		ID: versionID, PromptID: promptID, Template: input.Template,
+		VariablesSchema: schema, ModelProfileVersionID: modelVersionID,
+		GenerationConfig: input.GenerationConfig, Hash: fmt.Sprintf("%x", sum),
+		TokenEstimate: compiled.EstTokens, CreatedBy: createdBy,
+	}, nil
+}
+
+func (s *Service) CreatePrompt(ctx context.Context, req CreatePromptRequest) (*Prompt, *PromptVersion, error) {
+	workspaceID := strings.TrimSpace(req.WorkspaceID)
+	name := strings.TrimSpace(req.Name)
+	if workspaceID == "" || name == "" {
+		return nil, nil, fmt.Errorf("%w: workspace_id and name are required", ErrInvalidArgument)
+	}
+
+	promptID := uuid.NewString()
+	v, err := s.prepareVersion(ctx, workspaceID, promptID, req.CreatedBy, req.VersionInput)
+	if err != nil {
+		return nil, nil, err
+	}
+	v.Version = 1
+	p := &Prompt{
+		ID: promptID, WorkspaceID: workspaceID, Name: name,
+		Category: strings.TrimSpace(req.Category), CreatedBy: req.CreatedBy,
+	}
+	if err := s.store.CreatePromptWithInitialVersion(ctx, p, v); err != nil {
+		return nil, nil, err
+	}
+	return p, v, nil
+}
+
+func (s *Service) CreateVersion(ctx context.Context, promptID string, req CreateVersionRequest) (*PromptVersion, error) {
+	workspaceID := strings.TrimSpace(req.WorkspaceID)
+	if workspaceID == "" {
+		return nil, fmt.Errorf("%w: workspace_id is required", ErrInvalidArgument)
+	}
+	id, err := uuid.Parse(strings.TrimSpace(promptID))
+	if err != nil {
+		return nil, fmt.Errorf("%w: prompt_id must be a UUID", ErrInvalidArgument)
+	}
+
+	v, err := s.prepareVersion(ctx, workspaceID, id.String(), req.CreatedBy, req.VersionInput)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.store.AppendPromptVersion(ctx, workspaceID, v); err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
+func (s *Service) RenderByVersion(
+	ctx context.Context, workspaceID, promptID, versionID string, vars map[string]any,
+) (string, error) {
+	workspaceID = strings.TrimSpace(workspaceID)
+	if workspaceID == "" {
+		return "", fmt.Errorf("%w: workspace_id is required", ErrInvalidArgument)
+	}
+	pid, err := uuid.Parse(strings.TrimSpace(promptID))
+	if err != nil {
+		return "", fmt.Errorf("%w: prompt_id must be a UUID", ErrInvalidArgument)
+	}
+	vid, err := uuid.Parse(strings.TrimSpace(versionID))
+	if err != nil {
+		return "", fmt.Errorf("%w: version_id must be a UUID", ErrInvalidArgument)
+	}
+
+	version, err := s.store.GetPromptVersion(ctx, workspaceID, vid.String())
+	if err != nil {
+		return "", err
+	}
+	if version.PromptID != pid.String() {
+		return "", ErrPromptVersionNotFound
+	}
+
+	compiled, err := promptcache.Compile(version.ID, version.Template, version.VariablesSchema)
+	if err != nil {
+		return "", fmt.Errorf("compile stored prompt version: %w", err)
+	}
+	text, err := compiled.Render(ctx, vars)
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return "", ctxErr
+		}
+		return "", fmt.Errorf("%w: %v", ErrInvalidArgument, err)
+	}
+	return text, nil
+}
+
+func (s *Service) ListPrompts(ctx context.Context, workspaceID string) ([]*Prompt, error) {
+	workspaceID = strings.TrimSpace(workspaceID)
+	if workspaceID == "" {
+		return nil, fmt.Errorf("%w: workspace_id is required", ErrInvalidArgument)
+	}
+	return s.store.ListPrompts(ctx, workspaceID)
+}
+
+func (s *Service) ListVersions(ctx context.Context, workspaceID, promptID string) ([]*PromptVersion, error) {
+	workspaceID = strings.TrimSpace(workspaceID)
+	if workspaceID == "" {
+		return nil, fmt.Errorf("%w: workspace_id is required", ErrInvalidArgument)
+	}
+	id, err := uuid.Parse(strings.TrimSpace(promptID))
+	if err != nil {
+		return nil, fmt.Errorf("%w: prompt_id must be a UUID", ErrInvalidArgument)
+	}
+	if _, err := s.store.GetPrompt(ctx, workspaceID, id.String()); err != nil {
+		return nil, err
+	}
+	return s.store.ListPromptVersions(ctx, workspaceID, id.String())
+}

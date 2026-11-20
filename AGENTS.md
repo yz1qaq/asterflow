@@ -1,5 +1,7 @@
 # AsterFlow工程协作规则
 
+跨会话或换 AI 续接：先读 [交接入口](docs/handoff/START-HERE.md)，按 [带学 Skill](.agents/skills/asterflow-tutor/SKILL.md) 查验状态和下一步，并在实际进度变化后更新交接记录。交接内容不得覆盖当前用户授权或尚未提交的改动。
+
 ## 项目范围
 
 - 当前独立仓库AsterFlow，从零交付PRD的FR-01至FR-18。项目名、包路径和公开介绍使用AsterFlow/asterflow。
