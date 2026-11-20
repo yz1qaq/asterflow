@@ -1,11 +1,11 @@
 # 交付Backlog与迭代组织
 
-ENG-001已由PR #4合并；ENG-002已由PR #6合并；ENG-003已由PR #8合并；[G01](../tasks/G01-user-auth.md)用户与登录（ENG-004+005）已由PR #10合并，最终head门禁/Review完成，其余业务任务未交付；排期依据依赖和验收能力滚动确定，不用固定截止日削减范围。按可独立评审的小任务领取，Epic不是一次性大PR。首项[ENG-001](../tasks/ENG-001.md)合并和CI事实见[STATUS](STATUS.md)；该PR缺少合并前正式Review，后续任务不得以CI代替评审。
+ENG-001已由PR #4合并；ENG-002已由PR #6合并；ENG-003已由PR #8合并；[G01](../tasks/G01-user-auth.md)（ENG-004+005）由PR #10、[G02](../tasks/G02-workspaces.md)（006+007）由PR #12、[G03](../tasks/G03-model-config.md)（008+009）由PR #14 合并；[G04](../tasks/G04-prompt-governance.md)（010+011）进行中，G05–G22 未开始。排期依据依赖和验收能力滚动确定，不用固定截止日削减范围。按可独立评审的小任务领取，Epic不是一次性大PR。首项[ENG-001](../tasks/ENG-001.md)合并和CI事实见[STATUS](STATUS.md)；该PR缺少合并前正式Review，后续任务不得以CI代替评审。
 
 ## 已批准的需求组合并
 
 负责人2026-11-15确认[ROADMAP](ROADMAP.md)：保留001/002历史、003按当前流程收尾；004至038合为G01至G22共22个需求组。后续同组默认一个Issue/分支/集中验收/PR，前后端及测试文档随组交付，不按函数或技术层反复提交。大组可跨学习日，实际范围与完成证据分别记录。
-G01（ENG-004+005用户与登录）已合并；[G02](../tasks/G02-workspaces.md)工作空间与成员已由PR #12合并，Issue #11已关闭；[G03](../tasks/G03-model-config.md)模型配置In Progress，关联Issue #13，账户、部署、方案版本与环境绑定已联调，预审修复已复验，准备提交同组 PR。同步/流式共享执行、过渡实现精简按[ADR-0004](../architecture/adr/0004-feature-groups-and-runtime-scope.md)，原完整范围不削减。
+G01（ENG-004+005用户与登录）已合并；[G02](../tasks/G02-workspaces.md)工作空间与成员已由PR #12合并，Issue #11已关闭；[G03](../tasks/G03-model-config.md)模型配置已由 PR #14 合并；[G04](../tasks/G04-prompt-governance.md) 提示词治理进行中，当前验证核心迁移。同步/流式共享执行、过渡实现精简按[ADR-0004](../architecture/adr/0004-feature-groups-and-runtime-scope.md)，原完整范围不削减。
 
 ## 入口与阶段
 
@@ -47,3 +47,10 @@ PR引用Issue与FR/MOD/Epic；新接口/依赖/范围变动先修任务/ADR。�
 ## 最终范围核验
 
 [固定清单](../reference/BASELINE.md)冻结488个参考文件与根级CI，全部有模块归属；完成验收另需参考路由/页面/迁移语义到目标实现/测试映射。结构清单只防漏项，语义对齐和外部验收不能被自动化清单替代。
+
+### 计划完整性核对（2026-11-19）
+
+- 固定参考 `baed6c354e1966cdae7bc5328e771dc50ae6c70b` 的 488 个 tracked 文件与根级 CI 均有模块归属；18 个 FR 都有主责模块；ENG-004–038 共 35 个子任务全部落在 G01–G22，无孤立编号。
+- 参考能力与组落点：`cmd/server|worker|sandbox-runner|migrate|mockllm|kbotctl` → G00/G08/G20/G21/G22；`internal/platform` 19 个模块 → G01–G18；`internal/runtime` 10 个包 → G04/G06–G08/G10/G11/G13/G14；管理端 20 个页面 → 对应组（Prompt 详情并入 `/prompts`，审批走会话 A2UI）；`projects/crossborder|insurance` → G21（工具/敏感写切片在 G07/G12）；`pkg/sdk` 与 OpenAPI → G20；Langfuse 脚本 → G17；26 组迁移 → G22 逐项核对。
+- 结论：未发现无归属的参考能力或未排期的 FR；这是计划覆盖核对，不是实现完成证据。路由/页面/迁移的逐条目标映射仍按组补入，G22 汇总。
+- 交接已发现并更正滞后状态：TRACEABILITY 的 G03 行、modules.json 的 IAM/MODEL/PROMPT 状态。今后每个需求组合并后同步 STATUS、TRACEABILITY 与 modules.json。

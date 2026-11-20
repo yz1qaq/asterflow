@@ -1,0 +1,23 @@
+--- a/internal/api/router.go
++++ b/internal/api/router.go
+@@ -12,0 +13 @@
++	"github.com/yz1qaq/asterflow/internal/platform/prompt"
+@@ -22,0 +24 @@
++	promptService *prompt.Service,
+@@ -143,0 +146,7 @@
++	promptHandler := v1.NewPromptHandler(promptService)
++	workspaceRoutes.POST("/prompts", promptHandler.CreatePrompt)
++	workspaceRoutes.GET("/prompts", promptHandler.ListPrompts)
++	workspaceRoutes.POST("/prompts/:prompt_id/versions", promptHandler.CreateVersion)
++	workspaceRoutes.GET("/prompts/:prompt_id/versions", promptHandler.ListVersions)
++	workspaceRoutes.POST("/prompts/:prompt_id/render", promptHandler.Render)
++
+--- a/cmd/server/main.go
++++ b/cmd/server/main.go
+@@ -16,0 +17 @@
++	"github.com/yz1qaq/asterflow/internal/platform/prompt"
+@@ -70 +71,3 @@
+-	handler := api.NewRouter(pool, iamService, modelService)
++	promptStore := prompt.NewPostgresStore(pool)
++	promptService := prompt.NewService(promptStore, modelService)
++	handler := api.NewRouter(pool, iamService, modelService, promptService)

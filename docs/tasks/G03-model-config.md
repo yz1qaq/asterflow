@@ -1,7 +1,7 @@
 # G03：模型账户、部署与配置版本（ENG-008+009）
 
 关联[Issue #13](https://github.com/yz1qaq/asterflow/issues/13)，FR-03 / MOD-MODEL / EP-03。
-状态 Ready for PR：模型配置全链路、开发库迁移、正式回归与 G03 工作区复审已通过，尚未创建 PR。
+状态 Done：PR #14 已合并；最终 head 40e1cd8 的远程 CI 与独立 AI 复审通过。
 前置G02已由[PR #12](https://github.com/yz1qaq/asterflow/pull/12)合并为ad533f7cbc8082353fa51e2ec27a05b7e4c171bf，本地main已同步。
 负责人创建分支feat/ENG-008-009-model-config；本组代码与文档仍在同一需求分支，当前未提交，不单独提交main。
 
@@ -56,4 +56,4 @@ Prompt、调用日志、配额预留账本及过期字段在对应需求组补�
 - [x] 跨空间引用/越权/非法输入/故障与事务回滚通过后端回归。
 - [x] Models桌面管理流程真实联调通过。
 - [x] 同组完整 make check 及独立 AI 工作区复审通过。
-- [ ] PR 实际 head 的远程 CI 与 AI 复审通过后，由负责人手动合并。
+- [x] PR 实际 head 的远程 CI 与 AI 复审通过，负责人已手动合并。

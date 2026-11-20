@@ -1,0 +1,107 @@
+package v1
+
+import (
+	"errors"
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+	"github.com/yz1qaq/asterflow/internal/api/middleware"
+	"github.com/yz1qaq/asterflow/internal/platform/modelconfig"
+	"github.com/yz1qaq/asterflow/internal/platform/prompt"
+)
+
+type PromptHandler struct {
+	service *prompt.Service
+}
+
+func NewPromptHandler(service *prompt.Service) *PromptHandler {
+	return &PromptHandler{service: service}
+}
+
+func writePromptError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, prompt.ErrInvalidArgument),
+		errors.Is(err, modelconfig.ErrInvalidArgument):
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	case errors.Is(err, prompt.ErrPromptNotFound),
+		errors.Is(err, prompt.ErrPromptVersionNotFound),
+		errors.Is(err, modelconfig.ErrProfileVersionNotFound):
+		c.JSON(http.StatusNotFound, gin.H{"error": "prompt or referenced version not found"})
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "prompt operation failed"})
+	}
+}
+
+func (h *PromptHandler) CreatePrompt(c *gin.Context) {
+	var req prompt.CreatePromptRequest
+	if err := decodeJSON(c.Writer, c.Request, &req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+	ctx := c.Request.Context()
+	req.WorkspaceID = middleware.GetWorkspaceIDFromContext(ctx)
+	req.CreatedBy = middleware.GetUserIDFromContext(ctx)
+	p, version, err := h.service.CreatePrompt(ctx, req)
+	if err != nil {
+		writePromptError(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"prompt": p, "version": version})
+}
+
+func (h *PromptHandler) ListPrompts(c *gin.Context) {
+	ctx := c.Request.Context()
+	items, err := h.service.ListPrompts(ctx, middleware.GetWorkspaceIDFromContext(ctx))
+	if err != nil {
+		writePromptError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, items)
+}
+
+func (h *PromptHandler) CreateVersion(c *gin.Context) {
+	var req prompt.CreateVersionRequest
+	if err := decodeJSON(c.Writer, c.Request, &req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+	ctx := c.Request.Context()
+	req.WorkspaceID = middleware.GetWorkspaceIDFromContext(ctx)
+	req.CreatedBy = middleware.GetUserIDFromContext(ctx)
+	version, err := h.service.CreateVersion(ctx, c.Param("prompt_id"), req)
+	if err != nil {
+		writePromptError(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, version)
+}
+
+func (h *PromptHandler) ListVersions(c *gin.Context) {
+	ctx := c.Request.Context()
+	versions, err := h.service.ListVersions(ctx, middleware.GetWorkspaceIDFromContext(ctx), c.Param("prompt_id"))
+	if err != nil {
+		writePromptError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, versions)
+}
+
+func (h *PromptHandler) Render(c *gin.Context) {
+	var req struct {
+		VersionID string         `json:"version_id"`
+		Vars      map[string]any `json:"vars"`
+	}
+	if err := decodeJSON(c.Writer, c.Request, &req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+	ctx := c.Request.Context()
+	text, err := h.service.RenderByVersion(
+		ctx, middleware.GetWorkspaceIDFromContext(ctx), c.Param("prompt_id"), req.VersionID, req.Vars,
+	)
+	if err != nil {
+		writePromptError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"rendered": text})
+}

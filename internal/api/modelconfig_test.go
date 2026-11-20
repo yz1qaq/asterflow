@@ -73,7 +73,7 @@ func TestModelConfigHTTP(t *testing.T) {
 	}
 	store := modelconfig.NewPostgresStore(pool)
 	models := modelconfig.NewService(store, cipher)
-	server := httptest.NewServer(NewRouter(pool, identities, models))
+	server := httptest.NewServer(NewRouter(pool, identities, models, nil))
 	defer server.Close()
 	call := func(method, path, token, space, body string, want int) []byte {
 		t.Helper()

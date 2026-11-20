@@ -27,7 +27,7 @@ func (f readinessCheckFunc) Ping(ctx context.Context) error {
 }
 
 func TestNewRouter(t *testing.T) {
-	handler := NewRouter(readinessCheckFunc(func(context.Context) error { return nil }), nil, nil)
+	handler := NewRouter(readinessCheckFunc(func(context.Context) error { return nil }), nil, nil, nil)
 	if handler == nil {
 		t.Fatal("NewRouter returned nil")
 	}
@@ -64,7 +64,7 @@ func TestNewRouter(t *testing.T) {
 func TestReadiness(t *testing.T) {
 	t.Run("missing_checker", func(t *testing.T) {
 		recorder := httptest.NewRecorder()
-		NewRouter(nil, nil, nil).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/readyz", nil))
+		NewRouter(nil, nil, nil, nil).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/readyz", nil))
 		assertPlainResponse(t, recorder, http.StatusServiceUnavailable, "not ready")
 	})
 	t.Run("dependency_error_is_not_exposed", func(t *testing.T) {
@@ -72,7 +72,7 @@ func TestReadiness(t *testing.T) {
 		handler := NewRouter(readinessCheckFunc(func(context.Context) error {
 			calls++
 			return errors.New("private database error must not be exposed")
-		}), nil, nil)
+		}), nil, nil, nil)
 		recorder := httptest.NewRecorder()
 		handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/readyz", nil))
 		assertPlainResponse(t, recorder, http.StatusServiceUnavailable, "not ready")
@@ -84,7 +84,7 @@ func TestReadiness(t *testing.T) {
 		handler := NewRouter(readinessCheckFunc(func(context.Context) error {
 			t.Fatal("healthz attempted to check the database")
 			return nil
-		}), nil, nil)
+		}), nil, nil, nil)
 		recorder := httptest.NewRecorder()
 		handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/healthz", nil))
 		assertPlainResponse(t, recorder, http.StatusOK, "ok")
@@ -101,7 +101,7 @@ func TestReadiness(t *testing.T) {
 				t.Fatal("readiness check must have a two-second deadline")
 			}
 			return nil
-		}), nil, nil)
+		}), nil, nil, nil)
 		recorder := httptest.NewRecorder()
 		handler.ServeHTTP(recorder,
 			httptest.NewRequest(http.MethodGet, "/readyz", nil).WithContext(parent))
@@ -115,7 +115,7 @@ func TestReadiness(t *testing.T) {
 				t.Fatal("request cancellation was not propagated")
 			}
 			return ctx.Err()
-		}), nil, nil)
+		}), nil, nil, nil)
 		recorder := httptest.NewRecorder()
 		handler.ServeHTTP(recorder,
 			httptest.NewRequest(http.MethodGet, "/readyz", nil).WithContext(parent))
@@ -125,7 +125,7 @@ func TestReadiness(t *testing.T) {
 		handler := NewRouter(readinessCheckFunc(func(ctx context.Context) error {
 			<-ctx.Done()
 			return ctx.Err()
-		}), nil, nil)
+		}), nil, nil, nil)
 		recorder := httptest.NewRecorder()
 		started := time.Now()
 		handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/readyz", nil))
@@ -141,7 +141,7 @@ func TestReadiness(t *testing.T) {
 		handler := NewRouter(readinessCheckFunc(func(ctx context.Context) error {
 			<-ctx.Done()
 			return nil
-		}), nil, nil)
+		}), nil, nil, nil)
 		recorder := httptest.NewRecorder()
 		handler.ServeHTTP(recorder,
 			httptest.NewRequest(http.MethodGet, "/readyz", nil).WithContext(parent))
@@ -155,7 +155,7 @@ func TestReadiness(t *testing.T) {
 				return errors.New("database unavailable")
 			}
 			return nil
-		}), nil, nil)
+		}), nil, nil, nil)
 		for _, want := range []int{http.StatusServiceUnavailable, http.StatusOK} {
 			recorder := httptest.NewRecorder()
 			handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/readyz", nil))
@@ -188,7 +188,7 @@ func TestUserHTTPPostgres(t *testing.T) {
 	if err := service.EnsureSeedAdmin(ctx, "admin@example.test", "admin-password123"); err != nil {
 		t.Fatal(err)
 	}
-	server := httptest.NewServer(NewRouter(pool, service, nil))
+	server := httptest.NewServer(NewRouter(pool, service, nil, nil))
 	defer server.Close()
 	request := func(method, path, token, body string, want int) []byte {
 		t.Helper()
@@ -326,7 +326,7 @@ func TestWorkspaceHTTP(t *testing.T) {
 	if err := store.SetUserRole(ctx, admin.ID, iam.GlobalRoleAdmin); err != nil {
 		t.Fatal(err)
 	}
-	server := httptest.NewServer(NewRouter(pool, service, nil))
+	server := httptest.NewServer(NewRouter(pool, service, nil, nil))
 	defer server.Close()
 	request := func(method, path, token, body string, want int) json.RawMessage {
 		t.Helper()
@@ -455,7 +455,7 @@ func TestWorkspaceMemberErrorResponses(t *testing.T) {
 		return response.Token
 	}
 	ownerToken, outsiderToken := login(owner.Email), login(outsider.Email)
-	router := NewRouter(pool, service, nil)
+	router := NewRouter(pool, service, nil, nil)
 	for _, tc := range []struct {
 		name, method, path, token, body string
 		status                          int
@@ -508,7 +508,7 @@ func TestWorkspaceContextHTTP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	router := NewRouter(pool, service, nil)
+	router := NewRouter(pool, service, nil, nil)
 	check := func(token, header, query string, want int, wantRole string) {
 		t.Helper()
 		req := httptest.NewRequest("GET", "/api/v1/context"+query, nil)

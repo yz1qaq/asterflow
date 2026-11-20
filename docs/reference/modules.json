@@ -21,7 +21,7 @@
       ],
       "epic": "EP-02",
       "owner": "yz1qaq",
-      "status": "planned",
+      "status": "done",
       "target_area": "platform/iam、api/middleware、api/v1/iam/auth",
       "dependencies": "CORE/PG"
     },
@@ -33,7 +33,7 @@
       ],
       "epic": "EP-03",
       "owner": "yz1qaq",
-      "status": "planned",
+      "status": "done",
       "target_area": "platform/modelconfig、runtime/llm",
       "dependencies": "CORE/IAM/PG"
     },
@@ -45,7 +45,7 @@
       ],
       "epic": "EP-04",
       "owner": "yz1qaq",
-      "status": "planned",
+      "status": "in_progress",
       "target_area": "platform/prompt、runtime/promptcache",
       "dependencies": "IAM/MODEL/PG/Redis"
     },

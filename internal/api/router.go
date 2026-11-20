@@ -10,6 +10,7 @@ import (
 	v1 "github.com/yz1qaq/asterflow/internal/api/v1"
 	"github.com/yz1qaq/asterflow/internal/platform/iam"
 	"github.com/yz1qaq/asterflow/internal/platform/modelconfig"
+	"github.com/yz1qaq/asterflow/internal/platform/prompt"
 )
 
 type ReadinessChecker interface {
@@ -20,6 +21,7 @@ func NewRouter(
 	checker ReadinessChecker,
 	iamService *iam.Service,
 	modelService *modelconfig.Service,
+	promptService *prompt.Service,
 ) http.Handler {
 	router := gin.New()
 	router.Use(gin.Recovery())
@@ -140,6 +142,28 @@ func NewRouter(
 		"/model-bindings",
 		modelHandler.BindProject,
 	)
+
+	promptHandler := v1.NewPromptHandler(promptService)
+
+	workspaceRoutes.GET("/prompts", promptHandler.ListPrompts)
+	workspaceRoutes.POST("/prompts", promptHandler.CreatePrompt)
+	workspaceRoutes.GET("/prompts/:prompt_id/versions", promptHandler.ListVersions)
+	workspaceRoutes.POST("/prompts/:prompt_id/versions", promptHandler.CreateVersion)
+	workspaceRoutes.POST("/prompts/:prompt_id/render", promptHandler.Render)
+	workspaceRoutes.POST("/prompts/:prompt_id/promote", promptHandler.Promote)
+	workspaceRoutes.POST("/prompts/:prompt_id/rollback", promptHandler.Rollback)
+
+	workspaceRoutes.GET("/prompts/:prompt_id/envs", promptHandler.ListEnvs)
+	workspaceRoutes.GET("/prompts/:prompt_id/diff", promptHandler.Diff)
+
+	workspaceRoutes.GET("/prompts/:prompt_id/experiments/active", promptHandler.GetActiveExperiment)
+	workspaceRoutes.POST("/prompts/:prompt_id/experiments", promptHandler.StartExperiment)
+	workspaceRoutes.POST("/prompts/:prompt_id/rollouts", promptHandler.StartRollout)
+	workspaceRoutes.PUT("/prompts/:prompt_id/rollouts/traffic", promptHandler.UpdateRolloutTraffic)
+	workspaceRoutes.POST("/prompts/:prompt_id/rollouts/complete", promptHandler.CompleteRollout)
+	workspaceRoutes.POST("/prompts/:prompt_id/rollouts/rollback", promptHandler.RollbackRollout)
+	workspaceRoutes.GET("/prompts/:prompt_id/experiments/:experiment_id/events", promptHandler.ListRolloutEvents)
+	workspaceRoutes.GET("/prompts/:prompt_id/env-events", promptHandler.ListEnvEvents)
 
 	adminRoutes := v1Routes.Group("")
 	adminRoutes.Use(

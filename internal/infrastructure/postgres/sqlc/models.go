@@ -71,6 +71,76 @@ type ProjectModelBinding struct {
 	UpdatedAt             time.Time
 }
 
+type Prompt struct {
+	ID          uuid.UUID
+	WorkspaceID string
+	Name        string
+	Category    string
+	CreatedBy   string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type PromptEnv struct {
+	PromptID  uuid.UUID
+	Env       string
+	VersionID uuid.UUID
+	UpdatedAt time.Time
+}
+
+type PromptEnvEvent struct {
+	ID            uuid.UUID
+	PromptID      uuid.UUID
+	Env           string
+	Action        string
+	FromVersionID pgtype.UUID
+	ToVersionID   uuid.UUID
+	Actor         string
+	Detail        string
+	CreatedAt     time.Time
+}
+
+type PromptExperiment struct {
+	ID                 uuid.UUID
+	PromptID           uuid.UUID
+	Env                string
+	Status             string
+	BaselineVersionID  pgtype.UUID
+	CandidateVersionID pgtype.UUID
+	TrafficPercent     int32
+	Variants           []byte
+	StartedAt          pgtype.Timestamptz
+	CompletedAt        pgtype.Timestamptz
+	CreatedBy          string
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+}
+
+type PromptRolloutEvent struct {
+	ID           uuid.UUID
+	ExperimentID uuid.UUID
+	Action       string
+	FromTraffic  int32
+	ToTraffic    int32
+	Actor        string
+	Detail       string
+	CreatedAt    time.Time
+}
+
+type PromptVersion struct {
+	ID                    uuid.UUID
+	PromptID              uuid.UUID
+	Version               int32
+	Template              string
+	VariablesSchema       string
+	ModelProfileVersionID pgtype.UUID
+	GenerationConfig      []byte
+	Hash                  string
+	TokenEstimate         int32
+	CreatedBy             string
+	CreatedAt             time.Time
+}
+
 type Provider struct {
 	ID               uuid.UUID
 	WorkspaceID      string

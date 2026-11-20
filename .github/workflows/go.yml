@@ -18,7 +18,20 @@ jobs:
       GIN_MODE: test
       GOTOOLCHAIN: local
       ASTERFLOW_TEST_DATABASE_URL: postgres://asterflow:asterflow-ci-only@127.0.0.1:5432/asterflow?sslmode=disable
+      # Server process tests inherit this URL; Redis cache tests use the same disposable instance.
+      ASTERFLOW_TEST_REDIS_URL: redis://127.0.0.1:25433/0
+      ASTERFLOW_REDIS_URL: redis://127.0.0.1:25433/0
     services:
+      redis:
+        # Pub/Sub only; persistence is intentionally disabled.
+        image: redis@sha256:39353c6a2f310da333374e1290c91805d15a85def073b5090f58e4ac646d284c
+        ports:
+          - 25433:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
       postgres:
         image: pgvector/pgvector@sha256:484e838076e04939d27d3e176e91c86eea96236126023be8d3059761122e579f
         env:

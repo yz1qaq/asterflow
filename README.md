@@ -6,7 +6,7 @@ AsterFlow 将模型、提示词、技能、工具、知识库与多Agent编排�
 
 ## 项目状态
 
-需求与基础工程、G01登录用户管理和G02空间/成员治理已合并。G02最终head的Documentation/Go/Web CI与AI复审通过，已接通真实PG、Gin权限及React空间/成员/当前空间选择。G03模型配置进行中，账户、部署、方案版本和环境绑定已完成隔离 PostgreSQL 与桌面联调；本地验收已通过，[PR #14](https://github.com/yz1qaq/asterflow/pull/14) 审核中。详见[交付状态](docs/delivery/STATUS.md)。尚无生产部署。
+需求与基础工程、G01登录用户管理和G02空间/成员治理已合并。G02最终head的Documentation/Go/Web CI与AI复审通过，已接通真实PG、Gin权限及React空间/成员/当前空间选择。G03 模型配置已由 [PR #14](https://github.com/yz1qaq/asterflow/pull/14) 合并，包含供应商账户、部署计价、方案版本与环境绑定。G04 提示词治理进行中。详见[交付状态](docs/delivery/STATUS.md)。尚无生产部署。
 
 目标范围包括：身份与空间权限、模型管理、Prompt治理、五源工具、Skills、知识检索、Agent/Team、审批与A2UI、Guard、Eval、审计观测、外部渠道、SDK/CLI、独立业务场景及部署。
 
@@ -42,7 +42,15 @@ git diff --check
 
 ## 后端启动与检查
 
-本机需要make、Python3.9+及可用Go。Makefile以命令级固定Go1.26.6，不修改全局环境。当前要求ASTERFLOW_DATABASE_URL，以及各自至少32字节的ASTERFLOW_JWT_SECRET_KEY和ASTERFLOW_CREDENTIAL_SECRET_KEY；先按下方本地PG说明准备可信的.env，在每个新终端显式导出。Go不会自动加载.env。
+本机需要make、Python3.9+及可用Go。Makefile以命令级固定Go1.26.6，不修改全局环境。当前要求ASTERFLOW_DATABASE_URL、ASTERFLOW_REDIS_URL，以及各自至少32字节的ASTERFLOW_JWT_SECRET_KEY和ASTERFLOW_CREDENTIAL_SECRET_KEY；先按下方本地PG说明准备可信的.env。
+
+一条命令完成编译、启动PG/Redis、应用迁移并同时启动后端与前端：
+
+```bash
+make up
+```
+
+`make up`、`make run`、`make migrate-*` 会自动加载 `.env`；直接用 `go run` 时仍需自行导出环境变量。分开执行时：
 
 ```bash
 set -a
@@ -69,7 +77,7 @@ make build
 ./bin/asterflow
 ```
 
-首次先make web-install安装前端锁定依赖；make check执行文档、Go依赖一致性、race/vet/build及前端测试/类型检查/构建；build生成的bin目录已忽略。HTTP地址未设置时用默认，显式空白或非法host:port/端口1–65535以错误退出。数据库URL必需，启动连接失败退出1；运行期间的PG故障由readyz返回503，healthz仍报告存活。没有Redis或业务能力就绪检查。
+首次先make web-install安装前端锁定依赖；make check执行文档、Go依赖一致性、race/vet/build及前端测试/类型检查/构建；build生成的bin目录已忽略。HTTP地址未设置时用默认，显式空白或非法host:port/端口1–65535以错误退出。数据库URL必需，启动连接失败退出1；Redis启动时Ping失败同样退出1（Prompt缓存跨进程失效依赖它）。运行期间的PG故障由readyz返回503，healthz仍报告存活；Redis不参与readyz。
 
 ## 当前启动与退出路径
 
@@ -107,7 +115,7 @@ make test-postgres
 ```
 
 Go不自动读取.env；source是当前终端显式加载本机可信配置。test-postgres只读检查连接；新增迁移测试在临时schema执行DDL并清理，见下方数据库迁移说明。test-postgres要求显式测试URL；普通go test没有该变量时会跳过真实PG测试。
-默认只绑定127.0.0.1:25432，Compose项目asterflow使用独立容器和数据卷。镜像固定为官方PG16/pgvector多架构索引digest，支持AMD64/ARM64，本机已验证PG16.16；CI使用同一索引，ENG-002远程已通过；当前分支新增迁移用例的远程结果待推送确认。数据未与旧项目共享。
+默认只绑定127.0.0.1:25432，Compose项目asterflow使用独立容器和数据卷；`make db-up` 同时启动 Redis（默认127.0.0.1:25433，仅Pub/Sub、无持久化）。镜像固定为官方PG16/pgvector多架构索引digest，支持AMD64/ARM64，本机已验证PG16.16；CI使用同一索引，ENG-002远程已通过；当前分支新增迁移用例的远程结果待推送确认。数据未与旧项目共享。
 
 ```bash
 make db-stop

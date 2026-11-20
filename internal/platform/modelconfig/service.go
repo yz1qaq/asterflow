@@ -21,7 +21,6 @@ type Store interface {
 	CreateDeployment(context.Context, *ModelDeployment) error
 	GetDeployment(context.Context, string) (*ModelDeployment, error)
 	ListDeployments(context.Context, string) ([]*ModelDeployment, error)
-	//UpdateDeploymentPricing(context.Context, string, float64, float64, float64) error
 
 	CreateProfileWithVersion(context.Context, *ModelProfile, *ModelProfileVersion) error
 	GetProfile(context.Context, string) (*ModelProfile, error)
@@ -32,7 +31,6 @@ type Store interface {
 	GetProfileVersion(context.Context, string) (*ModelProfileVersion, error)
 	ListWorkspaceProfileVersions(context.Context, string) ([]*ModelProfileVersion, error)
 	GetProjectBinding(context.Context, string, string) (*ProjectBinding, error)
-	//UpsertProjectBinding(context.Context, *ProjectBinding) error
 	WithWorkspaceModelWrite(context.Context, string, func(WorkspaceModelWriter) error) error
 }
 

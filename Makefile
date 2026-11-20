@@ -1,6 +1,11 @@
 ASTERFLOW_GO := env -u GOROOT GOTOOLCHAIN=go1.26.6 go
+ENV_FILE := .env
+ENV_SOURCE := set -a; . ./$(ENV_FILE); set +a
 
-.PHONY: docs-check deps-check test vet build run check
+.PHONY: require-env docs-check deps-check test vet build run up check
+
+require-env:
+	@test -f $(ENV_FILE) || { echo "missing $(ENV_FILE); copy .env.example and fill the required values"; exit 1; }
 
 docs-check:
 	python3 scripts/check_repo.py
@@ -22,21 +27,34 @@ build:
 	$(ASTERFLOW_GO) build -mod=readonly -o bin/asterflow ./cmd/server
 	$(ASTERFLOW_GO) build -mod=readonly -o bin/asterflow-migrate ./cmd/migrate
 
-run:
-	$(ASTERFLOW_GO) run ./cmd/server
+run: require-env
+	@$(ENV_SOURCE); $(ASTERFLOW_GO) run ./cmd/server
+
+# One command: build binaries, start PostgreSQL + Redis, apply migrations,
+# then run the Go API and the Vite dev server together. Ctrl-C stops both apps.
+up: require-env build
+	@test -d web/admin/node_modules || npm --prefix web/admin ci
+	$(ASTERFLOW_COMPOSE) up -d --wait --wait-timeout 60 postgres redis
+	@$(ENV_SOURCE); $(ASTERFLOW_GO) run ./cmd/migrate -up
+	@$(ENV_SOURCE); \
+		GIN_MODE=release ./bin/asterflow & server_pid=$$!; \
+		npm --prefix web/admin run dev -- --port "$${ASTERFLOW_WEB_PORT:-15174}" & web_pid=$$!; \
+		trap 'kill $$server_pid $$web_pid 2>/dev/null; exit 0' INT TERM; \
+		trap 'kill $$server_pid $$web_pid 2>/dev/null' EXIT; \
+		wait $$server_pid
 
 check: docs-check deps-check test vet build web-check
 
-# Local PostgreSQL only; existing project containers and volumes are untouched.
+# Local PostgreSQL + Redis only; existing project containers and volumes are untouched.
 ASTERFLOW_COMPOSE := docker compose --env-file .env -f deploy/compose.yaml
 
 .PHONY: db-up db-stop db-down db-status test-postgres
 
 db-up:
-	$(ASTERFLOW_COMPOSE) up -d --wait --wait-timeout 60 postgres
+	$(ASTERFLOW_COMPOSE) up -d --wait --wait-timeout 60 postgres redis
 
 db-stop:
-	$(ASTERFLOW_COMPOSE) stop postgres
+	$(ASTERFLOW_COMPOSE) stop postgres redis
 
 db-down:
 	$(ASTERFLOW_COMPOSE) down
@@ -51,14 +69,14 @@ test-postgres:
 # Explicit migration commands; regular server startup does not change schema.
 .PHONY: migrate-up migrate-version migrate-down test-migrations
 
-migrate-up:
-	$(ASTERFLOW_GO) run ./cmd/migrate -up
+migrate-up: require-env
+	@$(ENV_SOURCE); $(ASTERFLOW_GO) run ./cmd/migrate -up
 
-migrate-version:
-	$(ASTERFLOW_GO) run ./cmd/migrate -version
+migrate-version: require-env
+	@$(ENV_SOURCE); $(ASTERFLOW_GO) run ./cmd/migrate -version
 
-migrate-down:
-	$(ASTERFLOW_GO) run ./cmd/migrate -down 1
+migrate-down: require-env
+	@$(ENV_SOURCE); $(ASTERFLOW_GO) run ./cmd/migrate -down 1
 
 test-migrations:
 	@test -n "$${ASTERFLOW_TEST_DATABASE_URL:-}" || { echo "Export ASTERFLOW_TEST_DATABASE_URL before running test-migrations"; exit 1; }

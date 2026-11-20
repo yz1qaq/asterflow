@@ -4,6 +4,7 @@ import { AppLayout } from '@/components/AppLayout'
 import { SystemStatusPage } from '@/pages/SystemStatusPage'
 import { useAuthStore } from '@/store/authStore'
 const ModelsPage = lazy(() => import('@/pages/ModelsPage').then(module => ({ default: module.ModelsPage })))
+const PromptsPage = lazy(() => import('@/pages/PromptsPage').then(module => ({ default: module.PromptsPage })))
 const WorkspacesPage = lazy(() => import('@/pages/WorkspacesPage').then(module => ({ default: module.WorkspacesPage })))
 const UsersPage = lazy(() => import('@/pages/UsersPage').then(module => ({ default: module.UsersPage })))
 const LoginPage = lazy(() => import('@/pages/LoginPage').then(module => ({ default: module.LoginPage })))
@@ -11,7 +12,7 @@ const LoginPage = lazy(() => import('@/pages/LoginPage').then(module => ({ defau
 export default function App() {
   const [location] = useLocation()
   useEffect(() => {
-    document.title = `${location === '/login' ? '登录' : location === '/models' ? '模型管理' : location === '/users' ? '用户管理' : location === '/workspaces' ? '工作空间' : '系统状态'} · AsterFlow`
+    document.title = `${location === '/login' ? '登录' : location === '/prompts' ? '提示词管理' : location === '/models' ? '模型管理' : location === '/users' ? '用户管理' : location === '/workspaces' ? '工作空间' : '系统状态'} · AsterFlow`
   }, [location])
   const expiresAt = useAuthStore(state => state.expiresAt)
   const logout = useAuthStore(state => state.logout)
@@ -27,6 +28,7 @@ export default function App() {
     <Route path="/login" component={LoginPage} />
     <Route path="/workspaces"><AppLayout><WorkspacesPage /></AppLayout></Route>
     <Route path="/models"><AppLayout><ModelsPage /></AppLayout></Route>
+    <Route path="/prompts"><AppLayout><PromptsPage /></AppLayout></Route>
     <Route path="/users"><AppLayout><UsersPage /></AppLayout></Route>
     <Route path="/"><AppLayout><SystemStatusPage /></AppLayout></Route>
     <Route><Redirect to="/" /></Route>

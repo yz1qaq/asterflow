@@ -1,0 +1,180 @@
+package api
+
+import (
+	"context"
+	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"strings"
+	"testing"
+
+	"github.com/google/uuid"
+	"github.com/yz1qaq/asterflow/internal/domain"
+	"github.com/yz1qaq/asterflow/internal/platform/iam"
+	"github.com/yz1qaq/asterflow/internal/platform/modelconfig"
+	"github.com/yz1qaq/asterflow/internal/platform/prompt"
+)
+
+func TestPromptHTTP(t *testing.T) {
+	pool := newUserHTTPTestPool(t)
+	ctx := context.Background()
+	for _, migration := range []string{
+		"000003_model_accounts_deployments.up.sql", "000004_model_profiles.up.sql",
+		"000005_project_model_bindings.up.sql", "000006_prompt_versions.up.sql",
+	} {
+		script, err := os.ReadFile("../../migrations/" + migration)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := pool.Exec(ctx, string(script)); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	identities := iam.NewService(iam.NewPostgresStore(pool), []byte("prompt-http-fixture-key-at-least-32-bytes"))
+	createUser := func(email, name string) *domain.User {
+		t.Helper()
+		user, err := identities.CreateUser(ctx, email, "fixture-password123", name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return user
+	}
+	owner := createUser("owner@prompt.test", "Owner")
+	viewer := createUser("viewer@prompt.test", "Viewer")
+	makeSpace := func(name string) string {
+		t.Helper()
+		ws, err := identities.CreateWorkspaceForUser(ctx, owner.ID, name, "", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ws.ID
+	}
+	a, b := makeSpace("A"), makeSpace("B")
+	if _, err := identities.UpsertWorkspaceMember(ctx, owner.ID, a, viewer.ID, iam.WorkspaceRoleViewer); err != nil {
+		t.Fatal(err)
+	}
+	tokenFor := func(email string) string {
+		t.Helper()
+		res, err := identities.Login(ctx, iam.LoginRequest{Email: email, Password: "fixture-password123"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return res.Token
+	}
+	ownToken, viewerToken := tokenFor(owner.Email), tokenFor(viewer.Email)
+
+	models := modelconfig.NewService(modelconfig.NewPostgresStore(pool), nil)
+	prompts := prompt.NewService(prompt.NewPostgresStore(pool), models)
+	server := httptest.NewServer(NewRouter(pool, identities, models, prompts))
+	defer server.Close()
+	call := func(method, path, token, space, body string, want int) []byte {
+		t.Helper()
+		req, err := http.NewRequestWithContext(ctx, method, server.URL+path, strings.NewReader(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		if space != "" {
+			req.Header.Set("X-Workspace-ID", space)
+		}
+		res, err := server.Client().Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		got, err := io.ReadAll(res.Body)
+		if err != nil || res.StatusCode != want {
+			t.Fatalf("%s %s: HTTP status=%d want=%d read error=%v", method, path, res.StatusCode, want, err)
+		}
+		return got
+	}
+	marshal := func(data any) string {
+		t.Helper()
+		contents, err := json.Marshal(data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(contents)
+	}
+
+	base := "/api/v1/prompts"
+	call("GET", base, "", a, "", 401)
+	call("GET", base, ownToken, "", "", 400)
+	if string(call("GET", base, viewerToken, a, "", 200)) != "[]" {
+		t.Fatal("empty list must be []")
+	}
+
+	body := marshal(map[string]any{
+		"name": "Order check", "category": "system", "template": "Check {{.order_id}}",
+		"variables_schema": `{"required":["order_id"]}`, "generation_config": map[string]any{"temperature": 0},
+	})
+	call("POST", base, viewerToken, a, body, 403)
+	for _, bad := range []string{`{"workspace_id":"injected"}`, `{"created_by":"injected"}`,
+		`{"name":"Bad","template":"{{.order_id"}`, "{} {}"} {
+		call("POST", base, ownToken, a, bad, 400)
+	}
+	raw := call("POST", base, ownToken, a, body, 201)
+	var created struct {
+		Prompt  prompt.Prompt        `json:"prompt"`
+		Version prompt.PromptVersion `json:"version"`
+	}
+	if err := json.Unmarshal(raw, &created); err != nil || created.Prompt.WorkspaceID != a ||
+		created.Prompt.CreatedBy != owner.ID || created.Version.CreatedBy != owner.ID ||
+		created.Version.Version != 1 || created.Version.PromptID != created.Prompt.ID || created.Version.CreatedAt.IsZero() ||
+		created.Version.GenerationConfig.Temperature == nil || *created.Version.GenerationConfig.Temperature != 0 {
+		t.Fatal("created bundle must reflect authenticated fields and stored settings")
+	}
+	var listed []prompt.Prompt
+	if err := json.Unmarshal(call("GET", base, viewerToken, a, "", 200), &listed); err != nil || len(listed) != 1 || listed[0].ID != created.Prompt.ID {
+		t.Fatal("viewer should see exactly the stored prompt")
+	}
+	if string(call("GET", base, ownToken, b, "", 200)) != "[]" {
+		t.Fatal("cross-workspace list leaked the prompt")
+	}
+
+	path := base + "/" + created.Prompt.ID
+	versionBody := `{"template":"Track {{.order_id}}","variables_schema":"{\"required\":[\"order_id\"]}"}`
+	call("POST", path+"/versions", viewerToken, a, versionBody, 403)
+	call("POST", path+"/versions", ownToken, b, versionBody, 404)
+	call("GET", path+"/versions", ownToken, b, "", 404)
+	call("GET", base+"/invalid/versions", ownToken, a, "", 400)
+	call("POST", path+"/versions", ownToken, a, `{"template":"x","version":99}`, 400)
+
+	var v2 prompt.PromptVersion
+	raw = call("POST", path+"/versions", ownToken, a, versionBody, 201)
+	if err := json.Unmarshal(raw, &v2); err != nil || v2.Version != 2 || v2.PromptID != created.Prompt.ID || v2.CreatedBy != owner.ID {
+		t.Fatal("append should write v2 in the same prompt")
+	}
+	var history []prompt.PromptVersion
+	if err := json.Unmarshal(call("GET", path+"/versions", viewerToken, a, "", 200), &history); err != nil ||
+		len(history) != 2 || history[0].ID != created.Version.ID || history[1].ID != v2.ID {
+		t.Fatal("viewer must be able to read the two ordered versions")
+	}
+	var dev string
+	if err := pool.QueryRow(ctx, "SELECT version_id::text FROM prompt_envs WHERE prompt_id=$1 AND env='dev'", uuid.MustParse(created.Prompt.ID)).Scan(&dev); err != nil || dev != created.Version.ID {
+		t.Fatalf("HTTP version append did not preserve dev: %v", err)
+	}
+
+	render := func(id, order string) string {
+		return marshal(map[string]any{"version_id": id, "vars": map[string]any{"order_id": order}})
+	}
+	for id, want := range map[string]string{created.Version.ID: "Check ORD-1001", v2.ID: "Track ORD-1001"} {
+		raw = call("POST", path+"/render", ownToken, a, render(id, "ORD-1001"), 200)
+		var out struct{ Rendered string }
+		if err := json.Unmarshal(raw, &out); err != nil || out.Rendered != want {
+			t.Fatalf("preview did not use the requested version: %v", err)
+		}
+	}
+	if raw = call("POST", path+"/render", ownToken, a, marshal(map[string]any{"version_id": v2.ID, "vars": map[string]any{}}), 400); !strings.Contains(string(raw), "order_id") {
+		t.Fatal("preview missing-variable error must identify the variable")
+	}
+	call("POST", path+"/render", viewerToken, a, render(v2.ID, "ORD-1001"), 403)
+	call("POST", path+"/render", ownToken, b, render(v2.ID, "ORD-1001"), 404)
+	call("POST", base+"/"+uuid.NewString()+"/render", ownToken, a, render(v2.ID, "ORD-1001"), 404)
+}
