@@ -8,6 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yz1qaq/asterflow/internal/api/middleware"
 	v1 "github.com/yz1qaq/asterflow/internal/api/v1"
+	"github.com/yz1qaq/asterflow/internal/platform/agent"
+	"github.com/yz1qaq/asterflow/internal/platform/conversation"
 	"github.com/yz1qaq/asterflow/internal/platform/iam"
 	"github.com/yz1qaq/asterflow/internal/platform/modelconfig"
 	"github.com/yz1qaq/asterflow/internal/platform/prompt"
@@ -17,11 +19,17 @@ type ReadinessChecker interface {
 	Ping(ctx context.Context) error
 }
 
+type Services struct {
+	Agent        *agent.Service
+	Conversation *conversation.Service
+}
+
 func NewRouter(
 	checker ReadinessChecker,
 	iamService *iam.Service,
 	modelService *modelconfig.Service,
 	promptService *prompt.Service,
+	extra ...Services,
 ) http.Handler {
 	router := gin.New()
 	router.Use(gin.Recovery())
@@ -164,6 +172,27 @@ func NewRouter(
 	workspaceRoutes.POST("/prompts/:prompt_id/rollouts/rollback", promptHandler.RollbackRollout)
 	workspaceRoutes.GET("/prompts/:prompt_id/experiments/:experiment_id/events", promptHandler.ListRolloutEvents)
 	workspaceRoutes.GET("/prompts/:prompt_id/env-events", promptHandler.ListEnvEvents)
+
+	var services Services
+	if len(extra) > 0 {
+		services = extra[0]
+	}
+	if services.Agent != nil {
+		agentHandler := v1.NewAgentHandler(services.Agent)
+		workspaceRoutes.GET("/agents", agentHandler.ListAgents)
+		workspaceRoutes.POST("/agents", agentHandler.CreateAgent)
+		workspaceRoutes.GET("/agents/:agent_id", agentHandler.GetAgent)
+		workspaceRoutes.GET("/agents/:agent_id/versions", agentHandler.ListVersions)
+		workspaceRoutes.POST("/agents/:agent_id/versions", agentHandler.CreateVersion)
+		workspaceRoutes.GET("/agents/:agent_id/envs", agentHandler.ListEnvs)
+		workspaceRoutes.POST("/agents/:agent_id/promote", agentHandler.Promote)
+	}
+	if services.Conversation != nil {
+		conversationHandler := v1.NewConversationHandler(services.Conversation)
+		workspaceRoutes.GET("/conversations", conversationHandler.List)
+		workspaceRoutes.POST("/conversations", conversationHandler.Create)
+		workspaceRoutes.GET("/conversations/:conversation_id", conversationHandler.Get)
+	}
 
 	adminRoutes := v1Routes.Group("")
 	adminRoutes.Use(

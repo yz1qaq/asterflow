@@ -5,6 +5,8 @@ import { SystemStatusPage } from '@/pages/SystemStatusPage'
 import { useAuthStore } from '@/store/authStore'
 const ModelsPage = lazy(() => import('@/pages/ModelsPage').then(module => ({ default: module.ModelsPage })))
 const PromptsPage = lazy(() => import('@/pages/PromptsPage').then(module => ({ default: module.PromptsPage })))
+const AgentsPage = lazy(() => import('@/pages/AgentsPage').then(module => ({ default: module.AgentsPage })))
+const ConversationsPage = lazy(() => import('@/pages/ConversationsPage').then(module => ({ default: module.ConversationsPage })))
 const WorkspacesPage = lazy(() => import('@/pages/WorkspacesPage').then(module => ({ default: module.WorkspacesPage })))
 const UsersPage = lazy(() => import('@/pages/UsersPage').then(module => ({ default: module.UsersPage })))
 const LoginPage = lazy(() => import('@/pages/LoginPage').then(module => ({ default: module.LoginPage })))
@@ -29,6 +31,8 @@ export default function App() {
     <Route path="/workspaces"><AppLayout><WorkspacesPage /></AppLayout></Route>
     <Route path="/models"><AppLayout><ModelsPage /></AppLayout></Route>
     <Route path="/prompts"><AppLayout><PromptsPage /></AppLayout></Route>
+    <Route path="/agents"><AppLayout><AgentsPage /></AppLayout></Route>
+    <Route path="/conversations"><AppLayout><ConversationsPage /></AppLayout></Route>
     <Route path="/users"><AppLayout><UsersPage /></AppLayout></Route>
     <Route path="/"><AppLayout><SystemStatusPage /></AppLayout></Route>
     <Route><Redirect to="/" /></Route>

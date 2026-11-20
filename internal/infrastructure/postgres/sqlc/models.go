@@ -11,6 +11,33 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Agent struct {
+	ID          uuid.UUID
+	WorkspaceID string
+	Name        string
+	Description string
+	Template    string
+	CreatedBy   string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type AgentEnv struct {
+	AgentID   uuid.UUID
+	Env       string
+	VersionID uuid.UUID
+	UpdatedAt time.Time
+}
+
+type AgentVersion struct {
+	ID           uuid.UUID
+	AgentID      uuid.UUID
+	Version      int32
+	SnapshotJson string
+	CreatedBy    string
+	CreatedAt    time.Time
+}
+
 type ApiKey struct {
 	ID         uuid.UUID
 	UserID     uuid.UUID
@@ -20,6 +47,32 @@ type ApiKey struct {
 	LastUsedAt pgtype.Timestamptz
 	ExpiresAt  pgtype.Timestamptz
 	CreatedAt  time.Time
+}
+
+type Conversation struct {
+	ID                uuid.UUID
+	WorkspaceID       string
+	AgentID           uuid.UUID
+	AgentVersionID    uuid.UUID
+	UserID            string
+	Status            string
+	Classification    string
+	RuntimeConfigJson []byte
+	StartedAt         time.Time
+	UpdatedAt         time.Time
+	TurnToken         pgtype.UUID
+	TurnLeaseUntil    pgtype.Timestamptz
+	TurnRevision      int64
+}
+
+type Message struct {
+	ID             uuid.UUID
+	ConversationID uuid.UUID
+	Role           string
+	Content        string
+	ToolCalls      []byte
+	ToolCallID     pgtype.Text
+	CreatedAt      time.Time
 }
 
 type ModelDeployment struct {
@@ -165,6 +218,18 @@ type RolePermission struct {
 	Role     string
 	Resource string
 	Action   string
+}
+
+type ToolCall struct {
+	ID            uuid.UUID
+	MessageID     uuid.UUID
+	ToolID        pgtype.UUID
+	ToolVersionID pgtype.UUID
+	Args          []byte
+	Result        []byte
+	LatencyMs     int32
+	Error         string
+	CreatedAt     time.Time
 }
 
 type User struct {
