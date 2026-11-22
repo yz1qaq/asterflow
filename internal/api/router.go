@@ -192,6 +192,9 @@ func NewRouter(
 		workspaceRoutes.GET("/conversations", conversationHandler.List)
 		workspaceRoutes.POST("/conversations", conversationHandler.Create)
 		workspaceRoutes.GET("/conversations/:conversation_id", conversationHandler.Get)
+
+		conversationChatHandler := v1.NewConversationChatHandler(services.Conversation)
+		workspaceRoutes.POST("/conversations/:conversation_id/chat", conversationChatHandler.Chat)
 	}
 
 	adminRoutes := v1Routes.Group("")

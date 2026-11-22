@@ -13,9 +13,13 @@ import (
 	"github.com/yz1qaq/asterflow/internal/api"
 	"github.com/yz1qaq/asterflow/internal/config"
 	"github.com/yz1qaq/asterflow/internal/infrastructure/postgres"
+	"github.com/yz1qaq/asterflow/internal/platform/agent"
+	"github.com/yz1qaq/asterflow/internal/platform/conversation"
 	"github.com/yz1qaq/asterflow/internal/platform/iam"
 	"github.com/yz1qaq/asterflow/internal/platform/modelconfig"
 	"github.com/yz1qaq/asterflow/internal/platform/prompt"
+	"github.com/yz1qaq/asterflow/internal/runtime/engine"
+	"github.com/yz1qaq/asterflow/internal/runtime/llm"
 	"github.com/yz1qaq/asterflow/internal/runtime/promptcache"
 )
 
@@ -83,6 +87,18 @@ func start() error {
 		}
 	}()
 
+	agentStore := agent.NewPostgresStore(pool)
+	agentService := agent.NewService(agentStore, promptService, modelService)
+
+	gateway := llm.NewFailoverGateway(modelService, llm.NewOpenAIClient())
+	executor := engine.NewExecutor(promptService, gateway)
+
+	conversationStore := conversation.NewPostgresStore(pool)
+	conversationService := conversation.NewService(conversationStore, agentService, promptService, executor)
+
+	handler := api.NewRouter(pool, iamService, modelService, promptService,
+		api.Services{Agent: agentService, Conversation: conversationService})
+
 	if cfg.AutoseedAdmin {
 		seedCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		err := iamService.EnsureSeedAdmin(
@@ -97,7 +113,6 @@ func start() error {
 		}
 	}
 
-	handler := api.NewRouter(pool, iamService, modelService, promptService)
 	log.Printf("starting HTTP server on %s", cfg.HTTPAddr)
 
 	return run(ctx, handler, cfg.HTTPAddr)

@@ -75,7 +75,7 @@ func TestConversationHTTP(t *testing.T) {
 	models := modelconfig.NewService(modelconfig.NewPostgresStore(pool), nil)
 	prompts := prompt.NewService(prompt.NewPostgresStore(pool), models)
 	agents := agent.NewService(agent.NewPostgresStore(pool), prompts, models)
-	conversations := conversation.NewService(conversation.NewPostgresStore(pool), agents)
+	conversations := conversation.NewService(conversation.NewPostgresStore(pool), agents, nil, nil)
 	server := httptest.NewServer(NewRouter(pool, identities, models, prompts, Services{Agent: agents, Conversation: conversations}))
 	defer server.Close()
 

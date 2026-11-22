@@ -26,8 +26,8 @@ WHERE m.conversation_id = sqlc.arg(conversation_id)::uuid
 ORDER BY m.created_at, m.id;
 
 -- name: InsertMessage :one
-INSERT INTO messages (id, conversation_id, role, content, tool_calls, tool_call_id)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO messages (id, conversation_id, role, content, tool_calls, tool_call_id, created_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING *;
 
 -- name: InsertToolCall :one

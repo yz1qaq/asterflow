@@ -5,7 +5,8 @@
 - 项目：AsterFlow（GitHub yz1qaq/asterflow）；Go、Gin、PostgreSQL/SQLC、React。kbot 只读，固定基线和识别方法见 [交接入口](START-HERE.md)。
 - 上组：G03 模型账户、部署计价、方案版本与环境绑定由 PR #14 已合并，Squash 为 `b85be3818a44d26180c7efd10da08f33b3679915`。实际 PR head 的 Documentation、Go、Web 与独立 AI 复审通过。确认过首次 PR Go 失败是 PG 与 JSON 的时区对象差异，测试统一 UTC 后通过；不要误认成版本持久化错误。
 - 上组：G04 提示词治理由 PR #15 合并，Squash `db1422bb665e4cb84eecd4529cd6178eb71b457d`；head `d0f15a4` 的 docs/go/web 全部通过，本地整组验收见 [G04 记录](../delivery/G04-VERIFICATION.md)。
-- 当前：`feat/ENG-012-013-agent-conversation`，基于上述 G04 Squash。G05 进行中：Agent 核心迁移/类型/查询与创建、追加 Store 已保存并隔离验证；读取与发布为候选。G05 涉及 ENG-012/013、FR-07。
+- 上组：G05 Agent 与会话由 PR #16 合并，Squash `82143d3dda4c46c0b1d891d92c4d5e8f7a0e2de0`；head `6eba0fb` 的 docs/go/web 通过。
+- 当前：`feat/ENG-014-015-chat-loop`，基于上述 G05 Squash。G06 进行中（ENG-014/015、FR-06/Gateway）。Gateway/执行/SSE/聊天 Web 代码与测试已完成，全量门禁通过；真实模型端到端（DeepSeek）已通过。
 - Go 命令沿用项目 Makefile；本机曾用 `env -u GOROOT GOTOOLCHAIN=go1.26.6 go ...` 规避工具链冲突。新设备按当前 go.mod 和 Makefile 核对，不改全局环境。一键联调：`make up`（加载 .env、启动 PG+Redis、应用迁移、同时启动后端与前端，Ctrl-C 停止两个应用）。
 
 | 范围 | 事实 |
@@ -37,8 +38,9 @@
 | Agent 核心 | 迁移 000009（snapshot 用 TEXT + `pg_input_is_valid`）、`domain.Agent/AgentVersion`、`queries/agent.sql` 与 SQLC、Store 全部方法（创建/追加/读取/环境发布）已保存。正式 `postgres_store_test.go` 在隔离 PG/race 通过：原子创建、锁父行递增、并发 v2–v5、跨空间、复合外键、快照原样、未绑定环境与发布指针。 |
 | Agent Service/Web | Service（快照构建与 Prompt/模型引用校验、创建/追加/发布/读取）、7 个 Gin 路由、main 装配与 `/agents` 管理页已保存。正式 `TestAgentServiceSnapshotAndPublish` 与 `TestAgentHTTP` 通过；Chromium 实测创建 v1、追加 v2、发布 dev v2、环境卡片与快照显示正确，SQL 复核 agent_versions=2、dev=v2。 |
 | 会话与历史 | 迁移 000010、会话 Store（租约 Claim/Renew/Commit/Release）、Service/HTTP（用户私有、owner/admin 全量、409/404 语义）与 `/conversations` 历史页已完成。正式 Store/HTTP 测试与桌面验收通过。 |
-| G05 状态 | 功能完成，本地整组验收通过，待提交与 PR。 |
+| G05 交付 | PR #16 已合并；正式测试、桌面与 SQL 复核通过。 |
+| G06 聊天闭环 | `runtime/llm`（Gateway/failover/OpenAIClient）、`runtime/engine`（事件/执行器，只读 runtime config）、`modelconfig.ResolveProfile`（解密部署）、会话创建固化版本、`RunTurn`（租约+提交）、SSE Handler 与聊天页均已完成。真实模型端到端（DeepSeek）已通过：SSE 事件序列、流式 delta、usage、消息持久化、租约清理均正确。 |
 
-核验：G05 分支 `make build`、`go vet ./...`、`make docs-check`、`git diff --check` 通过；全量 Go race 在一次性 PostgreSQL+Redis 通过；桌面与 SQL 复核通过；未运行远程 CI。
+核验：G06 分支 `go build`、`go vet`、`make docs-check`、`git diff --check`、`make deps-check`、`make web-check`（87 测试）通过；全量 `go test -race ./...` 在一次性 PostgreSQL+Redis 通过。真实模型调用经负责人授权后对 DeepSeek 完成。未运行远程 CI。
 
-学习接续：G05 功能与本地验收已完成，按 [NEXT](NEXT.md) 进入提交与 PR。版本与环境关系：创建写 v1 并使 dev 指向 v1；追加不改指针；发布/回滚只移动目标环境；会话固定 agent_version_id。本组范围见 [G05 验收](../delivery/G05-VERIFICATION.md)。
+学习接续：G06 代码与测试已完成，按 [NEXT](NEXT.md) 收尾（受控替身模型桌面验收 → 真实模型授权 → 提交 PR）。会话固定 agent_version_id；聊天读 runtime_config_json；发布新 Prompt 只影响新会话。
