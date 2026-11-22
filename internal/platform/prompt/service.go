@@ -205,14 +205,11 @@ func (s *Service) ListVersions(
 	return s.store.ListPromptVersions(ctx, workspaceID, id.String())
 }
 
-func (s *Service) RenderByVersion(
-	ctx context.Context, workspaceID, promptID, versionID string, vars map[string]any,
-) (string, error) {
+func (s *Service) RenderByVersion(ctx context.Context, workspaceID, promptID, versionID string, vars map[string]any) (string, error) {
 	workspaceID = strings.TrimSpace(workspaceID)
 	if workspaceID == "" {
 		return "", fmt.Errorf("%w: workspace_id is required", ErrInvalidArgument)
 	}
-
 	pid, err := uuid.Parse(strings.TrimSpace(promptID))
 	if err != nil {
 		return "", fmt.Errorf("%w: prompt_id must be a UUID", ErrInvalidArgument)
@@ -229,20 +226,7 @@ func (s *Service) RenderByVersion(
 	if version.PromptID != pid.String() {
 		return "", ErrPromptVersionNotFound
 	}
-
-	compiled, err := promptcache.Compile(version.ID, version.Template, version.VariablesSchema)
-	if err != nil {
-		return "", fmt.Errorf("compile stored prompt version: %w", err)
-	}
-
-	text, err := compiled.Render(ctx, vars)
-	if err != nil {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return "", ctxErr
-		}
-		return "", fmt.Errorf("%w: %v", ErrInvalidArgument, err)
-	}
-	return text, nil
+	return s.renderVersion(ctx, version, vars)
 }
 
 func (s *Service) ListPrompts(ctx context.Context, workspaceID string) ([]*Prompt, error) {
@@ -713,4 +697,49 @@ func (s *Service) EnsureVersion(ctx context.Context, workspaceID, versionID stri
 	}
 	_, err = s.store.GetPromptVersion(ctx, workspaceID, vid.String())
 	return err
+}
+
+func (s *Service) RenderVersionByID(ctx context.Context, workspaceID, versionID string, vars map[string]any) (string, error) {
+	workspaceID = strings.TrimSpace(workspaceID)
+	if workspaceID == "" {
+		return "", fmt.Errorf("%w: workspace_id is required", ErrInvalidArgument)
+	}
+	vid, err := uuid.Parse(strings.TrimSpace(versionID))
+	if err != nil {
+		return "", fmt.Errorf("%w: version_id must be a UUID", ErrInvalidArgument)
+	}
+	version, err := s.store.GetPromptVersion(ctx, workspaceID, vid.String())
+	if err != nil {
+		return "", err
+	}
+	return s.renderVersion(ctx, version, vars)
+}
+
+func (s *Service) EnsurePrompt(ctx context.Context, workspaceID, promptID string) error {
+	workspaceID = strings.TrimSpace(workspaceID)
+	if workspaceID == "" {
+		return fmt.Errorf("%w: workspace_id is required", ErrInvalidArgument)
+	}
+	pid, err := uuid.Parse(strings.TrimSpace(promptID))
+	if err != nil {
+		return fmt.Errorf("%w: prompt_id must be a UUID", ErrInvalidArgument)
+	}
+	_, err = s.store.GetPrompt(ctx, workspaceID, pid.String())
+	return err
+}
+
+// renderVersion compiles and renders an already-loaded version.
+func (s *Service) renderVersion(ctx context.Context, version *PromptVersion, vars map[string]any) (string, error) {
+	compiled, err := promptcache.Compile(version.ID, version.Template, version.VariablesSchema)
+	if err != nil {
+		return "", fmt.Errorf("compile stored prompt version: %w", err)
+	}
+	text, err := compiled.Render(ctx, vars)
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return "", ctxErr
+		}
+		return "", fmt.Errorf("%w: %v", ErrInvalidArgument, err)
+	}
+	return text, nil
 }

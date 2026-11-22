@@ -7,6 +7,7 @@ package pgstore
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -162,8 +163,8 @@ func (q *Queries) GetConversation(ctx context.Context, arg GetConversationParams
 }
 
 const insertMessage = `-- name: InsertMessage :one
-INSERT INTO messages (id, conversation_id, role, content, tool_calls, tool_call_id)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO messages (id, conversation_id, role, content, tool_calls, tool_call_id, created_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING id, conversation_id, role, content, tool_calls, tool_call_id, created_at
 `
 
@@ -174,6 +175,7 @@ type InsertMessageParams struct {
 	Content        string
 	ToolCalls      []byte
 	ToolCallID     pgtype.Text
+	CreatedAt      time.Time
 }
 
 func (q *Queries) InsertMessage(ctx context.Context, arg InsertMessageParams) (Message, error) {
@@ -184,6 +186,7 @@ func (q *Queries) InsertMessage(ctx context.Context, arg InsertMessageParams) (M
 		arg.Content,
 		arg.ToolCalls,
 		arg.ToolCallID,
+		arg.CreatedAt,
 	)
 	var i Message
 	err := row.Scan(

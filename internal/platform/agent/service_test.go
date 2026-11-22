@@ -25,6 +25,13 @@ func (f fakePromptVersions) EnsureVersion(_ context.Context, workspaceID, versio
 	return errors.New("referenced prompt version not visible")
 }
 
+func (f fakePromptVersions) EnsurePrompt(_ context.Context, workspaceID, promptID string) error {
+	if f.allowed[workspaceID+"/"+promptID] {
+		return nil
+	}
+	return errors.New("referenced prompt not visible")
+}
+
 func (f fakeModelVersions) ValidateProfileVersion(_ context.Context, workspaceID, versionID string) error {
 	if f.allowed[workspaceID+"/"+versionID] {
 		return nil
@@ -51,7 +58,7 @@ func TestAgentServiceSnapshotAndPublish(t *testing.T) {
 	if err != nil || agent.Name != "Support" || agent.WorkspaceID != "space-a" || version.Version != 1 {
 		t.Fatalf("create = %+v %+v, %v", agent, version, err)
 	}
-	var snapshot storedSnapshot
+	var snapshot domain.AgentSnapshot
 	if err := json.Unmarshal([]byte(version.SnapshotJSON), &snapshot); err != nil {
 		t.Fatal(err)
 	}

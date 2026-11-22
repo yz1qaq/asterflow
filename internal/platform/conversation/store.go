@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -186,7 +187,8 @@ func (s *PostgresStore) CommitTurn(ctx context.Context, workspaceID, conversatio
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	q := s.q.WithTx(tx)
-	for _, message := range messages {
+	base := time.Now().UTC()
+	for i, message := range messages {
 		mid, err := uuid.Parse(message.ID)
 		if err != nil {
 			return fmt.Errorf("parse message id: %w", err)
@@ -203,9 +205,13 @@ func (s *PostgresStore) CommitTurn(ctx context.Context, workspaceID, conversatio
 		if message.ToolCallID != nil {
 			toolCallID = pgtype.Text{String: *message.ToolCallID, Valid: true}
 		}
+		createdAt := base.Add(time.Duration(i) * time.Millisecond)
+		if !message.CreatedAt.IsZero() {
+			createdAt = message.CreatedAt
+		}
 		if _, err := q.InsertMessage(ctx, pgstore.InsertMessageParams{
 			ID: mid, ConversationID: cid, Role: message.Role, Content: message.Content,
-			ToolCalls: calls, ToolCallID: toolCallID,
+			ToolCalls: calls, ToolCallID: toolCallID, CreatedAt: createdAt,
 		}); err != nil {
 			return fmt.Errorf("insert message: %w", err)
 		}
@@ -243,7 +249,7 @@ func (s *PostgresStore) CommitTurn(ctx context.Context, workspaceID, conversatio
 	return tx.Commit(ctx)
 }
 
-//释放租约锁
+// 释放租约锁
 func (s *PostgresStore) ReleaseTurn(ctx context.Context, workspaceID, conversationID, token, status string) error {
 	parsedToken, err := uuid.Parse(token)
 	if err != nil {

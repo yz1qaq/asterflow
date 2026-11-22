@@ -24,3 +24,7 @@
 - `make web-check`：84 个测试 + 生产构建通过。
 - Chromium 1440×1000 + 正式二进制 + 一次性 PG16：提示词全流程、Agent 创建 v1/追加 v2/发布 dev v2、会话经 API 创建并在历史页显示；SQL 复核 agents=1、agent_versions=2、dev=v2、conversations=1。
 - 边界：未调用真实模型（G06）；远程 CI 以 PR Checks 为准。
+
+## 合并
+
+PR #16 已合并，Squash `82143d3dda4c46c0b1d891d92c4d5e8f7a0e2de0`；head `6eba0fb` 的 docs/go/web 全部通过。
