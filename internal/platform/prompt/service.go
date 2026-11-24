@@ -353,17 +353,13 @@ func (s *Service) ResolveSelection(
 	var selection domain.PromptSelection
 	if exp != nil && len(exp.Variants) > 0 {
 		selection.ExperimentID = exp.ID
-		selection.ExperimentVariant = "variant"
+		selection.ExperimentVariant = "baseline"
 		selection.VersionID = selectExperimentVersion(exp, userID)
-
-		if exp.CandidateVersionID != "" && exp.TrafficPercent > 0 {
-			selection.ExperimentVariant = "baseline"
-			if selection.VersionID != "" {
+		if selection.VersionID != "" {
+			selection.ExperimentVariant = "variant"
+			if exp.CandidateVersionID != "" && exp.TrafficPercent > 0 {
 				selection.ExperimentVariant = "candidate"
 			}
-		}
-
-		if selection.VersionID != "" {
 			return selection, nil
 		}
 	}

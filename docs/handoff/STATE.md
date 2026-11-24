@@ -6,7 +6,7 @@
 - 上组：G03 模型账户、部署计价、方案版本与环境绑定由 PR #14 已合并，Squash 为 `b85be3818a44d26180c7efd10da08f33b3679915`。实际 PR head 的 Documentation、Go、Web 与独立 AI 复审通过。确认过首次 PR Go 失败是 PG 与 JSON 的时区对象差异，测试统一 UTC 后通过；不要误认成版本持久化错误。
 - 上组：G04 提示词治理由 PR #15 合并，Squash `db1422bb665e4cb84eecd4529cd6178eb71b457d`；head `d0f15a4` 的 docs/go/web 全部通过，本地整组验收见 [G04 记录](../delivery/G04-VERIFICATION.md)。
 - 上组：G05 Agent 与会话由 PR #16 合并，Squash `82143d3dda4c46c0b1d891d92c4d5e8f7a0e2de0`；head `6eba0fb` 的 docs/go/web 通过。
-- 当前：`feat/ENG-014-015-chat-loop`，HEAD `25dfd8b`。初版聊天由 PR #17 Squash 合并到 `61fd528`，两个提交的文件树相同。G06（ENG-014/015、FR-03/FR-07）及学习第 3 天已完成本地验收，后续改动保留在工作区，由负责人基于 main 提交补充 PR 后再进入 G07。
+- 当前：`feat/ENG-014-015-chat-hardening`，HEAD `55d5778`。G06 初版由 PR #17 合并到 `61fd528`，[补充 PR #18](https://github.com/yz1qaq/asterflow/pull/18) 已提交。工作区已处理三项反馈：SSE 断连测试等待服务端就绪后再取消，Viewer 的聊天入口按只读角色展示，Prompt 多变体未命中时回落到环境版本并归因为 `baseline`。待负责人提交并推送修复，核对新 head 的 CI 和复审后合并，再进入 G07。
 - Go 命令沿用项目 Makefile；本机曾用 `env -u GOROOT GOTOOLCHAIN=go1.26.6 go ...` 规避工具链冲突。新设备按当前 go.mod 和 Makefile 核对，不改全局环境。一键联调：`make up`（加载 .env、启动 PG+Redis、应用迁移、同时启动后端与前端，Ctrl-C 停止两个应用）。
 
 | 范围 | 事实 |

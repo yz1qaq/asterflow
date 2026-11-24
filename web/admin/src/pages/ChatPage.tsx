@@ -6,7 +6,10 @@ import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-quer
 import { Link, Redirect, useSearchParams } from 'wouter'
 import { listAgents, listAgentVersions } from '@/api/agents'
 import { getChatError } from '@/api/chat'
-import { createConversation, deleteConversation, getConversation, listConversations, type Conversation, type ConversationMessage } from '@/api/conversations'
+import {
+  canWriteConversations, createConversation, deleteConversation, getConversation, listConversations,
+  type Conversation, type ConversationMessage,
+} from '@/api/conversations'
 import { getWorkspaceContext } from '@/api/iam'
 import { ChatComposer, readStringField } from '@/components/ChatComposer'
 import { ConversationMessages, timeLabel } from '@/components/ConversationMessages'
@@ -47,7 +50,7 @@ function WorkspaceChat({ userID, workspaceID }: { userID: string; workspaceID: s
     queryFn: ({ signal }) => getWorkspaceContext(workspaceID, signal),
   })
   const authorized = context.isFetchedAfterMount && context.isSuccess && context.data.user_id === userID
-  const canDelete = authorized && context.data.workspace_role !== 'viewer'
+  const canWrite = authorized && canWriteConversations(context.data.workspace_role)
   const agents = useQuery({
     queryKey: ['agents', userID, workspaceID], enabled: authorized, retry: false,
     queryFn: ({ signal }) => listAgents(workspaceID, signal),
@@ -78,7 +81,7 @@ function WorkspaceChat({ userID, workspaceID }: { userID: string; workspaceID: s
   }
 
   async function confirmDelete() {
-    if (!toDelete || deleteRequest.current) return
+    if (!canWrite || !toDelete || deleteRequest.current) return
     const id = toDelete.id
     const controller = new AbortController()
     deleteRequest.current = controller
@@ -119,7 +122,7 @@ function WorkspaceChat({ userID, workspaceID }: { userID: string; workspaceID: s
 
   return <div className="chat-workspace">
     <aside className="chat-sidebar" aria-label="我的会话">
-      <Button type="primary" icon={<PlusOutlined />} onClick={() => setSearch({})}>新建会话</Button>
+      {canWrite && <Button type="primary" icon={<PlusOutlined />} onClick={() => setSearch({})}>新建会话</Button>}
       <Typography.Title level={5}>我的会话</Typography.Title>
       <nav className="chat-recents" aria-label="近期会话">
         {conversations.isError ? <Alert type="error" message="无法读取会话" />
@@ -135,7 +138,7 @@ function WorkspaceChat({ userID, workspaceID }: { userID: string; workspaceID: s
                   <span>{name}</span>
                   <small>{started}</small>
                 </Link>
-                {canDelete && <Button size="small" type="text" danger icon={<DeleteOutlined />}
+                {canWrite && <Button size="small" type="text" danger icon={<DeleteOutlined />}
                   aria-label={`删除会话 ${name} ${started}`} title="删除会话"
                   onClick={() => { setDeleteError(''); setToDelete(row) }} />}
               </div>
@@ -151,17 +154,19 @@ function WorkspaceChat({ userID, workspaceID }: { userID: string; workspaceID: s
         : !current
           ? <div className="chat-start"><Skeleton active /></div>
           : <ActiveChat key={current.id} conversation={current} messages={detail.data?.messages ?? []}
-            userID={userID} workspaceID={workspaceID} agentName={agentNames.get(current.agent_id)}
+            userID={userID} workspaceID={workspaceID} agentName={agentNames.get(current.agent_id)} canWrite={canWrite}
             onDone={() => qc.invalidateQueries({ queryKey: detailKey })} />
-      : <StartChat key={`${presetAgent}:${presetVersion}`} userID={userID} workspaceID={workspaceID}
-        presetAgent={presetAgent} presetVersion={presetVersion}
-        agents={agents.data ?? []} agentsLoading={agents.isPending} agentsError={agents.isError}
-        onCreated={id => {
-          refreshConversationLists()
-          setSearch({ conversation_id: id })
-        }} />}
-    <Modal title="删除会话？" open={Boolean(toDelete)} okText="永久删除" cancelText="取消"
-      confirmLoading={deleting} okButtonProps={{ danger: true, disabled: !canDelete }} cancelButtonProps={{ disabled: deleting }}
+      : canWrite
+        ? <StartChat key={`${presetAgent}:${presetVersion}`} userID={userID} workspaceID={workspaceID}
+          presetAgent={presetAgent} presetVersion={presetVersion}
+          agents={agents.data ?? []} agentsLoading={agents.isPending} agentsError={agents.isError}
+          onCreated={id => {
+            refreshConversationLists()
+            setSearch({ conversation_id: id })
+          }} />
+        : <div className="chat-start"><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="选择会话查看消息" /></div>}
+    <Modal title="删除会话？" open={canWrite && Boolean(toDelete)} okText="永久删除" cancelText="取消"
+      confirmLoading={deleting} okButtonProps={{ danger: true, disabled: !canWrite }} cancelButtonProps={{ disabled: deleting }}
       closable={!deleting} keyboard={!deleting} maskClosable={false}
       onOk={() => void confirmDelete()} onCancel={() => { if (!deleteRequest.current) setToDelete(null) }}>
       {toDelete && <Typography.Paragraph strong>
@@ -254,12 +259,13 @@ function StartChat({ userID, workspaceID, presetAgent, presetVersion, agents, ag
   </div>
 }
 
-function ActiveChat({ workspaceID, userID, conversation, messages, agentName, onDone }: {
+function ActiveChat({ workspaceID, userID, conversation, messages, agentName, canWrite, onDone }: {
   workspaceID: string
   userID: string
   conversation: Conversation
   messages: ConversationMessage[]
   agentName?: string
+  canWrite: boolean
   onDone: () => Promise<void>
 }) {
   const [streaming, setStreaming] = useState('')
@@ -287,14 +293,14 @@ function ActiveChat({ workspaceID, userID, conversation, messages, agentName, on
         const view = event.currentTarget
         stickToBottom.current = view.scrollHeight - view.clientHeight - view.scrollTop < 48
       }}>
-      {messages.length === 0 && !streaming && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="发送一条消息开始对话" />}
+      {messages.length === 0 && !streaming && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={canWrite ? '发送一条消息开始对话' : '暂无消息'} />}
       <ConversationMessages messages={messages} />
       {streaming && <article className="chat-message">
         <Typography.Text strong>助手</Typography.Text>
         <div className="chat-message-content">{streaming}</div>
       </article>}
     </div>
-    <ChatComposer workspaceID={workspaceID} userID={userID} conversation={conversation}
-      firstTurn={messages.length === 0} onDone={onDone} onDraftChange={setStreaming} />
+    {canWrite && <ChatComposer workspaceID={workspaceID} userID={userID} conversation={conversation}
+      firstTurn={messages.length === 0} onDone={onDone} onDraftChange={setStreaming} />}
   </section>
 }

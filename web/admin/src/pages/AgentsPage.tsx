@@ -10,6 +10,7 @@ import {
   canDeleteAgents, canWriteAgents, createAgent, createAgentVersion, deleteAgent, listAgentEnvs, listAgentVersions, listAgents,
   promoteAgentVersion, type Agent, type AgentVersion,
 } from '@/api/agents'
+import { canWriteConversations } from '@/api/conversations'
 import { listWorkspaceProfileVersions } from '@/api/modelBindings'
 import { listModelProfiles } from '@/api/modelProfiles'
 import { listPrompts } from '@/api/prompts'
@@ -122,17 +123,19 @@ function WorkspaceAgents({ scope }: { scope: Scope }) {
     action={<Button onClick={() => void recheckAccess()}>重新确认</Button>} />
   const writable = canWriteAgents(context.data.workspace_role)
   const deletable = canDeleteAgents(context.data.workspace_role)
+  const chatAllowed = canWriteConversations(context.data.workspace_role)
   return <>
     <div className="workspace-current model-workspace" aria-label="Agent 管理当前空间"><Space wrap>
       <Typography.Text strong>当前空间</Typography.Text><Typography.Text className="workspace-id" copyable>{scope.workspaceID}</Typography.Text>
       <Tag color="blue">空间角色：{context.data.workspace_role}</Tag>
     </Space></div>
-    <AgentPanel key={`${writable}:${deletable}`} scope={scope} writable={writable} deletable={deletable} request={request} />
+    <AgentPanel key={`${writable}:${deletable}`} scope={scope} writable={writable} deletable={deletable}
+      chatAllowed={chatAllowed} request={request} />
   </>
 }
 
-function AgentPanel({ scope, writable, deletable, request }: {
-  scope: Scope; writable: boolean; deletable: boolean; request: Request
+function AgentPanel({ scope, writable, deletable, chatAllowed, request }: {
+  scope: Scope; writable: boolean; deletable: boolean; chatAllowed: boolean; request: Request
 }) {
   const { message } = App.useApp()
   const qc = useQueryClient()
@@ -300,7 +303,7 @@ function AgentPanel({ scope, writable, deletable, request }: {
             </details> },
             { title: '创建时间', dataIndex: 'created_at', width: 185, render: timeLabel },
             { title: '操作', width: 185, render: (_, row) => <Space>
-              <Link href={`/chat?${new URLSearchParams({ agent_id: row.agent_id, agent_version_id: row.id })}`}>前往聊天</Link>
+              {chatAllowed && <Link href={`/chat?${new URLSearchParams({ agent_id: row.agent_id, agent_version_id: row.id })}`}>前往聊天</Link>}
               {writable && <Button size="small" onClick={() => openPublish(row)}>发布</Button>}
             </Space> },
           ]} />}

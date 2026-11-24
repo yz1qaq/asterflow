@@ -1,6 +1,6 @@
 # 下一批 G07 工具闭环
 
-G06 初版已由 PR #17 合并，后续实现与本地验收完成。先由负责人基于 main 提交 G06 补充 PR，确认远程 CI 与评审，再按 [路线图](../delivery/ROADMAP.md) 进入 G07。G06 证据见 [验收记录](../delivery/G06-VERIFICATION.md)。常规分工保持学员写生产 Go/SQL，助手维护 React、验证、文档和评审。
+G06 初版已由 PR #17 合并，[补充 PR #18](https://github.com/yz1qaq/asterflow/pull/18) 的审查修复已保存。先由负责人提交并推送修复，核对新 head 的 CI 与复审，通过后合并，再按 [路线图](../delivery/ROADMAP.md) 进入 G07。G06 证据见 [验收记录](../delivery/G06-VERIFICATION.md)。常规分工保持学员写生产 Go/SQL，助手维护 React、验证、文档和评审。
 
 1. 核对固定 Final 的 Tool 注册、版本、绑定与策略，再按 G07 任务拆出首批生产代码与验收。
 2. 将已绑定工具接到现有 Eino ADK Runner，交付独立业务系统查询、工具事件与历史消息保存和回喂。

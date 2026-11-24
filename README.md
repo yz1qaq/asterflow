@@ -6,7 +6,7 @@ AsterFlow 将模型、提示词、技能、工具、知识库与多Agent编排�
 
 ## 项目状态
 
-需求与基础工程、G01登录用户管理和G02空间/成员治理已合并。G02最终head的Documentation/Go/Web CI与AI复审通过，已接通真实PG、Gin权限及React空间/成员/当前空间选择。G03 模型配置已由 [PR #14](https://github.com/yz1qaq/asterflow/pull/14) 合并，包含供应商账户、部署计价、方案版本与环境绑定。G04 提示词治理和 G05 Agent / 会话管理已合并。G06 初版聊天由 [PR #17](https://github.com/yz1qaq/asterflow/pull/17) 合并，ADK、续租及管理功能通过本地验收，待补充 PR。详见[交付状态](docs/delivery/STATUS.md)。尚无生产部署。
+需求与基础工程、G01登录用户管理和G02空间/成员治理已合并。G02最终head的Documentation/Go/Web CI与AI复审通过，已接通真实PG、Gin权限及React空间/成员/当前空间选择。G03 模型配置已由 [PR #14](https://github.com/yz1qaq/asterflow/pull/14) 合并，包含供应商账户、部署计价、方案版本与环境绑定。G04 提示词治理和 G05 Agent / 会话管理已合并。G06 初版聊天由 [PR #17](https://github.com/yz1qaq/asterflow/pull/17) 合并，ADK、续租及管理功能通过本地验收，[补充 PR #18](https://github.com/yz1qaq/asterflow/pull/18) 进入评审修复。详见[交付状态](docs/delivery/STATUS.md)。尚无生产部署。
 
 目标范围包括：身份与空间权限、模型管理、Prompt治理、五源工具、Skills、知识检索、Agent/Team、审批与A2UI、Guard、Eval、审计观测、外部渠道、SDK/CLI、独立业务场景及部署。
 

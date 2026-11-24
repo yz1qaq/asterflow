@@ -94,3 +94,10 @@
 
 - HTTP / PostgreSQL 回归覆盖未认证、viewer/editor、跨空间、无效 UUID、两个版本和不同用户的关联会话、运行中冲突及事务完整性。SQL 确认 Agent 版本、环境、会话、消息和工具记录清理，验证其他 Agent、会话和共享提示词仍可读。
 - 桌面 Chrome 使用一次性 PostgreSQL、Redis 与本机模型替身，验证取消确认、生成中拒绝、停止后删除和历史列表更新。全量 `make check` 通过。
+
+## PR #18 复审修复
+
+- SSE 断连回归先等待测试执行器进入可取消状态，再关闭 HTTP 请求；用隔离 PostgreSQL、Redis 开启 race 连续运行 5 次通过。
+- Prompt 多变体实验未命中时，回落环境绑定版本并记录 `baseline`。新增回归覆盖两个变体合计只分配 2% 流量的场景。
+- 桌面 Chrome 使用隔离 PostgreSQL、Redis 和本机模型替身，验证 Viewer 可回读历史，聊天写操作入口隐藏；同一账号切回 Member 后从 Agent 版本发起会话并收到回复。
+- 隔离 PostgreSQL 和 Redis 上的完整 `make check` 通过，包含 Go race、vet、构建和 89 个前端测试。远程 CI 和复审在修复推送后核对。

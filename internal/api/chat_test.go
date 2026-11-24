@@ -26,7 +26,10 @@ import (
 )
 
 // fakeChatRunner stands in for the real engine so no model is called.
-type fakeChatRunner struct{ cancelled chan struct{} }
+type fakeChatRunner struct {
+	cancelled chan struct{}
+	waiting   chan struct{}
+}
 
 func (r fakeChatRunner) Run(ctx context.Context, in engine.RunInput, emit engine.Emitter) (*engine.RunResult, error) {
 	if in.Vars != nil {
@@ -41,6 +44,7 @@ func (r fakeChatRunner) Run(ctx context.Context, in engine.RunInput, emit engine
 		return nil, err
 	}
 	if in.UserInput == "wait for disconnect" {
+		close(r.waiting)
 		<-ctx.Done()
 		close(r.cancelled)
 		return nil, ctx.Err()
@@ -83,7 +87,9 @@ func TestConversationChatSSE(t *testing.T) {
 	prompts := prompt.NewService(prompt.NewPostgresStore(pool), models)
 	agents := agent.NewService(agent.NewPostgresStore(pool), prompts, models)
 	cancelled := make(chan struct{})
-	conversations := conversation.NewService(conversation.NewPostgresStore(pool), agents, nil, fakeChatRunner{cancelled: cancelled})
+	waiting := make(chan struct{})
+	conversations := conversation.NewService(conversation.NewPostgresStore(pool), agents, nil,
+		fakeChatRunner{cancelled: cancelled, waiting: waiting})
 	server := httptest.NewServer(NewRouter(pool, identities, models, prompts,
 		Services{Agent: agents, Conversation: conversations}))
 	defer server.Close()
@@ -215,7 +221,7 @@ func TestConversationChatSSE(t *testing.T) {
 	if err := conversation.NewPostgresStore(pool).ReleaseTurn(ctx, space.ID, conv.ID, tokenForBusyTurn, "active"); err != nil {
 		t.Fatal(err)
 	}
-	requestCtx, cancelRequest := context.WithCancel(ctx)
+	requestCtx, cancelRequest := context.WithTimeout(ctx, 10*time.Second)
 	defer cancelRequest()
 	request, err := http.NewRequestWithContext(requestCtx, "POST", server.URL+"/api/v1/conversations/"+conv.ID+"/chat",
 		strings.NewReader(`{"input":"wait for disconnect"}`))
@@ -228,6 +234,15 @@ func TestConversationChatSSE(t *testing.T) {
 	response, err := server.Client().Do(request)
 	if err != nil {
 		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("disconnect fixture status: %d", response.StatusCode)
+	}
+	select {
+	case <-waiting:
+	case <-time.After(3 * time.Second):
+		t.Fatal("fixture did not reach the cancellation point")
 	}
 	cancelRequest()
 	_ = response.Body.Close()

@@ -128,6 +128,17 @@ func TestResolveSelectionKeepsRolloutSource(t *testing.T) {
 	}{
 		{name: "plain environment", want: domain.PromptSelection{VersionID: "baseline"}},
 		{
+			name: "multi variant traffic outside the candidates",
+			exp: &domain.PromptExperiment{
+				ID: "experiment",
+				Variants: []domain.ExperimentVariant{
+					{VersionID: "a", Traffic: 1}, {VersionID: "b", Traffic: 1},
+				},
+			},
+			want: domain.PromptSelection{VersionID: "baseline", ExperimentID: "experiment", ExperimentVariant: "baseline"},
+		},
+
+		{
 			name: "candidate",
 			exp: &domain.PromptExperiment{
 				ID: "rollout", CandidateVersionID: "candidate", TrafficPercent: 100,

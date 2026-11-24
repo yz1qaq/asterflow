@@ -26,6 +26,10 @@ export interface ConversationMessage {
 const scope = (workspaceID: string, signal?: AbortSignal) => ({ headers: { 'X-Workspace-ID': workspaceID }, signal })
 const path = (id: string) => `/conversations/${encodeURIComponent(id)}`
 
+export function canWriteConversations(role: string): boolean {
+  return role === 'owner' || role === 'admin' || role === 'editor' || role === 'member'
+}
+
 function parseConversation(value: unknown): Conversation {
   const row = value as Partial<Conversation> | null
   if (!row || typeof row.id !== 'string' || !row.id || typeof row.workspace_id !== 'string'
