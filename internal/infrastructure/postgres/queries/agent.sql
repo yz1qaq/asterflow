@@ -71,3 +71,27 @@ JOIN agents AS a ON a.id = e.agent_id
 WHERE a.id = sqlc.arg(agent_id)::uuid
   AND a.workspace_id = sqlc.arg(workspace_id)::text
 ORDER BY e.env;
+-- name: LockAgentConversationLeases :one
+WITH locked AS MATERIALIZED (
+    SELECT c.turn_lease_until
+    FROM conversations AS c
+    WHERE c.agent_id = sqlc.arg(agent_id)::uuid
+      AND c.workspace_id = sqlc.arg(workspace_id)::text
+    ORDER BY c.id
+    FOR UPDATE
+)
+SELECT COALESCE(bool_or(turn_lease_until > clock_timestamp()), false)::boolean AS has_active
+FROM locked;
+
+-- name: DeleteAgentConversations :exec
+DELETE FROM conversations
+WHERE agent_id = sqlc.arg(agent_id)::uuid
+  AND workspace_id = sqlc.arg(workspace_id)::text;
+
+-- name: DeleteAgentEnvs :exec
+DELETE FROM agent_envs WHERE agent_id = $1;
+
+-- name: DeleteAgent :exec
+DELETE FROM agents
+WHERE id = sqlc.arg(id)::uuid
+  AND workspace_id = sqlc.arg(workspace_id)::text;

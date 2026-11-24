@@ -98,30 +98,60 @@ func (q *Queries) CreateConversation(ctx context.Context, arg CreateConversation
 	return i, err
 }
 
+const deleteOwnedConversation = `-- name: DeleteOwnedConversation :execrows
+DELETE FROM conversations
+WHERE id = $1::uuid
+  AND workspace_id = $2::text
+  AND user_id = $3::text
+  AND (turn_lease_until IS NULL OR turn_lease_until <= clock_timestamp())
+`
+
+type DeleteOwnedConversationParams struct {
+	ID          uuid.UUID
+	WorkspaceID string
+	UserID      string
+}
+
+func (q *Queries) DeleteOwnedConversation(ctx context.Context, arg DeleteOwnedConversationParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteOwnedConversation, arg.ID, arg.WorkspaceID, arg.UserID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const finishConversationTurn = `-- name: FinishConversationTurn :execrows
 UPDATE conversations
 SET status = $1::text,
     turn_token = NULL,
     turn_lease_until = NULL,
+    runtime_config_json = runtime_config_json
+    || COALESCE($2::jsonb, '{}'::jsonb),
     updated_at = now()
-WHERE id = $2::uuid
-  AND workspace_id = $3::text
-  AND turn_token = $4::uuid
+
+WHERE id = $3::uuid
+  AND workspace_id = $4::text
+  AND turn_token = $5::uuid
+  AND (NOT $6::boolean OR turn_lease_until > clock_timestamp())
 `
 
 type FinishConversationTurnParams struct {
-	Status      string
-	ID          uuid.UUID
-	WorkspaceID string
-	TurnToken   uuid.UUID
+	Status             string
+	UserPromptSnapshot []byte
+	ID                 uuid.UUID
+	WorkspaceID        string
+	TurnToken          uuid.UUID
+	RequireActiveLease bool
 }
 
 func (q *Queries) FinishConversationTurn(ctx context.Context, arg FinishConversationTurnParams) (int64, error) {
 	result, err := q.db.Exec(ctx, finishConversationTurn,
 		arg.Status,
+		arg.UserPromptSnapshot,
 		arg.ID,
 		arg.WorkspaceID,
 		arg.TurnToken,
+		arg.RequireActiveLease,
 	)
 	if err != nil {
 		return 0, err
@@ -348,6 +378,7 @@ SET turn_lease_until = now() + $1::int * interval '1 second',
 WHERE id = $2::uuid
   AND workspace_id = $3::text
   AND turn_token = $4::uuid
+  AND turn_lease_until > clock_timestamp()
 `
 
 type RenewConversationTurnParams struct {

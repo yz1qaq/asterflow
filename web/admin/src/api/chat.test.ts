@@ -38,7 +38,27 @@ describe('streamChat', () => {
     expect(url).toBe('/api/v1/conversations/conv-1/chat')
     expect(init?.method).toBe('POST')
     expect((init?.headers as Record<string, string>)['X-Workspace-ID']).toBe('space-a')
-    expect(JSON.parse(init?.body as string)).toEqual({ input: 'hi', vars: {} })
+    expect(JSON.parse(init?.body as string)).toEqual({ input: 'hi' })
+  })
+
+  it('preserves an explicit empty template variable object', async () => {
+    vi.spyOn(useAuthStore, 'getState').mockReturnValue({ token: 'test-token' } as never)
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(sseResponse([]))
+    const stream = streamChat('space-a', 'conv-1', '', {}, new AbortController().signal)
+
+    expect(await stream.next()).toEqual({ done: true, value: undefined })
+    expect(JSON.parse(fetchMock.mock.calls[0][1]?.body as string)).toEqual({ input: '', vars: {} })
+  })
+
+  it('sends an explicitly selected template version', async () => {
+    vi.spyOn(useAuthStore, 'getState').mockReturnValue({ token: 'test-token' } as never)
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(sseResponse([]))
+    const stream = streamChat('space-a', 'conv-1', '', { order_id: 'ORD-42' }, new AbortController().signal, 'v2-id')
+
+    await stream.next()
+    expect(JSON.parse(fetchMock.mock.calls[0][1]?.body as string)).toEqual({
+      input: '', vars: { order_id: 'ORD-42' }, user_prompt_version_id: 'v2-id',
+    })
   })
 
   it('throws a readable error on a non-2xx response', async () => {

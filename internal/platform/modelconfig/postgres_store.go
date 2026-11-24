@@ -149,3 +149,33 @@ func (s *PostgresStore) UpdateProviderAPIKey(
 	}
 	return nil
 }
+
+func (s *PostgresStore) DeleteUnusedProviderAccount(ctx context.Context, workspaceID, accountID string) error {
+	id, err := uuid.Parse(accountID)
+	if err != nil {
+		return err
+	}
+	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
+	if err != nil {
+		return fmt.Errorf("begin provider account deletion: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	q := s.q.WithTx(tx)
+
+	// The parent row lock conflicts with the key-share lock needed to insert a deployment.
+	// The subsequent statement sees any deployment that committed before we acquired it.
+	if _, err := q.LockProviderAccount(ctx, pgstore.LockProviderAccountParams{ID: id, WorkspaceID: workspaceID}); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrProviderAccountNotFound
+		}
+		return fmt.Errorf("lock provider account: %w", err)
+	}
+	affected, err := q.DeleteUnusedProviderAccount(ctx, pgstore.DeleteUnusedProviderAccountParams{ID: id, WorkspaceID: workspaceID})
+	if err != nil {
+		return fmt.Errorf("delete provider account: %w", err)
+	}
+	if affected == 0 {
+		return ErrProviderAccountInUse
+	}
+	return tx.Commit(ctx)
+}

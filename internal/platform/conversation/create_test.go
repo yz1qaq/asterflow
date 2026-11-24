@@ -22,9 +22,9 @@ type fakePromptResolver struct {
 	calls    []string
 }
 
-func (f *fakePromptResolver) ResolveVersion(_ context.Context, _ string, promptID, env, userID string) (string, error) {
+func (f *fakePromptResolver) ResolveSelection(_ context.Context, _ string, promptID, env, userID string) (domain.PromptSelection, error) {
 	f.calls = append(f.calls, promptID+"/"+env+"/"+userID)
-	return f.resolved, nil
+	return domain.PromptSelection{VersionID: f.resolved, ExperimentID: "experiment-a", ExperimentVariant: "candidate"}, nil
 }
 
 func TestConversationCreateResolvesPromptIDs(t *testing.T) {
@@ -63,7 +63,7 @@ func TestConversationCreateResolvesPromptIDs(t *testing.T) {
 		t.Fatal(err)
 	}
 	if runtime.Environment != "dev" || runtime.SystemPromptVersionID != "resolved-version-id" ||
-		runtime.UserPromptVersionID != "resolved-version-id" {
+		runtime.UserPromptVersionID != "resolved-version-id" || runtime.UserPromptExperiment != "experiment-a" || runtime.UserPromptVariant != "candidate" {
 		t.Fatalf("runtime config = %+v", runtime)
 	}
 	if len(resolver.calls) != 2 || resolver.calls[0] != "prompt-a/dev/user-1" || resolver.calls[1] != "prompt-b/dev/user-1" {

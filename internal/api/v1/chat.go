@@ -3,8 +3,10 @@ package v1
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yz1qaq/asterflow/internal/api/middleware"
@@ -20,29 +22,52 @@ func NewConversationChatHandler(service *conversation.Service) *ConversationChat
 	return &ConversationChatHandler{service: service}
 }
 
+const sseWriteTimeout = 10 * time.Second
+
 type sseEmitter struct {
-	writer  http.ResponseWriter
-	flusher http.Flusher
+	writer     http.ResponseWriter
+	controller *http.ResponseController
 }
 
 func newSSEEmitter(w http.ResponseWriter) (engine.Emitter, error) {
-	flusher, ok := w.(http.Flusher)
-	if !ok {
+	if _, ok := w.(http.Flusher); !ok {
 		return nil, fmt.Errorf("response writer does not support flushing")
 	}
-	return &sseEmitter{writer: w, flusher: flusher}, nil
+	// Write through Gin so its Written flag stays correct. Flush the underlying
+	// writer directly so a socket error is visible to the run.
+	raw := w
+	if wrapper, ok := w.(interface{ Unwrap() http.ResponseWriter }); ok {
+		raw = wrapper.Unwrap()
+	}
+	return &sseEmitter{writer: w, controller: http.NewResponseController(raw)}, nil
 }
 
-func (e *sseEmitter) Emit(_ context.Context, event engine.Event) error {
+func (e *sseEmitter) Emit(ctx context.Context, event engine.Event) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	encoded, err := json.Marshal(event)
 	if err != nil {
 		return err
 	}
+	deadline := time.Now().Add(sseWriteTimeout)
+	if limit, ok := ctx.Deadline(); ok && limit.Before(deadline) {
+		deadline = limit
+	}
+	if err := e.controller.SetWriteDeadline(deadline); err == nil {
+		defer func() { _ = e.controller.SetWriteDeadline(time.Time{}) }()
+	} else if !errors.Is(err, http.ErrNotSupported) {
+		return err
+	}
+
+	header := e.writer.Header()
+	header.Set("Content-Type", "text/event-stream")
+	header.Set("Cache-Control", "no-cache")
+	header.Set("X-Accel-Buffering", "no")
 	if _, err := fmt.Fprintf(e.writer, "data: %s\n\n", encoded); err != nil {
 		return err
 	}
-	e.flusher.Flush()
-	return nil
+	return e.controller.Flush()
 }
 
 func (h *ConversationChatHandler) Chat(c *gin.Context) {
@@ -51,11 +76,6 @@ func (h *ConversationChatHandler) Chat(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "streaming is unavailable"})
 		return
 	}
-	c.Header("Content-Type", "text/event-stream")
-	c.Header("Cache-Control", "no-cache")
-	c.Header("Connection", "keep-alive")
-	c.Header("X-Accel-Buffering", "no")
-
 	var req conversation.ChatTurnRequest
 	if err := decodeJSON(c.Writer, c.Request, &req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
@@ -67,7 +87,9 @@ func (h *ConversationChatHandler) Chat(c *gin.Context) {
 	req.ConversationID = c.Param("conversation_id")
 
 	if _, err := h.service.RunTurn(ctx, req, emitter); err != nil {
-		writeConversationError(c, err)
+		if !c.Writer.Written() && ctx.Err() == nil {
+			writeConversationError(c, err)
+		}
 		return
 	}
 	c.Status(http.StatusOK)

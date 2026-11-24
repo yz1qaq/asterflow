@@ -27,6 +27,7 @@ type PostgresStore struct {
 var (
 	ErrPromptNotFound        = errors.New("prompt not found")
 	ErrPromptVersionNotFound = errors.New("prompt version not found")
+	ErrPromptVersionInUse    = errors.New("prompt version is published or referenced")
 	ErrPromptEnvNotBound     = errors.New("prompt environment is not bound")
 
 	ErrActivePromptExperiment   = errors.New("another active prompt experiment exists in this environment")
@@ -61,6 +62,7 @@ func promptVersionFromRow(row pgstore.PromptVersion) (*PromptVersion, error) {
 	}
 
 	return &PromptVersion{
+		Archived:              row.IsArchived,
 		ID:                    row.ID.String(),
 		PromptID:              row.PromptID.String(),
 		Version:               int(row.Version),
@@ -382,7 +384,7 @@ func (s *PostgresStore) SetEnvBinding(
 	if err != nil {
 		return fmt.Errorf("get target prompt version: %w", err)
 	}
-	if version.PromptID != pid {
+	if version.PromptID != pid || version.IsArchived {
 		return ErrPromptVersionNotFound
 	}
 
@@ -589,7 +591,35 @@ func (s *PostgresStore) UpsertExperiment(
 	if err != nil {
 		return err
 	}
-	row, err := s.q.UpsertPromptExperiment(ctx, params)
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	q := s.q.WithTx(tx)
+	if _, err := q.LockPrompt(ctx, pgstore.LockPromptParams{WorkspaceID: workspaceID, PromptID: params.PromptID}); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrPromptNotFound
+		}
+		return err
+	}
+	for _, variant := range exp.Variants {
+		id, err := uuid.Parse(variant.VersionID)
+		if err != nil {
+			return err
+		}
+		v, err := q.GetPromptVersion(ctx, pgstore.GetPromptVersionParams{WorkspaceID: workspaceID, VersionID: id})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrPromptVersionNotFound
+		}
+		if err != nil {
+			return err
+		}
+		if v.PromptID != params.PromptID || v.IsArchived {
+			return ErrPromptVersionNotFound
+		}
+	}
+	row, err := q.UpsertPromptExperiment(ctx, params)
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 		return ErrActivePromptExperiment
@@ -599,6 +629,9 @@ func (s *PostgresStore) UpsertExperiment(
 	}
 	saved, err := experimentFromRow(row)
 	if err != nil {
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
 	*exp = *saved
@@ -714,7 +747,7 @@ func (s *PostgresStore) CompleteRollout(
 	if err != nil {
 		return fmt.Errorf("get candidate version: %w", err)
 	}
-	if version.PromptID != promptID {
+	if version.PromptID != promptID || version.IsArchived {
 		return ErrPromptVersionNotFound
 	}
 	if _, err := q.LockPromptExperiment(ctx, pgstore.LockPromptExperimentParams{
@@ -873,7 +906,7 @@ func (s *PostgresStore) PublishEnv(
 	if err != nil {
 		return fmt.Errorf("get target prompt version: %w", err)
 	}
-	if version.PromptID != pid {
+	if version.PromptID != pid || version.IsArchived {
 		return ErrPromptVersionNotFound
 	}
 
@@ -948,4 +981,47 @@ func (s *PostgresStore) ListPromptEnvEvents(
 		events = append(events, envEventFromRow(row))
 	}
 	return events, nil
+}
+
+func (s *PostgresStore) ArchiveDraft(ctx context.Context, workspaceID, promptID, versionID string) error {
+	pid, err := uuid.Parse(promptID)
+	if err != nil {
+		return err
+	}
+	vid, err := uuid.Parse(versionID)
+	if err != nil {
+		return err
+	}
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin prompt draft archival: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	q := s.q.WithTx(tx)
+	if _, err := q.LockPrompt(ctx, pgstore.LockPromptParams{PromptID: pid, WorkspaceID: workspaceID}); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrPromptNotFound
+		}
+		return err
+	}
+	archived, err := q.LockPromptVersionForArchive(ctx, pgstore.LockPromptVersionForArchiveParams{PromptID: pid, VersionID: vid})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrPromptVersionNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if archived {
+		return ErrPromptVersionNotFound
+	}
+	n, err := q.ArchiveUnusedPromptDraft(ctx, pgstore.ArchiveUnusedPromptDraftParams{
+		WorkspaceID: workspaceID, PromptID: pid, VersionID: vid,
+	})
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return ErrPromptVersionInUse
+	}
+	return tx.Commit(ctx)
 }

@@ -28,6 +28,7 @@ type Store interface {
 	CreateAgentWithInitialVersion(context.Context, *domain.Agent, *domain.AgentVersion) error
 	AppendAgentVersion(context.Context, string, *domain.AgentVersion) error
 	GetAgent(context.Context, string, string) (*domain.Agent, error)
+	DeleteAgent(ctx context.Context, workspaceID, agentID string) error
 	ListAgents(context.Context, string) ([]*domain.Agent, error)
 	GetAgentVersion(context.Context, string, string) (*domain.AgentVersion, error)
 	ListAgentVersions(context.Context, string, string) ([]*domain.AgentVersion, error)
@@ -195,6 +196,18 @@ func (s *Service) AppendVersion(
 		return nil, err
 	}
 	return version, nil
+}
+
+func (s *Service) Delete(ctx context.Context, workspaceID, agentID string) error {
+	workspaceID = strings.TrimSpace(workspaceID)
+	if workspaceID == "" {
+		return fmt.Errorf("%w: workspace_id is required", ErrInvalidArgument)
+	}
+	id, err := uuid.Parse(strings.TrimSpace(agentID))
+	if err != nil {
+		return fmt.Errorf("%w: agent_id must be a UUID", ErrInvalidArgument)
+	}
+	return s.store.DeleteAgent(ctx, workspaceID, id.String())
 }
 
 func (s *Service) GetAgent(ctx context.Context, workspaceID, agentID string) (*domain.Agent, error) {

@@ -122,6 +122,14 @@ docs/
 6. on_output后在同一事务中验证租约并保存整轮用户/助手/tool消息；错误/取消按明确状态释放，不伪造成功。
 7. 审计/用量/trace关联同一用户、空间、会话和工具调用；事实数据以业务库为准，观测系统不替代事实库。
 
+## G06 聊天调用链
+
+- `ConversationChatHandler.Chat` 把请求交给 `conversation.Service.RunTurn`，并逐个写出 SSE 事件。Go 内的 `Service.Chat` 用一个收集器消费同一次执行的 delta 和终态，返回完整文本。
+- `RunTurn` 校验会话归属，领取租约，重读快照和历史。运行和保存期间每 30 秒续一次 60 秒的会话租约。续租失败会取消生成。保存阶段用有时限的请求子 context，数据库事务检查 token 和有效期。
+- `Executor.Run` 把历史转成 Eino 消息，使用 `ChatModelAgent` 和开启流式的 `Runner`。模型适配器转发固定方案、密级和生成参数给 `FailoverGateway`，由 Gateway 选择部署并调用 OpenAI 兼容端点。
+- 浏览器收到 delta 后增量显示。事务一次性提交消息、首轮模板快照和租约释放，提交后才发 `run_completed`。若模型半途断流，已发送的 delta 不写入历史。同一会话的第二个并行请求在 SSE 开始前得到 HTTP 409，开始后的执行错误编码为终态事件。
+- 项目保留已有 Gateway 的主备、密级和模型设置，Eino 负责统一执行与模型消息流。G07 在该执行核心上接入工具。
+
 ## 审批与恢复
 
 敏感工具调用在真正执行前生成pending与框架中断状态。保存的checkpoint包含ADK框架状态/interrupt address，不是仅一段聊天文本。审批关联用户归属所在Conversation/Workspace；A2UI是受控展示/动作协议，仍需真正后端鉴权。

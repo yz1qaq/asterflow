@@ -9,6 +9,7 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/yz1qaq/asterflow/internal/platform/iam"
@@ -399,4 +400,77 @@ func TestModelConfigHTTP(t *testing.T) {
 	if err != nil || pricedFallback.OutputPricePerMillion != 2 {
 		t.Fatal("rejected price update modified persisted prices")
 	}
+
+	var sent atomic.Int32
+	var redirected atomic.Bool
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/unexpected" {
+			redirected.Store(true)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		sent.Add(1)
+		var req struct {
+			Model     string `json:"model"`
+			Stream    bool   `json:"stream"`
+			MaxTokens int    `json:"max_tokens"`
+		}
+		if r.Method != "POST" || r.URL.Path != "/v1/chat/completions" ||
+			r.Header.Get("Authorization") != "Bearer test-only-api-key" ||
+			json.NewDecoder(r.Body).Decode(&req) != nil || req.Stream || req.MaxTokens < 1 || req.MaxTokens > 256 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		switch req.Model {
+		case "fixture":
+			_, _ = io.WriteString(w, `{"model":"fixture","choices":[{"message":{"content":"OK"}}]}`)
+		case "exhausted":
+			w.WriteHeader(http.StatusPaymentRequired)
+			_, _ = io.WriteString(w, `{"error":"upstream-internal test-only-api-key"}`)
+		case "redirect":
+			http.Redirect(w, r, "/unexpected", http.StatusTemporaryRedirect)
+		default:
+			w.WriteHeader(http.StatusUnauthorized)
+		}
+	}))
+	defer upstream.Close()
+	probeBody, err := json.Marshal(map[string]string{
+		"name": "probe", "kind": "openai-compatible", "base_url": upstream.URL + "/v1", "api_key": "test-only-api-key",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var probe modelconfig.ProviderAccount
+	if err := json.Unmarshal(call("POST", "/api/v1/model-accounts", ownerLogin.Token, a.ID, string(probeBody), 201), &probe); err != nil {
+		t.Fatal(err)
+	}
+	probePath := "/api/v1/model-accounts/" + probe.ID
+	call("POST", probePath+"/test", viewerLogin.Token, a.ID, `{"model_name":"fixture"}`, 403)
+	call("POST", probePath+"/test", ownerLogin.Token, b.ID, `{"model_name":"fixture"}`, 404)
+	call("POST", probePath+"/test", ownerLogin.Token, a.ID, `{"model_name":"fixture","base_url":"https://example.invalid"}`, 400)
+	if sent.Load() != 0 {
+		t.Fatal("invalid or unauthorized probe sent a request")
+	}
+	raw = call("POST", probePath+"/test", ownerLogin.Token, a.ID, `{"model_name":"fixture"}`, 200)
+	if !strings.Contains(string(raw), `"model":"fixture"`) || sent.Load() != 1 {
+		t.Fatal("test must complete one real provider call")
+	}
+	raw = call("POST", probePath+"/test", ownerLogin.Token, a.ID, `{"model_name":"exhausted"}`, 502)
+	if !strings.Contains(string(raw), `"code":"provider_balance"`) || strings.Contains(string(raw), "upstream-internal") {
+		t.Fatalf("provider error should be classified and sanitized: %s", raw)
+	}
+	call("POST", probePath+"/test", ownerLogin.Token, a.ID, `{"model_name":"redirect"}`, 502)
+	if sent.Load() != 3 || redirected.Load() {
+		t.Fatal("provider test retried or followed a redirect")
+	}
+
+	call("DELETE", "/api/v1/model-accounts/"+account.ID, ownerLogin.Token, a.ID, "", 409)
+	if _, err := store.GetDeployment(ctx, deployment.ID); err != nil {
+		t.Fatal("deleting a referenced account must preserve its deployment", err)
+	}
+	call("DELETE", probePath, viewerLogin.Token, a.ID, "", 403)
+	call("DELETE", probePath, ownerLogin.Token, b.ID, "", 404)
+	call("DELETE", probePath, ownerLogin.Token, a.ID, "", 204)
+	call("DELETE", probePath, ownerLogin.Token, a.ID, "", 404)
+
 }

@@ -30,6 +30,7 @@ export interface AgentEnvBinding {
 export interface AgentVersionInput {
   system_prompt?: string
   system_prompt_version_id?: string
+  user_prompt_id?: string
   user_prompt_version_id?: string
   prompt_env?: string
   model_profile_version_id?: string
@@ -38,6 +39,10 @@ export interface AgentVersionInput {
 
 export function canWriteAgents(role: string) {
   return ['owner', 'admin', 'editor'].includes(role)
+}
+
+export function canDeleteAgents(role: string) {
+  return role === 'owner' || role === 'admin'
 }
 
 const scope = (workspaceID: string, signal?: AbortSignal) => ({ headers: { 'X-Workspace-ID': workspaceID }, signal })
@@ -83,6 +88,7 @@ function versionBody(input: AgentVersionInput) {
   return {
     system_prompt: input.system_prompt ?? '',
     system_prompt_version_id: input.system_prompt_version_id ?? '',
+    user_prompt_id: input.user_prompt_id ?? '',
     user_prompt_version_id: input.user_prompt_version_id ?? '',
     prompt_env: input.prompt_env ?? 'dev',
     model_profile_version_id: input.model_profile_version_id ?? '',
@@ -114,6 +120,10 @@ export async function createAgent(
 export async function getAgent(workspaceID: string, agentID: string, signal?: AbortSignal) {
   const { data } = await api.get<unknown>(agentPath(agentID), scope(workspaceID, signal))
   return parseAgent(data, workspaceID)
+}
+
+export async function deleteAgent(workspaceID: string, agentID: string, signal?: AbortSignal) {
+  await api.delete(agentPath(agentID), scope(workspaceID, signal))
 }
 
 export async function listAgentVersions(workspaceID: string, agentID: string, signal?: AbortSignal) {

@@ -162,3 +162,18 @@ SELECT EXISTS (
           OR v.fallback_deployment_ids ? (sqlc.arg(deployment_id)::uuid)::text
       )
 ) AS has_budget_binding;
+
+
+-- name: LockProviderAccount :one
+SELECT id
+FROM providers
+WHERE id = sqlc.arg(id)::uuid AND workspace_id = sqlc.arg(workspace_id)::text
+FOR UPDATE;
+
+-- name: DeleteUnusedProviderAccount :execrows
+DELETE FROM providers AS p
+WHERE p.id = sqlc.arg(id)::uuid
+  AND p.workspace_id = sqlc.arg(workspace_id)::text
+  AND NOT EXISTS (
+      SELECT 1 FROM model_deployments AS d WHERE d.provider_account_id = p.id
+  );

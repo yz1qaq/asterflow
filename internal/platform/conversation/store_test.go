@@ -50,7 +50,10 @@ func newConversationTestPool(t *testing.T) *pgxpool.Pool {
 		t.Fatal("create conversation test pool")
 	}
 	t.Cleanup(pool.Close)
-	for _, name := range []string{"000001_init_iam.up.sql", "000009_agents.up.sql", "000010_conversations.up.sql"} {
+	for _, name := range []string{
+		"000001_init_iam.up.sql", "000003_model_accounts_deployments.up.sql", "000004_model_profiles.up.sql",
+		"000006_prompt_versions.up.sql", "000009_agents.up.sql", "000010_conversations.up.sql", "000011_prompt_draft_deletion.up.sql",
+	} {
 		text, err := os.ReadFile("../../../migrations/" + name)
 		if err != nil {
 			t.Fatal(err)
@@ -110,7 +113,7 @@ func TestConversationStoreAndTurnLease(t *testing.T) {
 	callID := uuid.NewString()
 	message := &domain.Message{ID: uuid.NewString(), ConversationID: conv.ID, Role: "assistant", Content: "done",
 		ToolCalls: []domain.ToolCall{{ID: callID, ToolID: uuid.NewString(), Args: `{"q":"x"}`, Result: `{"ok":true}`, LatencyMs: 7}}}
-	if err := store.CommitTurn(ctx, "space-a", conv.ID, token, []*domain.Message{message}, "completed"); err != nil {
+	if err := store.CommitTurn(ctx, "space-a", conv.ID, token, []*domain.Message{message}, "completed", nil); err != nil {
 		t.Fatal(err)
 	}
 	messages, err := store.ListMessages(ctx, "space-a", conv.ID)
@@ -121,7 +124,7 @@ func TestConversationStoreAndTurnLease(t *testing.T) {
 	if err != nil || got.Status != "completed" {
 		t.Fatalf("committed conversation = %+v, %v", got, err)
 	}
-	if err := store.CommitTurn(ctx, "space-a", conv.ID, token, []*domain.Message{{ID: uuid.NewString(), ConversationID: conv.ID, Role: "assistant", Content: "again"}}, "completed"); !errors.Is(err, ErrTurnLost) {
+	if err := store.CommitTurn(ctx, "space-a", conv.ID, token, []*domain.Message{{ID: uuid.NewString(), ConversationID: conv.ID, Role: "assistant", Content: "again"}}, "completed", []byte(`{"rendered_user_prompt":"should roll back"}`)); !errors.Is(err, ErrTurnLost) {
 		t.Fatalf("stale commit = %v", err)
 	}
 	if messages, err := store.ListMessages(ctx, "space-a", conv.ID); err != nil || len(messages) != 1 {
@@ -149,5 +152,44 @@ func TestConversationStoreAndTurnLease(t *testing.T) {
 	time.Sleep(1100 * time.Millisecond)
 	if _, _, err := store.ClaimTurn(ctx, "space-a", conv.ID, 30); err != nil {
 		t.Fatalf("expired lease must be claimable: %v", err)
+	}
+}
+
+func TestConversationSnapshotRollsBackWithMessages(t *testing.T) {
+	pool := newConversationTestPool(t)
+	ctx := context.Background()
+	a := &domain.Agent{ID: uuid.NewString(), WorkspaceID: "space-a", Name: "Support"}
+	v := &domain.AgentVersion{ID: uuid.NewString(), CreatedBy: "owner", SnapshotJSON: `{}`}
+	if err := agent.NewPostgresStore(pool).CreateAgentWithInitialVersion(ctx, a, v); err != nil {
+		t.Fatal(err)
+	}
+	store := NewPostgresStore(pool)
+	conv := &domain.Conversation{
+		ID: uuid.NewString(), WorkspaceID: a.WorkspaceID, AgentID: a.ID,
+		AgentVersionID: v.ID, UserID: "user-1", RuntimeConfigJSON: `{"system_prompt":"keep"}`,
+	}
+	if err := store.CreateConversation(ctx, conv); err != nil {
+		t.Fatal(err)
+	}
+	_, _, err := store.ClaimTurn(ctx, conv.WorkspaceID, conv.ID, 60)
+	if err != nil {
+		t.Fatal(err)
+	}
+	messages := []*domain.Message{{
+		ID: uuid.NewString(), ConversationID: conv.ID, Role: "user", Content: "should not persist",
+	}}
+	if err := store.CommitTurn(ctx, conv.WorkspaceID, conv.ID, uuid.NewString(), messages, "active",
+		[]byte(`{"rendered_user_prompt":"should not persist"}`)); !errors.Is(err, ErrTurnLost) {
+		t.Fatalf("stale token commit = %v", err)
+	}
+	saved, err := store.GetConversation(ctx, conv.WorkspaceID, conv.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(saved.RuntimeConfigJSON, "rendered_user_prompt") || !strings.Contains(saved.RuntimeConfigJSON, "keep") {
+		t.Fatalf("stale token touched the runtime snapshot: %s", saved.RuntimeConfigJSON)
+	}
+	if got, err := store.ListMessages(ctx, conv.WorkspaceID, conv.ID); err != nil || len(got) != 0 {
+		t.Fatalf("stale token inserted messages: %+v, %v", got, err)
 	}
 }

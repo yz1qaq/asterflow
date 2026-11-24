@@ -71,6 +71,9 @@ func applyPromptMigration(t *testing.T, pool *pgxpool.Pool, name string) {
 	if _, err := pool.Exec(ctx, string(text)); err != nil {
 		t.Fatalf("apply %s in isolated prompt schema: %v", name, err)
 	}
+	if name == "000006_prompt_versions.up.sql" {
+		applyPromptMigration(t, pool, "000011_prompt_draft_deletion.up.sql")
+	}
 }
 
 func TestPromptCoreMigration(t *testing.T) {

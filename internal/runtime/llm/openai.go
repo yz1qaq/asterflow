@@ -20,6 +20,13 @@ func NewOpenAIClient() *OpenAIClient {
 	return &OpenAIClient{http: &http.Client{}}
 }
 
+// NewOpenAIProbeClient sends one request to the configured endpoint.
+func NewOpenAIProbeClient() *OpenAIClient {
+	return &OpenAIClient{http: &http.Client{
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}}
+}
+
 type openAIMessage struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
@@ -108,7 +115,7 @@ func (c *OpenAIClient) newRequest(ctx context.Context, dep ResolvedDeployment, r
 func providerStatusError(status int, body []byte) error {
 	err := fmt.Errorf("provider returned %d: %s", status, strings.TrimSpace(string(body)))
 	retryable := status == http.StatusTooManyRequests || status >= 500
-	return &ProviderError{Err: err, Retryable: retryable}
+	return &ProviderError{StatusCode: status, Err: err, Retryable: retryable}
 }
 
 func (c *OpenAIClient) Generate(ctx context.Context, dep ResolvedDeployment, req GenerateRequest) (*GenerateResponse, error) {
@@ -171,6 +178,7 @@ type openAIStream struct {
 	deploymentID string
 	model        string
 	usage        Usage
+	finished     bool
 }
 
 func (s *openAIStream) Recv(ctx context.Context) (*StreamChunk, error) {
@@ -196,12 +204,24 @@ func (s *openAIStream) Recv(ctx context.Context) (*StreamChunk, error) {
 		if chunk.Usage != nil {
 			s.usage = Usage{PromptTokens: chunk.Usage.PromptTokens, CompletionTokens: chunk.Usage.CompletionTokens, TotalTokens: chunk.Usage.TotalTokens}
 		}
-		if len(chunk.Choices) > 0 && chunk.Choices[0].Delta.Content != "" {
-			return &StreamChunk{Content: chunk.Choices[0].Delta.Content}, nil
+		if len(chunk.Choices) > 0 {
+			choice := chunk.Choices[0]
+			if choice.FinishReason != nil && *choice.FinishReason != "" {
+				s.finished = true
+			}
+			if choice.Delta.Content != "" {
+				return &StreamChunk{Content: choice.Delta.Content}, nil
+			}
 		}
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 	if err := s.scanner.Err(); err != nil {
 		return nil, &ProviderError{Err: err, Retryable: true}
+	}
+	if !s.finished {
+		return nil, &ProviderError{Err: io.ErrUnexpectedEOF, Retryable: true}
 	}
 	return &StreamChunk{Done: true, Model: s.model, DeploymentID: s.deploymentID, Usage: s.usage}, nil
 }

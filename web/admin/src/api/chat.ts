@@ -14,6 +14,7 @@ export async function* streamChat(
   input: string,
   vars: Record<string, unknown> | undefined,
   signal: AbortSignal,
+  userPromptVersionID?: string,
 ): AsyncGenerator<ChatEvent, void, unknown> {
   const token = useAuthStore.getState().token
   if (!token) throw new Error('登录已失效，请重新登录')
@@ -25,12 +26,17 @@ export async function* streamChat(
       'Authorization': `Bearer ${token}`,
       'X-Workspace-ID': workspaceID,
     },
-    body: JSON.stringify({ input, vars: vars ?? {} }),
+    body: JSON.stringify({ input, vars, user_prompt_version_id: userPromptVersionID }),
     signal,
   })
   if (!response.ok || !response.body) {
     let detail = ''
-    try { detail = await response.text() } catch { /* ignore */ }
+    try {
+      const problem: unknown = await response.json()
+      if (problem && typeof problem === 'object' && 'error' in problem && typeof problem.error === 'string') {
+        detail = problem.error
+      }
+    } catch { /* use the HTTP status */ }
     throw new Error(detail || `聊天请求失败（${response.status}）`)
   }
 

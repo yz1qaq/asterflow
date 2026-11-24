@@ -12,6 +12,12 @@ type AgentSnapshot struct {
 	GenerationConfig      GenerationConfig `json:"generation_config"`
 }
 
+type PromptSelection struct {
+	VersionID         string
+	ExperimentID      string
+	ExperimentVariant string
+}
+
 type ConversationRuntimeConfig struct {
 	Environment           string           `json:"environment,omitempty"`
 	SystemPrompt          string           `json:"system_prompt,omitempty"`
@@ -19,4 +25,14 @@ type ConversationRuntimeConfig struct {
 	UserPromptVersionID   string           `json:"user_prompt_version_id,omitempty"`
 	ModelProfileVersionID string           `json:"model_profile_version_id,omitempty"`
 	GenerationConfig      GenerationConfig `json:"generation_config"`
+	UserPromptExperiment  string           `json:"user_prompt_experiment,omitempty"`
+	UserPromptVariant     string           `json:"user_prompt_variant,omitempty"`
+}
+
+type UserPromptSnapshot struct {
+	ExperimentID      string         `json:"user_prompt_experiment"`
+	ExperimentVariant string         `json:"user_prompt_variant"`
+	VersionID         string         `json:"user_prompt_version_id"`
+	Variables         map[string]any `json:"user_prompt_variables"`
+	Rendered          string         `json:"rendered_user_prompt"`
 }

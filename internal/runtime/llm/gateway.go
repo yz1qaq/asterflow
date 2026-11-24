@@ -42,8 +42,9 @@ type DeploymentClient interface {
 
 // ProviderError lets adapters mark errors that are worth failing over.
 type ProviderError struct {
-	Err       error
-	Retryable bool
+	StatusCode int
+	Err        error
+	Retryable  bool
 }
 
 type cancelStream struct {

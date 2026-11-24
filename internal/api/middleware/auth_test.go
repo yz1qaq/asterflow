@@ -92,6 +92,10 @@ func TestWorkspaceMethodPolicy(t *testing.T) {
 	}{
 		{iam.WorkspaceRoleViewer, "GET", "/api/v1/models", true},
 		{iam.WorkspaceRoleViewer, "POST", "/api/v1/models", false},
+		{iam.WorkspaceRoleViewer, "DELETE", "/api/v1/conversations/:conversation_id", false},
+		{iam.WorkspaceRoleMember, "DELETE", "/api/v1/conversations/:conversation_id", true},
+		{iam.WorkspaceRoleMember, "DELETE", "/api/v1/conversations/:conversation_id/other", false},
+		{iam.WorkspaceRoleMember, "DELETE", "/api/v1/model-accounts/:account_id", false},
 		{iam.WorkspaceRoleMember, "POST", "/api/v1/models", false},
 		{iam.WorkspaceRoleMember, "POST", "/api/v1/agents/a/chat", true},
 		{iam.WorkspaceRoleMember, "POST", "/api/v1/kbs/k/search", true},

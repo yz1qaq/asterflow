@@ -123,6 +123,11 @@ export async function listPromptVersions(workspaceID: string, promptID: string, 
   return data.map(row => parseVersion(row, promptID))
 }
 
+export async function archivePromptDraft(workspaceID: string, promptID: string, versionID: string, signal?: AbortSignal) {
+  await api.delete(`/prompts/${encodeURIComponent(promptID)}/versions/${encodeURIComponent(versionID)}`,
+    { headers: { 'X-Workspace-ID': workspaceID }, signal })
+}
+
 export async function createPromptVersion(workspaceID: string, promptID: string, input: PromptVersionInput, signal?: AbortSignal) {
   const { data } = await api.post<unknown>(`${promptPath(promptID)}/versions`, versionBody(input), scope(workspaceID, signal))
   return parseVersion(data, promptID)

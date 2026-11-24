@@ -17,6 +17,7 @@ type Store interface {
 	GetProviderAccount(context.Context, string) (*providerAccountRecord, error)
 	ListProviderAccounts(context.Context, string) ([]*providerAccountRecord, error)
 	UpdateProviderAPIKey(context.Context, string, []byte) error
+	DeleteUnusedProviderAccount(ctx context.Context, workspaceID, accountID string) error
 
 	CreateDeployment(context.Context, *ModelDeployment) error
 	GetDeployment(context.Context, string) (*ModelDeployment, error)

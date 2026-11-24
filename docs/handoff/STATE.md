@@ -1,19 +1,19 @@
 # 当前交接状态
 
-核对日期：2026-11-19。以后接手应先核对实物再更新。此文件记录学习和工作进度；正式合并记录另见 [交付状态](../delivery/STATUS.md)。
+核对日期：2026-11-24。以后接手应先核对实物再更新。此文件记录学习和工作进度；正式合并记录另见 [交付状态](../delivery/STATUS.md)。
 
 - 项目：AsterFlow（GitHub yz1qaq/asterflow）；Go、Gin、PostgreSQL/SQLC、React。kbot 只读，固定基线和识别方法见 [交接入口](START-HERE.md)。
 - 上组：G03 模型账户、部署计价、方案版本与环境绑定由 PR #14 已合并，Squash 为 `b85be3818a44d26180c7efd10da08f33b3679915`。实际 PR head 的 Documentation、Go、Web 与独立 AI 复审通过。确认过首次 PR Go 失败是 PG 与 JSON 的时区对象差异，测试统一 UTC 后通过；不要误认成版本持久化错误。
 - 上组：G04 提示词治理由 PR #15 合并，Squash `db1422bb665e4cb84eecd4529cd6178eb71b457d`；head `d0f15a4` 的 docs/go/web 全部通过，本地整组验收见 [G04 记录](../delivery/G04-VERIFICATION.md)。
 - 上组：G05 Agent 与会话由 PR #16 合并，Squash `82143d3dda4c46c0b1d891d92c4d5e8f7a0e2de0`；head `6eba0fb` 的 docs/go/web 通过。
-- 当前：`feat/ENG-014-015-chat-loop`，基于上述 G05 Squash。G06 进行中（ENG-014/015、FR-06/Gateway）。Gateway/执行/SSE/聊天 Web 代码与测试已完成，全量门禁通过；真实模型端到端（DeepSeek）已通过。
+- 当前：`feat/ENG-014-015-chat-loop`，HEAD `25dfd8b`。初版聊天由 PR #17 Squash 合并到 `61fd528`，两个提交的文件树相同。G06（ENG-014/015、FR-03/FR-07）及学习第 3 天已完成本地验收，后续改动保留在工作区，由负责人基于 main 提交补充 PR 后再进入 G07。
 - Go 命令沿用项目 Makefile；本机曾用 `env -u GOROOT GOTOOLCHAIN=go1.26.6 go ...` 规避工具链冲突。新设备按当前 go.mod 和 Makefile 核对，不改全局环境。一键联调：`make up`（加载 .env、启动 PG+Redis、应用迁移、同时启动后端与前端，Ctrl-C 停止两个应用）。
 
 | 范围 | 事实 |
 | --- | --- |
-| 核心数据库 | 已保存 000006 up/down、共享 GenerationConfig、Prompt／PromptVersion／EnvBinding 与 SQLC 生成文件；隔离 PG/race 验证迁移、复合外键、原样回读及回退重建。开发库只读实查 `version=5 dirty=false`，未应用 000006。 |
+| 核心数据库 | 已保存 000006 up/down、共享 GenerationConfig、Prompt／PromptVersion／EnvBinding 与 SQLC 生成文件；隔离 PG/race 验证迁移、复合外键、原样回读及回退重建。初次验收时开发库为 `version=5 dirty=false`。2026-11-24 最新只读核对开发库为 `version=11 dirty=false`。 |
 | Store | 已保存并通过正式隔离 PG/race：Prompt/v1/dev 原子创建、两步失败回滚、按空间读、并发追加 v2–v7、旧版本和 dev 指针保留。测试在 `internal/platform/prompt/postgres_store_test.go`。 |
-| 模板 | `internal/runtime/promptcache/compile.go` 已保存、正式 race 单测通过。Compile 解析 Go 模板及 required；Render 用 vars 得到文字，不调用模型。0/false 是有效值。 |
+| 模板 | 对齐固定 Final 的 Eino v0.9.15。Compile 检查 Go 模板语法并提取 required，Render 调用 Eino ChatTemplate.Format 并返回单条消息的 Content。回归确认 Prompt 回调、缺变量与取消行为。 |
 | 模型引用校验 | 学员已保存 `modelconfig.Service.ValidateProfileVersion`。先查版本再查父 Profile 的空间；模型版本可不填；跨空间/不存在同样返回对应未找到。 |
 | Service/HTTP | 初批 Service、五个 Handler、工作空间路由及启动装配均已保存。`internal/api/prompt_test.go`、`internal/platform/prompt/service_test.go` 已接入；全量 Go race 在一次性 PostgreSQL 16 上通过，覆盖权限、跨空间、两个版本预览及 dev 指针未移动。 |
 | Web | React `/prompts` 已接上导航及真实 API，支持列表、创建、版本历史、追加、指定版本预览、环境指针卡片和发布所选版本到环境；本批未接模型方案版本选择和生成参数表单。`make web-check`（77 个测试与生产构建）通过；Chromium 桌面验收通过：保存 v1/v2、同一变量渲染、缺变量提示、刷新回读；发布后 dev 从 v1 切到 v2，staging/prod 仍未发布，独立 SQL 复核一致。 |
@@ -39,8 +39,13 @@
 | Agent Service/Web | Service（快照构建与 Prompt/模型引用校验、创建/追加/发布/读取）、7 个 Gin 路由、main 装配与 `/agents` 管理页已保存。正式 `TestAgentServiceSnapshotAndPublish` 与 `TestAgentHTTP` 通过；Chromium 实测创建 v1、追加 v2、发布 dev v2、环境卡片与快照显示正确，SQL 复核 agent_versions=2、dev=v2。 |
 | 会话与历史 | 迁移 000010、会话 Store（租约 Claim/Renew/Commit/Release）、Service/HTTP（用户私有、owner/admin 全量、409/404 语义）与 `/conversations` 历史页已完成。正式 Store/HTTP 测试与桌面验收通过。 |
 | G05 交付 | PR #16 已合并；正式测试、桌面与 SQL 复核通过。 |
-| G06 聊天闭环 | `runtime/llm`（Gateway/failover/OpenAIClient）、`runtime/engine`（事件/执行器，只读 runtime config）、`modelconfig.ResolveProfile`（解密部署）、会话创建固化版本、`RunTurn`（租约+提交）、SSE Handler 与聊天页均已完成。真实模型端到端（DeepSeek）已通过：SSE 事件序列、流式 delta、usage、消息持久化、租约清理均正确。 |
+| G06 聊天闭环 | 多轮历史、首轮模板快照、Gateway 主备、Eino ADK、生成与保存期间续租、SSE 和同步聚合、错误与取消均已保存。Agent 页面可选模型方案版本并跳转预选。主导航「聊天」负责新建、发送与续聊，刷新读回已提交消息。「我的会话」支持永久删除本人会话及其消息和工具调用，有效租约返回 409。「会话历史」为只读查阅。 |
+| G06 验收 | 隔离 PostgreSQL 和 Redis 上的 `make check` 及使用本机 OpenAI 兼容 HTTP 模型替身的桌面 Chrome 验收通过。独立 AI 审查发现的两项并发/传输边界已修复并补回归。历史真实 DeepSeek 单轮验证和本轮桌面验证分别记录。见 [G06 验收](../delivery/G06-VERIFICATION.md)。 |
 
-核验：G06 分支 `go build`、`go vet`、`make docs-check`、`git diff --check`、`make deps-check`、`make web-check`（87 测试）通过；全量 `go test -race ./...` 在一次性 PostgreSQL+Redis 通过。真实模型调用经负责人授权后对 DeepSeek 完成。未运行远程 CI。
+版本页增量：Agent 与提示词在版本行显示发布环境；提示词在版本行发起发布或回滚，发布记录独立查看。桌面已验证跨环境发布和回滚。
 
-学习接续：G06 代码与测试已完成，按 [NEXT](NEXT.md) 收尾（受控替身模型桌面验收 → 真实模型授权 → 提交 PR）。会话固定 agent_version_id；聊天读 runtime_config_json；发布新 Prompt 只影响新会话。
+配置清理增量：供应商可单次试跑、删除无部署引用的账户，提示词草稿支持软删除。需要迁移 000011，隔离数据库与桌面验收证据见 G06 记录。
+
+Agent 管理增量：空间 Owner 或管理员可删除整个 Agent 及所有成员与其的会话，版本、环境绑定、消息和工具记录同事务清理。有效租约返回 409。
+
+G07 从 [NEXT](NEXT.md) 接续。交互学习网页随 G07 第一个通过验收的工具功能开始。

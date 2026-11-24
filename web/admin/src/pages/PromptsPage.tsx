@@ -1,12 +1,13 @@
 import axios from 'axios'
 import { useEffect, useRef, useState } from 'react'
-import { Alert, App, Button, Empty, Form, Input, InputNumber, Modal, Popconfirm, Select, Skeleton, Space, Table, Tabs, Tag, Typography } from 'antd'
+import { Alert, App, Button, Dropdown, Empty, Form, Input, InputNumber, Modal, Popconfirm, Select, Skeleton, Space, Table, Tabs, Tag, Typography } from 'antd'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { VersionEnvironmentTags } from '@/components/VersionEnvironmentTags'
 import { Redirect, useLocation } from 'wouter'
 import { getWorkspaceContext, getWorkspaceSelectionError, isWorkspaceUnavailable } from '@/api/iam'
 import {
-  canWritePrompts, completeRollout, createPrompt, createPromptVersion, diffPromptVersions, getActiveExperiment,
+  archivePromptDraft, canWritePrompts, completeRollout, createPrompt, createPromptVersion, diffPromptVersions, getActiveExperiment,
   getPromptError, listEnvEvents, listPromptEnvs, listPrompts, listPromptVersions, listRolloutEvents, parsePromptVariables,
   promotePromptVersion, renderPrompt, rollbackPromptVersion, rollbackRollout, startExperiment, startRollout,
   updateRolloutTraffic, PROMPT_ENVS,
@@ -53,8 +54,7 @@ export function PromptsPage() {
   const [, navigate] = useLocation()
   if (!isSessionValid(session) || !session.user || !session.token) return <Redirect to="/login" />
   return <section aria-labelledby="prompts-heading">
-    <div className="page-heading"><div><Typography.Title level={2} id="prompts-heading">提示词管理</Typography.Title>
-      <Typography.Paragraph className="page-description">管理当前空间的提示词和不可变版本。指定版本预览仅渲染文本，不调用模型、不发布，也不更改环境绑定。</Typography.Paragraph></div></div>
+    <div className="page-heading"><Typography.Title level={2} id="prompts-heading">提示词管理</Typography.Title></div>
     {session.workspaceId ? <WorkspacePrompts key={`${session.token}:${session.user.id}:${session.workspaceId}`}
       scope={{ userID: session.user.id, token: session.token, workspaceID: session.workspaceId }} />
       : <Empty description="请先选择工作空间"><Button type="primary" onClick={() => navigate('/workspaces')}>前往选择空间</Button></Empty>}
@@ -115,7 +115,6 @@ function WorkspacePrompts({ scope }: { scope: Scope }) {
     <div className="workspace-current model-workspace" aria-label="提示词管理当前空间"><Space wrap>
       <Typography.Text strong>当前空间</Typography.Text><Typography.Text className="workspace-id" copyable>{workspaceID}</Typography.Text>
       <Tag color="blue">空间角色：{role}</Tag>
-      {!writable && <Typography.Text>当前角色仅可查看提示词与版本</Typography.Text>}
     </Space></div>
     <PromptPanel key={role} scope={scope} writable={writable} request={request} />
   </>
@@ -165,7 +164,7 @@ function PromptPanel({ scope, writable, request }: PanelProps) {
       setSelected(version.prompt_id)
       form.resetFields()
       setMode(null)
-      void message.success(mode === 'create' ? '提示词与 v1 已创建，dev 初始指向 v1' : `v${version.version} 已保存，未发布`)
+      void message.success(mode === 'create' ? '提示词已创建' : `v${version.version} 已保存`)
       if (mode === 'create') void qc.invalidateQueries({ queryKey: promptsKey(scope) })
       void qc.invalidateQueries({ queryKey: versionsKey(scope, version.prompt_id) })
     } catch (error) {
@@ -200,8 +199,6 @@ function PromptPanel({ scope, writable, request }: PanelProps) {
     {writable && <Modal title={mode === 'create' ? '新建提示词' : `为“${mode?.name ?? ''}”追加版本`} open={mode !== null} forceRender
       onCancel={close} onOk={() => form.submit()} okText={mode === 'create' ? '创建提示词与 v1' : '保存新版本'} cancelText="取消"
       confirmLoading={busy} cancelButtonProps={{ disabled: busy }} closable={!busy} keyboard={!busy} maskClosable={!busy}>
-      <Typography.Paragraph className="user-form-help">{mode === 'create' ? '创建时同时保存 v1，dev 初始指向 v1；不会修改 staging 或 prod。'
-        : '保存为独立的新版本，不会发布或修改任何环境绑定。'}</Typography.Paragraph>
       {writeError && <Alert className="user-create-error" role="alert" type="error" showIcon message={writeError} />}
       <Form<CreatePromptInput> form={form} layout="vertical" onFinish={save} disabled={busy} preserve={false}>
         {mode === 'create' && <>
@@ -211,7 +208,7 @@ function PromptPanel({ scope, writable, request }: PanelProps) {
         <Form.Item name="template" label="模板" rules={[{ required: true, message: '请输入模板' }]}
           extra={'支持 Go 模板语法，例如 {{.order_id}}。'}><Input.TextArea rows={5} /></Form.Item>
         <Form.Item name="variables_schema" label="变量 Schema（可选）"
-          extra={'输入 JSON 原文，作为字符串保存；留空使用 {}。例如 {"required":["order_id"]}。'}><Input.TextArea rows={3} /></Form.Item>
+          extra={'留空使用 {}。例如 {"required":["order_id"]}。'}><Input.TextArea rows={3} /></Form.Item>
       </Form>
     </Modal>}
   </>
@@ -221,10 +218,16 @@ function PromptHistory({ scope, prompt, writable, request, onAppend }: PanelProp
   const { message } = App.useApp()
   const qc = useQueryClient()
   const [selectedVersion, setSelectedVersion] = useState<string | null>(null)
-  const [publishTarget, setPublishTarget] = useState<{ version?: PromptVersion; env?: string } | null>(null)
+  const [publishTarget, setPublishTarget] = useState<PromptVersion | null>(null)
   const [publishError, setPublishError] = useState('')
   const [publishing, setPublishing] = useState(false)
-  const [rollingBack, setRollingBack] = useState<string | null>(null)
+  const [rollbackTarget, setRollbackTarget] = useState<{ env: string; version: PromptVersion } | null>(null)
+  const [rollingBack, setRollingBack] = useState(false)
+  const rollbackRef = useRef(false)
+  const [draftToDelete, setDraftToDelete] = useState<PromptVersion | null>(null)
+  const [draftError, setDraftError] = useState('')
+  const [deletingDraft, setDeletingDraft] = useState(false)
+  const draftRequest = useRef(false)
   const [diffFrom, setDiffFrom] = useState<number | undefined>()
   const [diffTo, setDiffTo] = useState<number | undefined>()
   const [diffResult, setDiffResult] = useState<{ from: number; to: number; text: string } | null>(null)
@@ -244,7 +247,7 @@ function PromptHistory({ scope, prompt, writable, request, onAppend }: PanelProp
   const active = useQuery({ queryKey: experimentKey(scope, prompt.id, expEnv),
     queryFn: ({ signal }) => request(signal, () => getActiveExperiment(scope.workspaceID, prompt.id, expEnv, signal)),
     retry: false, refetchOnMount: 'always' })
-  const [publishForm] = Form.useForm<{ env?: string; version_id?: string }>()
+  const [publishForm] = Form.useForm<{ env: string }>()
   const publishingRef = useRef(false)
   const formSignal = useFormRequest(scope)
   const history = useQuery({ queryKey: versionsKey(scope, prompt.id),
@@ -258,12 +261,7 @@ function PromptHistory({ scope, prompt, writable, request, onAppend }: PanelProp
   function openPublish(target: PromptVersion) {
     publishForm.resetFields()
     setPublishError('')
-    setPublishTarget({ version: target })
-  }
-  function openPublishEnv(env: string) {
-    publishForm.resetFields()
-    setPublishError('')
-    setPublishTarget({ env })
+    setPublishTarget(target)
   }
   function closePublish() {
     if (publishingRef.current) return
@@ -271,23 +269,19 @@ function PromptHistory({ scope, prompt, writable, request, onAppend }: PanelProp
     setPublishError('')
     setPublishTarget(null)
   }
-  async function publish(values: { env?: string; version_id?: string }) {
+  async function publish({ env }: { env: string }) {
     if (!publishTarget || !writable || publishingRef.current) return
-    const versionID = publishTarget.version?.id ?? values.version_id
-    const env = publishTarget.env ?? values.env
-    if (!versionID || !env) return
     const signal = formSignal()
     if (!signal) return
     publishingRef.current = true
     setPublishing(true)
     setPublishError('')
     try {
-      await promotePromptVersion(scope.workspaceID, prompt.id, env, versionID, signal)
+      await request(signal, () => promotePromptVersion(scope.workspaceID, prompt.id, env, publishTarget.id, signal))
       if (signal.aborted) return
-      const versionLabel = publishTarget.version?.version ?? versionNumber(versionID) ?? versionID.slice(0, 8)
       setPublishTarget(null)
       publishForm.resetFields()
-      void message.success(`v${versionLabel} 已发布到 ${env}，其他环境不变`)
+      void message.success(`v${publishTarget.version} 已发布到 ${env}`)
       void qc.invalidateQueries({ queryKey: envsKey(scope, prompt.id) })
       void qc.invalidateQueries({ queryKey: ['prompt-env-events', scope.userID, scope.workspaceID, prompt.id] })
     } catch (error) {
@@ -321,14 +315,17 @@ function PromptHistory({ scope, prompt, writable, request, onAppend }: PanelProp
     }
   }
 
-  async function rollback(env: string, target: PromptVersion) {
-    if (!writable || rollingBack) return
+  async function rollback() {
+    if (!writable || !rollbackTarget || rollbackRef.current) return
     const signal = formSignal()
     if (!signal) return
-    setRollingBack(env)
+    const { env, version: target } = rollbackTarget
+    rollbackRef.current = true
+    setRollingBack(true)
     try {
       await request(signal, () => rollbackPromptVersion(scope.workspaceID, prompt.id, env, target.id, signal))
       if (signal.aborted) return
+      setRollbackTarget(null)
       void message.success(`${env} 已回滚到 v${target.version}`)
       void qc.invalidateQueries({ queryKey: envsKey(scope, prompt.id) })
       void qc.invalidateQueries({ queryKey: ['prompt-env-events', scope.userID, scope.workspaceID, prompt.id] })
@@ -336,10 +333,44 @@ function PromptHistory({ scope, prompt, writable, request, onAppend }: PanelProp
       if (signal.aborted) return
       void message.error(getPromptError(error, 'save'))
     } finally {
-      if (!signal.aborted) setRollingBack(null)
+      rollbackRef.current = false
+      if (!signal.aborted) setRollingBack(false)
     }
   }
 
+  async function deleteDraft() {
+    if (!draftToDelete || !writable || draftRequest.current) return
+    const signal = formSignal()
+    if (!signal) return
+    const target = draftToDelete
+    draftRequest.current = true
+    setDeletingDraft(true)
+    setDraftError('')
+    try {
+      await request(signal, () => archivePromptDraft(scope.workspaceID, prompt.id, target.id, signal))
+      if (signal.aborted) return
+      setDraftToDelete(null)
+      setSelectedVersion(id => id === target.id ? null : id)
+      setDiffFrom(value => value === target.version ? undefined : value)
+      setDiffTo(value => value === target.version ? undefined : value)
+      setDiffResult(null)
+      setDiffError('')
+      setCandidateID(id => id === target.id ? undefined : id)
+      void qc.invalidateQueries({ queryKey: versionsKey(scope, prompt.id) })
+      void qc.invalidateQueries({ queryKey: ['conversation-prompt-versions', scope.userID, scope.workspaceID, prompt.id] })
+      void message.success(`已删除草稿 v${target.version}`)
+    } catch (error) {
+      if (signal.aborted) return
+      setDraftError(axios.isAxiosError(error) && error.response?.data?.code === 'prompt_version_in_use'
+        ? '此版本已发布或被引用，无法删除。'
+        : getPromptError(error, 'save'))
+    } finally {
+      draftRequest.current = false
+      if (!signal.aborted) setDeletingDraft(false)
+    }
+  }
+
+  const bindings = envs.isSuccess ? envs.data : []
   const envBindingID = (envs.data ?? []).find(row => row.env === expEnv)?.version_id
   async function runExperiment(action: string, run: (signal: AbortSignal) => Promise<unknown>): Promise<unknown | null> {
     if (experimentBusyRef.current) return null
@@ -389,14 +420,14 @@ function PromptHistory({ scope, prompt, writable, request, onAppend }: PanelProp
     if (await runExperiment('complete', signal => completeRollout(scope.workspaceID, prompt.id, expEnv, signal))) {
       setLastExperiment({ ...exp, status: 'completed', traffic_percent: 100, completed_at: new Date().toISOString() })
       setTrafficDraft(null)
-      void message.success(`${expEnv} 已完成上线，环境指针指向候选`)
+      void message.success(`${expEnv} 已完成上线`)
     }
   }
   async function stopExperiment(exp: PromptExperiment) {
     if (await runExperiment('rollback', signal => rollbackRollout(scope.workspaceID, prompt.id, expEnv, signal))) {
       setLastExperiment({ ...exp, status: 'rolled_back', traffic_percent: 0, completed_at: new Date().toISOString() })
       setTrafficDraft(null)
-      void message.success(`${expEnv} 实验已停止，环境指针保持不变`)
+      void message.success(`${expEnv} 实验已停止`)
     }
   }
   function changeExpEnv(value: string) {
@@ -472,35 +503,55 @@ function PromptHistory({ scope, prompt, writable, request, onAppend }: PanelProp
   }
 
   return <section aria-labelledby="prompt-history-heading">
-    <div className="model-section-heading"><div><Typography.Title level={3} id="prompt-history-heading">{prompt.name}</Typography.Title>
-      <Typography.Text>版本不可修改；发布只移动环境指针；灰度按比例分流到候选版本。</Typography.Text></div>
-      <Space wrap><Button icon={<ReloadOutlined />} loading={history.isFetching} onClick={() => void history.refetch()}>刷新</Button>
+    <div className="model-section-heading"><Typography.Title level={3} id="prompt-history-heading">{prompt.name}</Typography.Title>
+      <Space wrap><Button icon={<ReloadOutlined />} loading={history.isFetching || envs.isFetching}
+        onClick={() => { void history.refetch(); void envs.refetch() }}>刷新</Button>
         {writable && <Button disabled={!history.isSuccess} onClick={onAppend}>追加版本</Button>}</Space></div>
     <Tabs defaultActiveKey="versions" items={[
       {
         key: 'versions', label: '版本',
         children: <>
+          {envs.isError && <Alert className="version-env-alert" role="alert" type="warning" showIcon message="无法读取发布环境"
+            action={<Button size="small" onClick={() => void envs.refetch()}>重试</Button>} />}
           {history.isError ? <Alert role="alert" type="error" showIcon message={getPromptError(history.error, 'read')}
             action={<Button onClick={() => void history.refetch()}>重试版本</Button>} />
             : <Table<PromptVersion> rowKey="id" dataSource={history.data ?? []} loading={history.isFetching} scroll={{ x: 660 }}
               pagination={{ pageSize: 8, hideOnSinglePage: true }} locale={{ emptyText: <Empty description="此提示词暂无版本" /> }}
               columns={[
-                { title: '版本 / ID', render: (_, row) => <Space direction="vertical" size={4}><Tag color="blue">v{row.version}</Tag>
-                  <Typography.Text className="workspace-id" copyable>{row.id}</Typography.Text></Space> },
+                { title: '版本 / ID', render: (_, row) => <Space direction="vertical" size={4}>
+                  <VersionEnvironmentTags version={row.version} versionID={row.id} bindings={bindings} />
+                  <Typography.Text className="workspace-id" copyable>{row.id}</Typography.Text>
+                </Space> },
                 { title: '创建时间', dataIndex: 'created_at', width: 185, render: timeLabel },
-                { title: '操作', width: 140, render: (_, row) => <Button size="small" type={version?.id === row.id ? 'primary' : 'default'}
-                  onClick={() => setSelectedVersion(row.id)} aria-label={`查看 v${row.version} 内容`}>查看内容</Button> },
+                { title: '操作', width: 275, render: (_, row) => {
+                  const previous = versions.reduce<PromptVersion | undefined>(
+                    (best, item) => item.version < row.version && (!best || item.version > best.version) ? item : best,
+                    undefined,
+                  )
+                  const boundEnvs = bindings.filter(binding => binding.version_id === row.id)
+                  return <Space size="small" wrap>
+                    <Button size="small" type={version?.id === row.id ? 'primary' : 'default'}
+                      onClick={() => setSelectedVersion(row.id)} aria-label={`查看 v${row.version} 内容`}>查看内容</Button>
+                    {writable && <Button size="small" onClick={() => openPublish(row)}>发布</Button>}
+                    {writable && previous && boundEnvs.length > 0 && <Dropdown trigger={['click']} menu={{
+                      items: boundEnvs.map(binding => ({ key: binding.env, label: `${binding.env} → v${previous.version}` })),
+                      onClick: ({ key }) => setRollbackTarget({ env: key, version: previous }),
+                    }}>
+                      <Button size="small">回滚</Button>
+                    </Dropdown>}
+                    {writable && envs.isSuccess && row.version > 1 && boundEnvs.length === 0 &&
+                      <Button size="small" danger onClick={() => { setDraftError(''); setDraftToDelete(row) }}>删除草稿</Button>}
+                  </Space>
+                } },
               ]} />}
           {version && <section aria-label={`v${version.version} 版本内容`} className="prompt-detail">
-            <div className="model-section-heading"><div><Typography.Title level={4}>v{version.version} · 版本内容</Typography.Title></div>
-              {writable && <Button type="primary" onClick={() => openPublish(version)}>发布此版本</Button>}</div>
+            <div className="model-section-heading"><Typography.Title level={4}>v{version.version} · 版本内容</Typography.Title></div>
             <Typography.Text strong>模板</Typography.Text><pre className="prompt-text">{version.template || '（空文本）'}</pre>
             <Typography.Text strong>变量 Schema</Typography.Text><pre className="prompt-text">{version.variables_schema}</pre>
             {writable && <PromptPreview key={version.id} scope={scope} version={version} request={request} />}
           </section>}
           {versions.length >= 2 && <section aria-label="版本对比" className="prompt-detail">
-            <div className="model-section-heading"><div><Typography.Title level={4}>版本对比</Typography.Title>
-              <Typography.Text>比较两个版本的模板；变量 Schema 不同时一并显示。</Typography.Text></div></div>
+            <div className="model-section-heading"><Typography.Title level={4}>版本对比</Typography.Title></div>
             <Space wrap align="end">
               <Space direction="vertical" size={2}><Typography.Text>起始版本</Typography.Text>
                 <Select aria-label="起始版本" style={{ minWidth: 110 }} value={fromVer}
@@ -522,41 +573,12 @@ function PromptHistory({ scope, prompt, writable, request, onAppend }: PanelProp
         </>,
       },
       {
-        key: 'envs', label: '环境发布',
-        children: <section aria-label="环境指针">
-          <Typography.Paragraph className="user-form-help">每个环境各自指向一个版本；发布和回滚只移动该环境指针，不影响版本内容和其他环境。</Typography.Paragraph>
-          {!envs.isFetchedAfterMount ? <div aria-label="正在读取环境指针"><Skeleton active paragraph={{ rows: 1 }} /></div>
-            : envs.isError ? <Alert role="alert" type="error" showIcon message={getPromptError(envs.error, 'read')}
-              action={<Button onClick={() => void envs.refetch()}>重试环境</Button>} />
-            : <Space wrap size="middle">
-              {PROMPT_ENVS.map(env => {
-                const binding = (envs.data ?? []).find(row => row.env === env)
-                const boundVersion = binding ? versionNumber(binding.version_id) : undefined
-                const previous = boundVersion === undefined ? undefined
-                  : (history.data ?? []).filter(row => row.version < boundVersion)
-                    .reduce<PromptVersion | undefined>((best, row) => !best || row.version > best.version ? row : best, undefined)
-                return <div key={env} className="prompt-env-item" aria-label={`环境 ${env}`}>
-                  <Space wrap><Tag color={binding ? 'green' : 'default'}>{env}</Tag>
-                    <Typography.Text strong>{binding ? (boundVersion ? `v${boundVersion}` : binding.version_id.slice(0, 8)) : '未发布'}</Typography.Text></Space>
-                  {binding && <Typography.Text type="secondary">上次发布 {timeLabel(binding.updated_at)}</Typography.Text>}
-                  {writable && <Space wrap>
-                    <Button size="small" onClick={() => openPublishEnv(env)}>发布到此环境</Button>
-                    {previous && <Popconfirm title={`回滚 ${env} 到 v${previous.version}？`}
-                      description="只移动环境指针，不修改版本内容，也不影响其他环境。"
-                      okText="回滚" cancelText="取消" onConfirm={() => void rollback(env, previous)}>
-                      <Button size="small" loading={rollingBack === env} disabled={rollingBack !== null}>回滚到 v{previous.version}</Button>
-                    </Popconfirm>}
-                  </Space>}
-                </div>
-              })}
-            </Space>}
-          <EnvEventTimeline scope={scope} promptID={prompt.id} request={request} versionNumber={versionNumber} />
-        </section>,
+        key: 'env-events', label: '发布记录',
+        children: <EnvEventTimeline scope={scope} promptID={prompt.id} request={request} versionNumber={versionNumber} />,
       },
       {
         key: 'experiments', label: '实验灰度',
         children: <section aria-label="实验与灰度">
-          <Typography.Paragraph className="user-form-help">灰度把候选版本分给一部分用户；只有完成上线才移动环境指针。同一环境同时只有一个进行中的实验。</Typography.Paragraph>
           <Space wrap><Typography.Text>环境</Typography.Text>
             <Select aria-label="实验环境" style={{ minWidth: 110 }} value={expEnv} onChange={changeExpEnv}
               options={PROMPT_ENVS.map(env => ({ value: env, label: env }))} /></Space>
@@ -567,7 +589,7 @@ function PromptHistory({ scope, prompt, writable, request, onAppend }: PanelProp
             : <>
               {lastExperiment && experimentCard(lastExperiment, false)}
               <div className="prompt-env-item prompt-experiment-card" aria-label="新实验">
-              <Typography.Text>{lastExperiment ? `在 ${expEnv} 启动新的灰度：` : `当前 ${expEnv} 没有进行中的实验。`}</Typography.Text>
+              {!lastExperiment && <Typography.Text type="secondary">暂无进行中的实验</Typography.Text>}
               {writable && versions.length >= 2 && <Space wrap align="end">
                 <Space direction="vertical" size={2}><Typography.Text>候选版本</Typography.Text>
                   <Select aria-label="候选版本" style={{ minWidth: 130 }} placeholder="选择候选版本" value={candidateID}
@@ -591,7 +613,7 @@ function PromptHistory({ scope, prompt, writable, request, onAppend }: PanelProp
       confirmLoading={experimentBusy === 'experiment'} cancelButtonProps={{ disabled: experimentBusy !== null }}
       closable={experimentBusy === null} keyboard={experimentBusy === null} maskClosable={experimentBusy === null}>
       <Typography.Paragraph className="user-form-help">
-        多个版本按百分比分流；合计 1–100，未覆盖部分走当前环境指针。
+        流量合计须为 1–100%，剩余流量使用已发布版本。
       </Typography.Paragraph>
       {experimentError && <Alert className="user-create-error" role="alert" type="error" showIcon message={experimentError} />}
       <Space direction="vertical" size="small" style={{ width: '100%' }}>
@@ -612,25 +634,29 @@ function PromptHistory({ scope, prompt, writable, request, onAppend }: PanelProp
         </Space>
       </Space>
     </Modal>}
-    {writable && <Modal title="发布版本" open={publishTarget !== null} forceRender
+    {writable && <Modal title={publishTarget ? `发布 v${publishTarget.version}` : '发布版本'}
+      open={publishTarget !== null} forceRender
       onCancel={closePublish} onOk={() => publishForm.submit()} okText="发布" cancelText="取消"
       confirmLoading={publishing} cancelButtonProps={{ disabled: publishing }} closable={!publishing} keyboard={!publishing} maskClosable={!publishing}>
-      <Typography.Paragraph className="user-form-help">发布后目标环境指针指向所选版本；版本内容不可变，其他环境不受影响。</Typography.Paragraph>
       {publishError && <Alert className="user-create-error" role="alert" type="error" showIcon message={publishError} />}
-      <Form form={publishForm} layout="vertical"
-        initialValues={{ env: publishTarget?.env ?? 'dev', version_id: publishTarget?.version?.id }}
+      <Form form={publishForm} layout="vertical" initialValues={{ env: 'dev' }}
         onFinish={publish} disabled={publishing} preserve={false}>
-        {publishTarget?.version
-          ? <Typography.Paragraph className="user-form-help">版本：v{publishTarget.version.version}</Typography.Paragraph>
-          : <Form.Item name="version_id" label="版本" rules={[{ required: true, message: '请选择版本' }]}>
-            <Select options={versions.map(item => ({ value: item.id, label: `v${item.version}` }))} />
-          </Form.Item>}
-        {publishTarget?.env
-          ? <Typography.Paragraph className="user-form-help">目标环境：{publishTarget.env}</Typography.Paragraph>
-          : <Form.Item name="env" label="目标环境" rules={[{ required: true, message: '请选择环境' }]}>
-            <Select options={PROMPT_ENVS.map(env => ({ value: env, label: env }))} />
-          </Form.Item>}
+        <Form.Item name="env" label="目标环境" rules={[{ required: true, message: '请选择环境' }]}>
+          <Select options={PROMPT_ENVS.map(env => ({ value: env, label: env }))} />
+        </Form.Item>
       </Form>
+    </Modal>}
+    {writable && <Modal title={rollbackTarget ? `回滚 ${rollbackTarget.env} 到 v${rollbackTarget.version.version}？` : '回滚版本'}
+      open={rollbackTarget !== null} okText="回滚" cancelText="取消" confirmLoading={rollingBack}
+      onOk={() => void rollback()} onCancel={() => { if (!rollbackRef.current) setRollbackTarget(null) }}
+      cancelButtonProps={{ disabled: rollingBack }} closable={!rollingBack} keyboard={!rollingBack} maskClosable={!rollingBack} />}
+    {writable && <Modal title={draftToDelete ? `删除草稿 v${draftToDelete.version}？` : '删除草稿'}
+      open={draftToDelete !== null} okText="删除" cancelText="取消" confirmLoading={deletingDraft}
+      okButtonProps={{ danger: true }} maskClosable={false} closable={!deletingDraft}
+      keyboard={!deletingDraft} cancelButtonProps={{ disabled: deletingDraft }}
+      onOk={() => void deleteDraft()} onCancel={() => { if (!draftRequest.current) setDraftToDelete(null) }}>
+      <Typography.Text>草稿将从列表移除，版本号保留。</Typography.Text>
+      {draftError && <Alert className="version-env-alert" type="error" showIcon role="alert" message={draftError} />}
     </Modal>}
   </section>
 }
@@ -646,10 +672,10 @@ function EnvEventTimeline({ scope, promptID, request, versionNumber }: {
     retry: false, refetchOnMount: 'always' })
   const versionLabel = (id?: string) => id ? `v${versionNumber(id) ?? id.slice(0, 8)}` : '首次发布'
   return <div className="prompt-timeline prompt-env-history" aria-label="发布记录">
-    <Space wrap><Typography.Text strong>发布/回滚记录</Typography.Text>
+    <Space wrap>
       <Select aria-label="记录环境" style={{ minWidth: 100 }} value={env} onChange={setEnv}
         options={PROMPT_ENVS.map(item => ({ value: item, label: item }))} />
-      <Button size="small" icon={<ReloadOutlined />} loading={events.isFetching} onClick={() => void events.refetch()}>刷新记录</Button></Space>
+      <Button size="small" icon={<ReloadOutlined />} loading={events.isFetching} onClick={() => void events.refetch()}>刷新</Button></Space>
     {!events.isFetchedAfterMount ? <Skeleton active paragraph={{ rows: 1 }} />
       : events.isError ? <Alert role="alert" type="error" showIcon message={getPromptError(events.error, 'read')} />
       : (events.data ?? []).length === 0 ? <Typography.Text type="secondary">暂无发布记录</Typography.Text>
@@ -718,7 +744,7 @@ function PromptPreview({ scope, version, request }: { scope: Scope; version: Pro
     </Form.Item>
     <Form.Item><Button htmlType="submit" loading={busy}>渲染预览 v{version.version}</Button></Form.Item>
     {errorText && <Alert role="alert" type="error" showIcon message={errorText} />}
-    {rendered !== null && <div role="status"><Typography.Text strong>预览结果（纯文本）</Typography.Text>
+    {rendered !== null && <div role="status"><Typography.Text strong>预览结果</Typography.Text>
       <pre className="prompt-text">{rendered || '（空文本）'}</pre></div>}
   </Form>
 }

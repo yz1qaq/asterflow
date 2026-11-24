@@ -1,14 +1,18 @@
 import axios from 'axios'
 import { useEffect, useRef, useState } from 'react'
-import { Alert, App, Button, Empty, Form, Input, Modal, Select, Skeleton, Space, Table, Tabs, Tag, Typography } from 'antd'
+import { Alert, App, Button, Empty, Form, Input, Modal, Select, Skeleton, Space, Table, Tag, Typography } from 'antd'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Redirect, useLocation } from 'wouter'
+import { VersionEnvironmentTags } from '@/components/VersionEnvironmentTags'
+import { Link, Redirect, useLocation } from 'wouter'
 import { getWorkspaceContext, getWorkspaceSelectionError, isWorkspaceUnavailable } from '@/api/iam'
 import {
-  canWriteAgents, createAgent, createAgentVersion, listAgentEnvs, listAgentVersions, listAgents,
+  canDeleteAgents, canWriteAgents, createAgent, createAgentVersion, deleteAgent, listAgentEnvs, listAgentVersions, listAgents,
   promoteAgentVersion, type Agent, type AgentVersion,
 } from '@/api/agents'
+import { listWorkspaceProfileVersions } from '@/api/modelBindings'
+import { listModelProfiles } from '@/api/modelProfiles'
+import { listPrompts } from '@/api/prompts'
 import { isSessionValid, useAuthStore } from '@/store/authStore'
 
 type Scope = { userID: string; token: string; workspaceID: string }
@@ -42,11 +46,16 @@ function useFormRequest({ userID, token, workspaceID }: Scope) {
 }
 
 function getAgentError(error: unknown) {
-  if (axios.isAxiosError<{ error?: unknown }>(error)) {
+  if (axios.isAxiosError<{ error?: unknown; code?: unknown }>(error)) {
     switch (error.response?.status) {
       case 401: return '登录已失效，请重新登录'
       case 403: return '当前空间权限不足，请重新确认空间权限'
       case 404: return 'Agent 或引用的版本不在当前空间'
+      case 409:
+        if (error.response.data?.code === 'agent_conversation_running') {
+          return '此 Agent 还有会话正在生成，请等回复完成或停止生成后再删除。'
+        }
+        break
       case 400: {
         const detail = error.response.data?.error
         return typeof detail === 'string' ? detail.slice(0, 300) : '请检查名称、系统提示词或引用版本'
@@ -64,8 +73,7 @@ export function AgentsPage() {
   const [, navigate] = useLocation()
   if (!isSessionValid(session) || !session.user || !session.token) return <Redirect to="/login" />
   return <section aria-labelledby="agents-heading">
-    <div className="page-heading"><div><Typography.Title level={2} id="agents-heading">Agent 管理</Typography.Title>
-      <Typography.Paragraph className="page-description">Agent 的配置以不可变版本保存；环境只保存指向某个版本的指针。</Typography.Paragraph></div></div>
+    <div className="page-heading"><Typography.Title level={2} id="agents-heading">Agent 管理</Typography.Title></div>
     {session.workspaceId ? <WorkspaceAgents key={`${session.token}:${session.user.id}:${session.workspaceId}`}
       scope={{ userID: session.user.id, token: session.token, workspaceID: session.workspaceId }} />
       : <Empty description="请先选择工作空间"><Button type="primary" onClick={() => navigate('/workspaces')}>前往选择空间</Button></Empty>}
@@ -113,17 +121,19 @@ function WorkspaceAgents({ scope }: { scope: Scope }) {
     message={context.isError ? getWorkspaceSelectionError(context.error) : '当前无法访问 Agent，请重新确认空间权限'}
     action={<Button onClick={() => void recheckAccess()}>重新确认</Button>} />
   const writable = canWriteAgents(context.data.workspace_role)
+  const deletable = canDeleteAgents(context.data.workspace_role)
   return <>
     <div className="workspace-current model-workspace" aria-label="Agent 管理当前空间"><Space wrap>
       <Typography.Text strong>当前空间</Typography.Text><Typography.Text className="workspace-id" copyable>{scope.workspaceID}</Typography.Text>
       <Tag color="blue">空间角色：{context.data.workspace_role}</Tag>
-      {!writable && <Typography.Text>当前角色仅可查看 Agent 与版本</Typography.Text>}
     </Space></div>
-    <AgentPanel key={String(writable)} scope={scope} writable={writable} request={request} />
+    <AgentPanel key={`${writable}:${deletable}`} scope={scope} writable={writable} deletable={deletable} request={request} />
   </>
 }
 
-function AgentPanel({ scope, writable, request }: { scope: Scope; writable: boolean; request: Request }) {
+function AgentPanel({ scope, writable, deletable, request }: {
+  scope: Scope; writable: boolean; deletable: boolean; request: Request
+}) {
   const { message } = App.useApp()
   const qc = useQueryClient()
   const { workspaceID } = scope
@@ -131,6 +141,7 @@ function AgentPanel({ scope, writable, request }: { scope: Scope; writable: bool
   const [creating, setCreating] = useState(false)
   const [appending, setAppending] = useState<Agent | null>(null)
   const [publishing, setPublishing] = useState<AgentVersion | null>(null)
+  const [toDelete, setToDelete] = useState<Agent | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const busyRef = useRef(false)
@@ -138,12 +149,32 @@ function AgentPanel({ scope, writable, request }: { scope: Scope; writable: bool
   const [form] = Form.useForm()
   const agents = useQuery({ queryKey: agentsKey(scope), retry: false, refetchOnMount: 'always',
     queryFn: ({ signal }) => request(signal, () => listAgents(workspaceID, signal)) })
+  const prompts = useQuery({
+    queryKey: ['agent-prompt-options', scope.userID, workspaceID],
+    enabled: creating || Boolean(appending), retry: false, refetchOnMount: 'always',
+    queryFn: ({ signal }) => request(signal, () => listPrompts(workspaceID, signal)),
+  })
+  const editingVersion = creating || Boolean(appending)
+  const profiles = useQuery({
+    queryKey: ['agent-model-profiles', scope.userID, workspaceID],
+    enabled: editingVersion, retry: false, refetchOnMount: 'always',
+    queryFn: ({ signal }) => request(signal, () => listModelProfiles(workspaceID, signal)),
+  })
+  const modelVersions = useQuery({
+    queryKey: ['agent-model-profile-versions', scope.userID, workspaceID],
+    enabled: editingVersion, retry: false, refetchOnMount: 'always',
+    queryFn: ({ signal }) => request(signal, () => listWorkspaceProfileVersions(workspaceID, signal)),
+  })
+  const profileNames = new Map(profiles.data?.map(profile => [profile.id, profile.name]))
+  const modelOptions = profiles.isError || modelVersions.isError ? [] : (modelVersions.data ?? []).map(version => ({
+    value: version.id,
+    label: `${profileNames.get(version.profile_id) ?? version.profile_id} · v${version.version}`,
+  }))
   const current = agents.isSuccess ? agents.data.find(agent => agent.id === selected) : undefined
   const versions = useQuery({ queryKey: versionsKey(scope, current?.id ?? ''), enabled: Boolean(current),
     retry: false, refetchOnMount: 'always', queryFn: ({ signal }) => request(signal, () => listAgentVersions(workspaceID, current!.id, signal)) })
   const envs = useQuery({ queryKey: envsKey(scope, current?.id ?? ''), enabled: Boolean(current),
     retry: false, refetchOnMount: 'always', queryFn: ({ signal }) => request(signal, () => listAgentEnvs(workspaceID, current!.id, signal)) })
-  const versionNumber = (id: string) => versions.data?.find(v => v.id === id)?.version
 
   function openCreate() { form.resetFields(); setError(''); setCreating(true) }
   function openAppend(agent: Agent) { form.resetFields(); setError(''); setAppending(agent) }
@@ -152,12 +183,12 @@ function AgentPanel({ scope, writable, request }: { scope: Scope; writable: bool
     if (busyRef.current) return
     form.resetFields(); setError(''); setCreating(false); setAppending(null); setPublishing(null)
   }
-  async function run(action: () => Promise<unknown>) {
+  async function run(action: (signal: AbortSignal) => Promise<unknown>) {
     if (busyRef.current) return null
     const signal = formSignal(); if (!signal) return null
     busyRef.current = true; setBusy(true); setError('')
     try {
-      const result = await request(signal, () => action())
+      const result = await request(signal, () => action(signal))
       return signal.aborted ? null : result
     } catch (err) {
       if (!signal.aborted) setError(getAgentError(err))
@@ -167,9 +198,16 @@ function AgentPanel({ scope, writable, request }: { scope: Scope; writable: bool
       if (!signal.aborted) setBusy(false)
     }
   }
-  async function save(values: { name?: string; description?: string; template?: string; system_prompt: string }) {
+  async function save(values: {
+    name?: string; description?: string; template?: string; system_prompt?: string
+    user_prompt_id?: string; model_profile_version_id?: string; env?: string
+  }) {
     if (!writable) return
-    const body = { system_prompt: values.system_prompt ?? '' }
+    const body = {
+      system_prompt: values.system_prompt ?? '',
+      user_prompt_id: values.user_prompt_id,
+      model_profile_version_id: values.model_profile_version_id,
+    }
     if (creating) {
       const created = await run(() => createAgent(workspaceID, { name: values.name ?? '', description: values.description, template: values.template, ...body }))
       if (created) {
@@ -181,7 +219,7 @@ function AgentPanel({ scope, writable, request }: { scope: Scope; writable: bool
       return
     }
     if (appending) {
-      const appended = await run(() => createAgentVersion(workspaceID, appending.id, body as never))
+      const appended = await run(() => createAgentVersion(workspaceID, appending.id, body))
       if (appended) {
         setAppending(null)
         void message.success(`v${(appended as AgentVersion).version} 已保存`)
@@ -200,48 +238,75 @@ function AgentPanel({ scope, writable, request }: { scope: Scope; writable: bool
     }
   }
 
+  async function confirmDelete() {
+    if (!deletable || !toDelete) return
+    const { id } = toDelete
+    const deleted = await run(async signal => {
+      await deleteAgent(workspaceID, id, signal)
+      return true
+    })
+    if (!deleted) return
+
+    setToDelete(null)
+    setSelected(value => value === id ? null : value)
+    qc.setQueryData<Agent[]>(agentsKey(scope), rows => rows?.filter(row => row.id !== id))
+    qc.removeQueries({ queryKey: versionsKey(scope, id), exact: true })
+    qc.removeQueries({ queryKey: envsKey(scope, id), exact: true })
+    qc.removeQueries({
+      queryKey: ['conversation', scope.userID, workspaceID],
+      predicate: query => (query.state.data as { conversation?: { agent_id: string } } | undefined)?.conversation?.agent_id === id,
+    })
+    void qc.invalidateQueries({ queryKey: agentsKey(scope) })
+    void qc.invalidateQueries({ queryKey: ['chat-conversations', scope.userID, workspaceID] })
+    void qc.invalidateQueries({ queryKey: ['conversations', scope.userID, workspaceID] })
+    void message.success('Agent 已删除')
+  }
+
   return <section aria-label="Agent 列表">
-    <div className="model-section-heading"><div><Typography.Title level={3}>Agent</Typography.Title>
-      <Typography.Text>配置以快照版本保存；发布只移动目标环境指针。</Typography.Text></div>
+    <div className="model-section-heading version-list-toolbar">
       <Space wrap><Button icon={<ReloadOutlined />} loading={agents.isFetching} onClick={() => void agents.refetch()}>刷新</Button>
         {writable && <Button icon={<PlusOutlined />} onClick={openCreate}>新建 Agent</Button>}</Space></div>
     {agents.isError ? <Alert role="alert" type="error" showIcon message={getAgentError(agents.error)} />
       : <Table<Agent> rowKey="id" dataSource={agents.data ?? []} loading={agents.isFetching} scroll={{ x: 720 }}
         pagination={{ pageSize: 10, hideOnSinglePage: true }} locale={{ emptyText: <Empty description="当前空间暂无 Agent" /> }}
         columns={[
-          { title: '名称', render: (_, row) => <Space direction="vertical" size={2}><Typography.Text strong>{row.name}</Typography.Text>
-            <Typography.Text type="secondary">{row.description || '—'} · {row.template || 'general'}</Typography.Text></Space> },
+          { title: '名称', render: (_, row) => {
+            const description = [row.description, row.template !== 'general' ? row.template : ''].filter(Boolean).join(' · ')
+            return <Space direction="vertical" size={2}><Typography.Text strong>{row.name}</Typography.Text>
+              {description && <Typography.Text type="secondary">{description}</Typography.Text>}</Space>
+          } },
           { title: '创建时间', dataIndex: 'created_at', width: 185, render: timeLabel },
-          { title: '操作', width: 140, render: (_, row) => <Button size="small" type={selected === row.id ? 'primary' : 'default'}
-            onClick={() => setSelected(row.id)} aria-label={`查看 Agent ${row.name}`}>查看</Button> },
+          { title: '操作', width: 145, render: (_, row) => <Space>
+            <Button size="small" type={selected === row.id ? 'primary' : 'default'}
+              onClick={() => setSelected(row.id)} aria-label={`查看 Agent ${row.name}`}>查看</Button>
+            {deletable && <Button size="small" danger aria-label={`删除 Agent ${row.name}`}
+              onClick={() => { setError(''); setToDelete(row) }}>删除</Button>}
+          </Space> },
         ]} />}
     {current && <section aria-label={`${current.name} 详情`} className="prompt-detail">
-      <div className="model-section-heading"><div><Typography.Title level={4}>{current.name} · 版本与环境</Typography.Title></div>
+      <div className="model-section-heading"><Typography.Title level={4}>{current.name} · 版本</Typography.Title>
         {writable && <Button onClick={() => openAppend(current)}>追加版本</Button>}</div>
-      <Tabs defaultActiveKey="versions" items={[
-        { key: 'versions', label: '版本', children: versions.isError ? <Alert role="alert" type="error" showIcon message={getAgentError(versions.error)} />
-          : <Table<AgentVersion> rowKey="id" dataSource={versions.data ?? []} loading={versions.isFetching}
-            pagination={{ pageSize: 8, hideOnSinglePage: true }} locale={{ emptyText: <Empty description="暂无版本" /> }}
-            columns={[
-              { title: '版本', width: 80, render: (_, row) => <Tag color="blue">v{row.version}</Tag> },
-              { title: '快照', render: (_, row) => <pre className="prompt-text">{row.snapshot_json}</pre> },
-              { title: '创建时间', dataIndex: 'created_at', width: 185, render: timeLabel },
-              { title: '操作', width: 120, render: (_, row) => writable
-                ? <Button size="small" onClick={() => openPublish(row)}>发布</Button> : null },
-            ]} /> },
-        { key: 'envs', label: '环境指针', children: envs.isError ? <Alert role="alert" type="error" showIcon message={getAgentError(envs.error)} />
-          : <Space wrap size="middle">{ENVS.map(env => {
-            const binding = (envs.data ?? []).find(item => item.env === env)
-            return <div key={env} className="prompt-env-item" aria-label={`Agent 环境 ${env}`}>
-              <Tag color={binding ? 'green' : 'default'}>{env}</Tag>
-              <Typography.Text strong>{binding ? `v${versionNumber(binding.version_id) ?? binding.version_id.slice(0, 8)}` : '未发布'}</Typography.Text>
-              {binding && <Typography.Text type="secondary">{timeLabel(binding.updated_at)}</Typography.Text>}
-            </div>
-          })}</Space> },
-      ]} />
+      {envs.isError && <Alert className="version-env-alert" role="alert" type="warning" showIcon message="无法读取发布环境"
+        action={<Button size="small" onClick={() => void envs.refetch()}>重试</Button>} />}
+      {versions.isError ? <Alert role="alert" type="error" showIcon message={getAgentError(versions.error)}
+        action={<Button size="small" onClick={() => void versions.refetch()}>重试</Button>} />
+        : <Table<AgentVersion> rowKey="id" dataSource={versions.data ?? []} loading={versions.isFetching || envs.isPending}
+          pagination={{ pageSize: 8, hideOnSinglePage: true }} locale={{ emptyText: <Empty description="暂无版本" /> }}
+          columns={[
+            { title: '版本', width: 240, render: (_, row) => <VersionEnvironmentTags version={row.version} versionID={row.id}
+              bindings={envs.isSuccess ? envs.data : undefined} /> },
+            { title: '配置', render: (_, row) => <details className="agent-version-snapshot">
+              <summary>查看快照</summary><pre className="prompt-text">{row.snapshot_json}</pre>
+            </details> },
+            { title: '创建时间', dataIndex: 'created_at', width: 185, render: timeLabel },
+            { title: '操作', width: 185, render: (_, row) => <Space>
+              <Link href={`/chat?${new URLSearchParams({ agent_id: row.agent_id, agent_version_id: row.id })}`}>前往聊天</Link>
+              {writable && <Button size="small" onClick={() => openPublish(row)}>发布</Button>}
+            </Space> },
+          ]} />}
     </section>}
     {writable && <Modal title={creating ? '新建 Agent' : appending ? `追加版本到 ${appending.name}` : publishing ? `发布 v${publishing.version}` : ''}
-      open={creating || Boolean(appending) || Boolean(publishing)} onCancel={closeModal} onOk={() => form.submit()} okText="保存" cancelText="取消"
+      open={creating || Boolean(appending) || Boolean(publishing)} onCancel={closeModal} onOk={() => form.submit()} okText={publishing ? '发布' : '保存'} cancelText="取消"
       confirmLoading={busy} cancelButtonProps={{ disabled: busy }} closable={!busy} keyboard={!busy} maskClosable={!busy}>
       {error && <Alert className="user-create-error" role="alert" type="error" showIcon message={error} />}
       <Form form={form} layout="vertical" onFinish={save} disabled={busy} preserve={false}>
@@ -255,10 +320,26 @@ function AgentPanel({ scope, writable, request }: { scope: Scope; writable: bool
         {(creating || appending) && <Form.Item name="system_prompt" label="系统提示词（字面量）" initialValue="">
           <Input.TextArea rows={4} placeholder="例如：你是订单客服，回答要简洁。" />
         </Form.Item>}
+        {(creating || appending) && <Form.Item name="user_prompt_id" label="首轮用户模板">
+          <Select allowClear loading={prompts.isFetching} placeholder="可选"
+            options={(prompts.isError ? [] : prompts.data ?? []).map(prompt => ({ value: prompt.id, label: prompt.name }))}
+            notFoundContent={prompts.isError ? '无法读取提示词' : '暂无提示词'} />
+        </Form.Item>}
+        {editingVersion && <Form.Item name="model_profile_version_id" label="模型方案版本">
+          <Select allowClear loading={profiles.isFetching || modelVersions.isFetching} placeholder="聊天需要选择模型方案"
+            options={modelOptions} notFoundContent={profiles.isError || modelVersions.isError ? '无法读取模型方案' : '暂无模型方案版本'} />
+        </Form.Item>}
         {publishing && <Form.Item name="env" label="目标环境" rules={[{ required: true, message: '请选择环境' }]} initialValue="dev">
           <Select options={ENVS.map(value => ({ value, label: value }))} />
         </Form.Item>}
       </Form>
+    </Modal>}
+    {deletable && <Modal title={toDelete ? `删除 ${toDelete.name}？` : '删除 Agent'}
+      open={toDelete !== null} okText="永久删除" cancelText="取消" okButtonProps={{ danger: true }}
+      onOk={() => void confirmDelete()} onCancel={() => { if (!busyRef.current) setToDelete(null) }}
+      confirmLoading={busy} cancelButtonProps={{ disabled: busy }} closable={!busy} keyboard={!busy} maskClosable={false}>
+      <Typography.Paragraph>将永久删除此 Agent 的所有版本，以及所有成员与它的会话、消息和工具调用记录。</Typography.Paragraph>
+      {error && <Alert role="alert" type="error" showIcon message={error} />}
     </Modal>}
   </section>
 }

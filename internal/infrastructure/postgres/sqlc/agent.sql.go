@@ -83,6 +83,47 @@ func (q *Queries) CreateAgentVersion(ctx context.Context, arg CreateAgentVersion
 	return i, err
 }
 
+const deleteAgent = `-- name: DeleteAgent :exec
+DELETE FROM agents
+WHERE id = $1::uuid
+  AND workspace_id = $2::text
+`
+
+type DeleteAgentParams struct {
+	ID          uuid.UUID
+	WorkspaceID string
+}
+
+func (q *Queries) DeleteAgent(ctx context.Context, arg DeleteAgentParams) error {
+	_, err := q.db.Exec(ctx, deleteAgent, arg.ID, arg.WorkspaceID)
+	return err
+}
+
+const deleteAgentConversations = `-- name: DeleteAgentConversations :exec
+DELETE FROM conversations
+WHERE agent_id = $1::uuid
+  AND workspace_id = $2::text
+`
+
+type DeleteAgentConversationsParams struct {
+	AgentID     uuid.UUID
+	WorkspaceID string
+}
+
+func (q *Queries) DeleteAgentConversations(ctx context.Context, arg DeleteAgentConversationsParams) error {
+	_, err := q.db.Exec(ctx, deleteAgentConversations, arg.AgentID, arg.WorkspaceID)
+	return err
+}
+
+const deleteAgentEnvs = `-- name: DeleteAgentEnvs :exec
+DELETE FROM agent_envs WHERE agent_id = $1
+`
+
+func (q *Queries) DeleteAgentEnvs(ctx context.Context, agentID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteAgentEnvs, agentID)
+	return err
+}
+
 const getAgent = `-- name: GetAgent :one
 SELECT a.id, a.workspace_id, a.name, a.description, a.template, a.created_by, a.created_at, a.updated_at
 FROM agents AS a
@@ -299,6 +340,31 @@ func (q *Queries) LockAgent(ctx context.Context, arg LockAgentParams) (uuid.UUID
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+const lockAgentConversationLeases = `-- name: LockAgentConversationLeases :one
+WITH locked AS MATERIALIZED (
+    SELECT c.turn_lease_until
+    FROM conversations AS c
+    WHERE c.agent_id = $1::uuid
+      AND c.workspace_id = $2::text
+    ORDER BY c.id
+    FOR UPDATE
+)
+SELECT COALESCE(bool_or(turn_lease_until > clock_timestamp()), false)::boolean AS has_active
+FROM locked
+`
+
+type LockAgentConversationLeasesParams struct {
+	AgentID     uuid.UUID
+	WorkspaceID string
+}
+
+func (q *Queries) LockAgentConversationLeases(ctx context.Context, arg LockAgentConversationLeasesParams) (bool, error) {
+	row := q.db.QueryRow(ctx, lockAgentConversationLeases, arg.AgentID, arg.WorkspaceID)
+	var has_active bool
+	err := row.Scan(&has_active)
+	return has_active, err
 }
 
 const nextAgentVersion = `-- name: NextAgentVersion :one

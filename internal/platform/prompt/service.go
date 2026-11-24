@@ -20,6 +20,7 @@ type Store interface {
 	CreatePromptWithInitialVersion(context.Context, *Prompt, *PromptVersion) error
 	AppendPromptVersion(context.Context, string, *PromptVersion) error
 	GetPromptVersion(context.Context, string, string) (*PromptVersion, error)
+	ArchiveDraft(ctx context.Context, workspaceID, promptID, versionID string) error
 	GetPrompt(context.Context, string, string) (*Prompt, error)
 	ListPrompts(context.Context, string) ([]*Prompt, error)
 	ListPromptVersions(context.Context, string, string) ([]*PromptVersion, error)
@@ -205,6 +206,19 @@ func (s *Service) ListVersions(
 	return s.store.ListPromptVersions(ctx, workspaceID, id.String())
 }
 
+func (s *Service) ArchiveDraft(ctx context.Context, workspaceID, promptID, versionID string) error {
+	workspaceID = strings.TrimSpace(workspaceID)
+	if workspaceID == "" {
+		return fmt.Errorf("%w: workspace_id is required", ErrInvalidArgument)
+	}
+	pid, promptErr := uuid.Parse(strings.TrimSpace(promptID))
+	vid, versionErr := uuid.Parse(strings.TrimSpace(versionID))
+	if promptErr != nil || versionErr != nil {
+		return fmt.Errorf("%w: prompt_id and version_id must be UUIDs", ErrInvalidArgument)
+	}
+	return s.store.ArchiveDraft(ctx, workspaceID, pid.String(), vid.String())
+}
+
 func (s *Service) RenderByVersion(ctx context.Context, workspaceID, promptID, versionID string, vars map[string]any) (string, error) {
 	workspaceID = strings.TrimSpace(workspaceID)
 	if workspaceID == "" {
@@ -223,7 +237,7 @@ func (s *Service) RenderByVersion(ctx context.Context, workspaceID, promptID, ve
 	if err != nil {
 		return "", err
 	}
-	if version.PromptID != pid.String() {
+	if version.PromptID != pid.String() || version.Archived {
 		return "", ErrPromptVersionNotFound
 	}
 	return s.renderVersion(ctx, version, vars)
@@ -312,30 +326,54 @@ func selectExperimentVersion(exp *domain.PromptExperiment, userID string) string
 func (s *Service) ResolveVersion(
 	ctx context.Context, workspaceID, promptID, env, userID string,
 ) (string, error) {
+	selection, err := s.ResolveSelection(ctx, workspaceID, promptID, env, userID)
+	return selection.VersionID, err
+}
+
+func (s *Service) ResolveSelection(
+	ctx context.Context, workspaceID, promptID, env, userID string,
+) (domain.PromptSelection, error) {
 	workspaceID, env = strings.TrimSpace(workspaceID), strings.TrimSpace(env)
 	if workspaceID == "" {
-		return "", fmt.Errorf("%w: workspace_id is required", ErrInvalidArgument)
+		return domain.PromptSelection{}, fmt.Errorf("%w: workspace_id is required", ErrInvalidArgument)
 	}
 	if env == "" {
 		env = "dev"
 	}
 	pid, err := uuid.Parse(strings.TrimSpace(promptID))
 	if err != nil {
-		return "", fmt.Errorf("%w: prompt_id must be a UUID", ErrInvalidArgument)
+		return domain.PromptSelection{}, fmt.Errorf("%w: prompt_id must be a UUID", ErrInvalidArgument)
 	}
 
 	exp, err := s.store.GetActiveExperiment(ctx, workspaceID, pid.String(), env)
 	if err != nil {
-		return "", err
+		return domain.PromptSelection{}, err
 	}
-	if versionID := selectExperimentVersion(exp, userID); versionID != "" {
-		return versionID, nil
+
+	var selection domain.PromptSelection
+	if exp != nil && len(exp.Variants) > 0 {
+		selection.ExperimentID = exp.ID
+		selection.ExperimentVariant = "variant"
+		selection.VersionID = selectExperimentVersion(exp, userID)
+
+		if exp.CandidateVersionID != "" && exp.TrafficPercent > 0 {
+			selection.ExperimentVariant = "baseline"
+			if selection.VersionID != "" {
+				selection.ExperimentVariant = "candidate"
+			}
+		}
+
+		if selection.VersionID != "" {
+			return selection, nil
+		}
 	}
+
 	binding, err := s.GetEnvBinding(ctx, workspaceID, pid.String(), env)
 	if err != nil {
-		return "", err
+		return domain.PromptSelection{}, err
 	}
-	return binding.VersionID, nil
+	selection.VersionID = binding.VersionID
+	return selection, nil
 }
 
 func (s *Service) RenderByEnv(
@@ -695,8 +733,14 @@ func (s *Service) EnsureVersion(ctx context.Context, workspaceID, versionID stri
 	if err != nil {
 		return fmt.Errorf("%w: version_id must be a UUID", ErrInvalidArgument)
 	}
-	_, err = s.store.GetPromptVersion(ctx, workspaceID, vid.String())
-	return err
+	version, err := s.store.GetPromptVersion(ctx, workspaceID, vid.String())
+	if err != nil {
+		return err
+	}
+	if version.Archived {
+		return ErrPromptVersionNotFound
+	}
+	return nil
 }
 
 func (s *Service) RenderVersionByID(ctx context.Context, workspaceID, versionID string, vars map[string]any) (string, error) {

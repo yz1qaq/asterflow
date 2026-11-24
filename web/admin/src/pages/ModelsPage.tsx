@@ -5,7 +5,7 @@ import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Redirect, useLocation } from 'wouter'
 import { getWorkspaceContext, getWorkspaceSelectionError, isWorkspaceUnavailable } from '@/api/iam'
-import { canManageModelAccounts, createModelAccount, getModelAccountError, listModelAccounts, rotateModelAccountAPIKey, type CreateModelAccountRequest, type ModelAccount } from '@/api/model'
+import { canManageModelAccounts, createModelAccount, deleteModelAccount, getModelAccountError, listModelAccounts, rotateModelAccountAPIKey, testModelAccount, type CreateModelAccountRequest, type ModelAccount } from '@/api/model'
 import { ModelBindingsPanel } from '@/components/ModelBindingsPanel'
 import { ModelProfilesPanel } from '@/components/ModelProfilesPanel'
 import { ModelDeploymentsPanel } from '@/components/ModelDeploymentsPanel'
@@ -16,8 +16,7 @@ export function ModelsPage() {
   const [, navigate] = useLocation()
   if (!isSessionValid(session) || !session.user || !session.token) return <Redirect to="/login" />
   if (!session.workspaceId) return <section aria-labelledby="models-heading">
-    <div className="page-heading"><div><Typography.Title level={2} id="models-heading">模型管理</Typography.Title>
-      <Typography.Paragraph className="page-description">管理当前空间调用模型所需的供应商账户。</Typography.Paragraph></div></div>
+    <div className="page-heading"><Typography.Title level={2} id="models-heading">模型管理</Typography.Title></div>
     <Empty description="请先选择工作空间"><Button type="primary" onClick={() => navigate('/workspaces')}>前往选择空间</Button></Empty>
   </section>
   return <WorkspaceModels key={session.token + ':' + session.workspaceId}
@@ -47,12 +46,10 @@ function WorkspaceModels({ userID, token, workspaceID }: { userID: string; token
   if (context.isError || !context.data) return <Alert role="alert" type="error" showIcon message={getWorkspaceSelectionError(context.error)}
     action={<Button onClick={() => void context.refetch()}>重新确认</Button>} />
   return <section aria-labelledby="models-heading">
-    <div className="page-heading"><div><Typography.Title level={2} id="models-heading">模型管理</Typography.Title>
-      <Typography.Paragraph className="page-description">管理当前空间的供应商账户、模型部署、计价、方案版本与环境绑定。</Typography.Paragraph></div></div>
+    <div className="page-heading"><Typography.Title level={2} id="models-heading">模型管理</Typography.Title></div>
     <div className="workspace-current model-workspace" aria-label="模型管理当前空间"><Space wrap>
       <Typography.Text strong>当前空间</Typography.Text><Typography.Text className="workspace-id" copyable>{workspaceID}</Typography.Text>
       <Tag color="blue">空间角色：{context.data.workspace_role}</Tag>
-      {!canManageModelAccounts(context.data.workspace_role) && <Typography.Text>当前角色仅可查看模型配置</Typography.Text>}
     </Space></div>
     <Tabs className="model-config-tabs" activeKey={activeTab} onChange={setActiveTab} destroyOnHidden items={[
       { key: 'accounts', label: '供应商账户', children: <AccountsPanel userID={userID} token={token} workspaceID={workspaceID} role={context.data.workspace_role} /> },
@@ -72,6 +69,13 @@ function AccountsPanel({ userID, token, workspaceID, role }: { userID: string; t
   const [writeError, setWriteError] = useState('')
   const submitting = useRef(false)
   const mounted = useRef(false)
+  const [action, setAction] = useState<{ type: 'test' | 'delete'; account: ModelAccount } | null>(null)
+  const [modelName, setModelName] = useState('')
+  const [testResult, setTestResult] = useState<{ model: string; latency_ms: number } | null>(null)
+  const [actionBusy, setActionBusy] = useState(false)
+  const [actionError, setActionError] = useState('')
+  const actionRequest = useRef<AbortController | null>(null)
+  useEffect(() => () => actionRequest.current?.abort(), [])
   const writable = canManageModelAccounts(role)
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   function sameScope() {
@@ -124,11 +128,48 @@ function AccountsPanel({ userID, token, workspaceID, role }: { userID: string; t
       if (sameScope()) setBusy(false)
     }
   }
+  function openAction(type: 'test' | 'delete', account: ModelAccount) {
+    setAction({ type, account })
+    setModelName('')
+    setTestResult(null)
+    setActionError('')
+  }
+  async function confirmAction() {
+    if (!action || actionRequest.current || !writable || !sameScope()) return
+    const name = modelName.trim()
+    if (action.type === 'test' && !name) return
+    const controller = new AbortController()
+    actionRequest.current = controller
+    setActionBusy(true)
+    setActionError('')
+    setTestResult(null)
+    try {
+      if (action.type === 'delete') {
+        await deleteModelAccount(workspaceID, action.account.id, controller.signal)
+        if (!sameScope()) return
+        setAction(null)
+        void queryClient.invalidateQueries({ queryKey })
+        void message.success('供应商账户已删除')
+      } else {
+        const result = await testModelAccount(workspaceID, action.account.id, name, controller.signal)
+        if (sameScope()) setTestResult(result)
+      }
+    } catch (error) {
+      if (!sameScope()) return
+      setActionError(getModelAccountError(error, true))
+      if (axios.isAxiosError(error) && error.response?.status === 403) {
+        void queryClient.invalidateQueries({ queryKey: ['workspace-context', userID, workspaceID] })
+      }
+    } finally {
+      actionRequest.current = null
+      if (sameScope()) setActionBusy(false)
+    }
+  }
+
   const timeLabel = (value: string) => Number.isNaN(Date.parse(value)) ? '—' : new Date(value).toLocaleString('zh-CN', { hour12: false })
 
   return <section aria-labelledby="accounts-heading">
-    <div className="model-section-heading"><div><Typography.Title level={3} id="accounts-heading">供应商账户</Typography.Title>
-      <Typography.Text>API Key 加密保存，仅显示是否已配置；一个账户可供多个模型部署使用。</Typography.Text></div>
+    <div className="model-section-heading"><Typography.Title level={3} id="accounts-heading">供应商账户</Typography.Title>
       <Space><Button icon={<ReloadOutlined />} loading={query.isFetching} onClick={() => void query.refetch()}>刷新账户</Button>
         {writable && <Button type="primary" icon={<PlusOutlined />} disabled={query.isError} onClick={() => openForm('create')}>新建账户</Button>}</Space></div>
     {query.isError ? <Alert role="alert" type="error" showIcon message={getModelAccountError(query.error)}
@@ -143,7 +184,12 @@ function AccountsPanel({ userID, token, workspaceID, role }: { userID: string; t
           { title: 'API Key', dataIndex: 'has_api_key', width: 100, render: (value: boolean) => <Tag color={value ? 'success' : 'default'}>{value ? '已配置' : '未配置'}</Tag> },
           { title: '状态', dataIndex: 'status', width: 80, render: (value: string) => value === 'active' ? <Tag color="success">启用</Tag> : <Tag>{value}</Tag> },
           { title: '更新时间', dataIndex: 'updated_at', width: 175, render: timeLabel },
-          { title: '操作', width: 140, render: (_, row) => writable ? <Button size="small" onClick={() => openForm(row)} aria-label={`轮换密钥 ${row.name}`}>轮换密钥</Button> : '只读' },
+          { title: '操作', width: 255, render: (_, row) => writable ? <Space size="small" wrap>
+            <Button size="small" disabled={row.status !== 'active' || !row.has_api_key}
+              onClick={() => openAction('test', row)}>测试调用</Button>
+            <Button size="small" onClick={() => openForm(row)} aria-label={`轮换密钥 ${row.name}`}>轮换密钥</Button>
+            <Button size="small" danger onClick={() => openAction('delete', row)}>删除</Button>
+          </Space> : '—' },
         ]} />}
     <Modal title={mode === 'create' ? '新建供应商账户' : '轮换 API Key'} open={mode !== null} forceRender
       onCancel={closeForm} onOk={() => form.submit()} okText={mode === 'create' ? '创建账户' : '保存新密钥'} cancelText="取消"
@@ -165,6 +211,21 @@ function AccountsPanel({ userID, token, workspaceID, role }: { userID: string; t
           <Input.Password autoComplete="new-password" />
         </Form.Item>
       </Form>
+    </Modal>
+    <Modal title={action?.type === 'test' ? `测试调用 · ${action.account.name}` : `删除 ${action?.account.name ?? ''}？`}
+      open={action !== null} onCancel={() => { if (!actionRequest.current) setAction(null) }}
+      onOk={() => void confirmAction()} okText={action?.type === 'test' ? '发送测试' : '删除'} cancelText={testResult ? '关闭' : '取消'}
+      okButtonProps={{ danger: action?.type === 'delete', disabled: !writable || (action?.type === 'test' && (!modelName.trim() || testResult !== null)) }}
+      confirmLoading={actionBusy} cancelButtonProps={{ disabled: actionBusy }} closable={!actionBusy} maskClosable={false}>
+      {action?.type === 'test' ? <Space direction="vertical" style={{ width: '100%' }}>
+        <label htmlFor="provider-test-model">模型名</label>
+        <Input id="provider-test-model" value={modelName} maxLength={200} disabled={actionBusy}
+          onChange={event => { setModelName(event.target.value); setTestResult(null); setActionError('') }} />
+        {testResult
+          ? <Alert type="success" showIcon role="status" message={`调用成功 · ${testResult.model} · ${testResult.latency_ms} ms`} />
+          : <Typography.Text type="secondary">发送一次短请求，可能产生模型用量。</Typography.Text>}
+      </Space> : <Typography.Text>删除后会移除账户及其保存的密钥。</Typography.Text>}
+      {actionError && <Alert className="version-env-alert" role="alert" type="error" showIcon message={actionError} />}
     </Modal>
   </section>
 }

@@ -31,6 +31,8 @@ func writePromptError(c *gin.Context, err error) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "prompt or referenced version not found"})
 	case errors.Is(err, prompt.ErrPromptEnvNotBound):
 		c.JSON(http.StatusNotFound, gin.H{"error": "prompt environment is not bound"})
+	case errors.Is(err, prompt.ErrPromptVersionInUse):
+		c.JSON(http.StatusConflict, gin.H{"error": "prompt version is published or referenced", "code": "prompt_version_in_use"})
 	case errors.Is(err, prompt.ErrActivePromptExperiment):
 		c.JSON(http.StatusConflict, gin.H{"error": "another active experiment exists in this environment"})
 	case errors.Is(err, prompt.ErrPromptExperimentNotFound):
@@ -69,6 +71,15 @@ func (h *PromptHandler) CreatePrompt(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"prompt": p, "version": version})
+}
+
+func (h *PromptHandler) DeleteDraft(c *gin.Context) {
+	ctx := c.Request.Context()
+	if err := h.service.ArchiveDraft(ctx, middleware.GetWorkspaceIDFromContext(ctx), c.Param("prompt_id"), c.Param("version_id")); err != nil {
+		writePromptError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
 }
 
 func (h *PromptHandler) CreateVersion(c *gin.Context) {

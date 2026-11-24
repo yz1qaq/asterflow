@@ -5,6 +5,11 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/cloudwego/eino/callbacks"
+	"github.com/cloudwego/eino/components"
+	einoprompt "github.com/cloudwego/eino/components/prompt"
+	"github.com/cloudwego/eino/schema"
 )
 
 func TestCompileAndRender(t *testing.T) {
@@ -40,6 +45,31 @@ func TestCompileAndRender(t *testing.T) {
 	cancel()
 	if _, err := c.Render(ctx, map[string]any{"customer": "A"}); !errors.Is(err, context.Canceled) {
 		t.Fatalf("render should preserve cancellation: %v", err)
+	}
+}
+
+func TestRenderDispatchesEinoPromptCallback(t *testing.T) {
+	compiled, err := Compile("pv-1", "核对订单 {{.order_id}}", `{"required":["order_id"]}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var renderedMessages []*schema.Message
+	handler := callbacks.NewHandlerBuilder().OnEndFn(
+		func(ctx context.Context, info *callbacks.RunInfo, output callbacks.CallbackOutput) context.Context {
+			if info.Component == components.ComponentOfPrompt {
+				renderedMessages = einoprompt.ConvCallbackOutput(output).Result
+			}
+			return ctx
+		},
+	).Build()
+	ctx := callbacks.InitCallbacks(context.Background(), nil, handler)
+	text, err := compiled.Render(ctx, map[string]any{"order_id": "ORD-42"})
+	if err != nil || text != "核对订单 ORD-42" {
+		t.Fatalf("Render = %q, %v", text, err)
+	}
+	if len(renderedMessages) != 1 || renderedMessages[0].Role != schema.User || renderedMessages[0].Content != text {
+		t.Fatalf("expected one rendered Eino user message, got %+v", renderedMessages)
 	}
 }
 
