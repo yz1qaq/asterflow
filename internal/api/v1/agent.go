@@ -28,6 +28,8 @@ func writeAgentError(c *gin.Context, err error) {
 		errors.Is(err, agent.ErrAgentNotFound),
 		errors.Is(err, agent.ErrAgentVersionNotFound):
 		c.JSON(http.StatusNotFound, gin.H{"error": "agent or referenced version not found"})
+	case errors.Is(err, agent.ErrAgentConversationBusy):
+		c.JSON(http.StatusConflict, gin.H{"error": "agent has a running conversation", "code": "agent_conversation_running"})
 	case errors.Is(err, agent.ErrAgentEnvNotBound):
 		c.JSON(http.StatusNotFound, gin.H{"error": "agent environment is not bound"})
 	default:
@@ -62,6 +64,19 @@ func (h *AgentHandler) CreateAgent(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"agent": created, "version": version})
+}
+
+func (h *AgentHandler) Delete(c *gin.Context) {
+	ctx := c.Request.Context()
+	if !isWorkspaceAdmin(middleware.GetWorkspaceRoleFromContext(ctx)) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "only workspace owners and admins can delete an agent"})
+		return
+	}
+	if err := h.service.Delete(ctx, middleware.GetWorkspaceIDFromContext(ctx), c.Param("agent_id")); err != nil {
+		writeAgentError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
 }
 
 func (h *AgentHandler) GetAgent(c *gin.Context) {

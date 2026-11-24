@@ -6,7 +6,7 @@ AsterFlow 将模型、提示词、技能、工具、知识库与多Agent编排�
 
 ## 项目状态
 
-需求与基础工程、G01登录用户管理和G02空间/成员治理已合并。G02最终head的Documentation/Go/Web CI与AI复审通过，已接通真实PG、Gin权限及React空间/成员/当前空间选择。G03 模型配置已由 [PR #14](https://github.com/yz1qaq/asterflow/pull/14) 合并，包含供应商账户、部署计价、方案版本与环境绑定。G04 提示词治理进行中。详见[交付状态](docs/delivery/STATUS.md)。尚无生产部署。
+需求与基础工程、G01登录用户管理和G02空间/成员治理已合并。G02最终head的Documentation/Go/Web CI与AI复审通过，已接通真实PG、Gin权限及React空间/成员/当前空间选择。G03 模型配置已由 [PR #14](https://github.com/yz1qaq/asterflow/pull/14) 合并，包含供应商账户、部署计价、方案版本与环境绑定。G04 提示词治理和 G05 Agent / 会话管理已合并。G06 初版聊天由 [PR #17](https://github.com/yz1qaq/asterflow/pull/17) 合并，ADK、续租及管理功能通过本地验收，[补充 PR #18](https://github.com/yz1qaq/asterflow/pull/18) 进入评审修复。详见[交付状态](docs/delivery/STATUS.md)。尚无生产部署。
 
 目标范围包括：身份与空间权限、模型管理、Prompt治理、五源工具、Skills、知识检索、Agent/Team、审批与A2UI、Guard、Eval、审计观测、外部渠道、SDK/CLI、独立业务场景及部署。
 
@@ -38,7 +38,7 @@ python3 -m unittest discover -s scripts -p 'test_*.py' -v
 git diff --check
 ```
 
-当前前后端启动命令如下；已接入系统状态、登录、用户、空间/成员和模型账户管理。
+当前管理端支持登录、空间与成员、模型配置、Prompt 治理、Agent 版本和会话聊天。
 
 ## 后端启动与检查
 
@@ -128,7 +128,9 @@ stop停止数据库，up恢复启动；down移除本项目容器和网络并保�
 
 ## 数据库迁移
 
-ENG-003迁移CLI和初始IAM七表SQL已完成本地验收，query解析缺陷已修复；ENG-003验收时开发库为version=1 dirty=false；2026-11-16已通过G02隔离验证并应用000002，G03已应用000003至000005，当前实查version=5 dirty=false，环境绑定表和约束已确认存在，详见[迁移验收](docs/delivery/ENG-003-VERIFICATION.md)。
+ENG-003迁移CLI和初始IAM七表SQL已完成本地验收，query解析缺陷已修复；ENG-003验收时开发库为version=1 dirty=false；2026-11-16已通过G02隔离验证并应用000002，G03已应用000003至000005，G03 验收时实查 version=5 dirty=false，环境绑定表和约束已确认存在，详见[迁移验收](docs/delivery/ENG-003-VERIFICATION.md)。
+
+2026-11-24 只读核对开发库为 version=11、dirty=false。
 
 新环境在已导出.env的终端执行；已有数据库重复up会正常无变更：
 
@@ -204,7 +206,40 @@ flowchart LR
     Queries --> PG[("PostgreSQL 模型配置表 / project_model_bindings")]
 ```
 
-账户、部署、Profile版本及环境绑定的Store/Service/HTTP/Web均已接入。绑定以空间和环境为键，指向指定方案版本。更新绑定和更新计价通过同一空间行锁协调，已启用月预算的环境不会因并发改价失去必需价格。当前只保存预算、RPM和TPM配置；模型Gateway在G06接入，配额执行在G15实现。完整进度及证据见[G03验证记录](docs/delivery/G03-VERIFICATION.md)。
+账户、部署、Profile版本及环境绑定的Store/Service/HTTP/Web均已接入。绑定以空间和环境为键，指向指定方案版本。更新绑定和更新计价通过同一空间行锁协调，已启用月预算的环境不会因并发改价失去必需价格。当前只保存预算、RPM和TPM配置；模型 Gateway 已接入聊天，配额执行归 G15。完整进度及证据见[G03验证记录](docs/delivery/G03-VERIFICATION.md)。
+
+## 供应商试跑与配置清理
+
+- 在「模型管理 → 供应商账户」点击「测试调用」，输入实际模型名。服务使用保存的地址与密钥发送一条简短的非流式请求，显示结果和耗时。真实试跑可能产生模型用量。
+- 供应商账户只有在没有部署引用时才能删除。提示词版本只允许删除未发布、未参加实验且未被 Agent 或会话引用的草稿。草稿删除保留版本编号；原始记录保留在数据库。
+- 提示词草稿删除需要迁移 `000011`。本地可用 `make up` 应用迁移并启动服务。
+
+## 聊天执行与验收
+
+Agent 和提示词的版本列表在对应版本旁显示当前发布环境。提示词可从版本行发布、回滚，历史操作在「发布记录」查看。
+
+在「模型管理」创建供应商账户、部署和模型方案。在「Agent 管理」创建或追加版本时选择「模型方案版本」。从主导航进入「聊天」，选择 Agent 和版本后点击「开始聊天」。聊天页侧栏可继续自己的会话，刷新会保留当前会话。「会话历史」提供已保存消息的只读查阅。 在「我的会话」点击删除图标并确认，可永久删除自己的会话、消息与工具调用记录。会话正在生成时，停止或等回复结束后再删除。
+
+```mermaid
+flowchart LR
+    Web[React 聊天页] -->|POST chat| Gin[Gin SSE Handler]
+    Gin --> Run[会话服务 RunTurn]
+    Sync[Go 同步 Chat] --> Run
+    Run -->|领取租约和读取历史| PG[(PostgreSQL)]
+    Run -->|模板与历史| ADK[Eino ADK Runner]
+    ADK --> Adapter[Gateway 模型适配器]
+    Adapter --> Gateway[主备路由和密级校验]
+    Gateway --> LLM[OpenAI 兼容模型]
+    ADK -->|model_delta| Run
+    Run -->|保存消息和释放租约| PG
+    Run -->|事务提交后发送 run_completed| Gin
+```
+
+模型片段可在保存前显示。只有事务提交成功才会发送 `run_completed`。一次性 PostgreSQL / Redis、本机 OpenAI 兼容模型替身、桌面 Chrome 的覆盖范围见 [G06 验收记录](docs/delivery/G06-VERIFICATION.md)。
+
+### 删除 Agent
+
+空间 Owner 或管理员可在「Agent 管理」的列表里删除整个 Agent。确认后，服务会在同一事务中清理全部版本、环境发布关系，以及所有成员与这个 Agent 的会话、消息和工具调用记录。若有会话仍持有有效租约，需等生成完成或停止后再删除。
 
 ## 协作
 

@@ -9,10 +9,12 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/yz1qaq/asterflow/internal/domain"
 	pgstore "github.com/yz1qaq/asterflow/internal/infrastructure/postgres/sqlc"
+	"github.com/yz1qaq/asterflow/internal/platform/prompt"
 )
 
 var (
@@ -64,6 +66,11 @@ func (s *PostgresStore) CreateConversation(ctx context.Context, c *domain.Conver
 		RuntimeConfigJson: []byte(config),
 	})
 	if err != nil {
+		var violation *pgconn.PgError
+		if errors.As(err, &violation) && violation.Code == "23503" {
+			// The Agent or its version can disappear between lookup and insert.
+			return ErrConversationNotFound
+		}
 		return fmt.Errorf("create conversation: %w", err)
 	}
 	*c = *conversationFromRow(row)
@@ -96,6 +103,33 @@ func (s *PostgresStore) GetConversation(ctx context.Context, workspaceID, id str
 		return nil, fmt.Errorf("get conversation: %w", err)
 	}
 	return conversationFromRow(row), nil
+}
+
+// DeleteOwnedConversation checks ownership and the active lease in the same
+// statement as the deletion. The foreign keys cascade to messages and tool calls.
+func (s *PostgresStore) DeleteOwnedConversation(ctx context.Context, workspaceID, conversationID, userID string) error {
+	id, err := uuid.Parse(conversationID)
+	if err != nil {
+		return fmt.Errorf("parse conversation id: %w", err)
+	}
+	affected, err := s.q.DeleteOwnedConversation(ctx, pgstore.DeleteOwnedConversationParams{
+		ID: id, WorkspaceID: workspaceID, UserID: userID,
+	})
+	if err != nil {
+		return fmt.Errorf("delete conversation: %w", err)
+	}
+	if affected == 1 {
+		return nil
+	}
+
+	conv, err := s.GetConversation(ctx, workspaceID, conversationID)
+	if err != nil {
+		return err
+	}
+	if conv.UserID != userID {
+		return ErrConversationNotFound
+	}
+	return ErrTurnBusy
 }
 
 func (s *PostgresStore) ListConversations(ctx context.Context, workspaceID, userID string, limit, offset int32) ([]*domain.Conversation, error) {
@@ -171,8 +205,29 @@ func (s *PostgresStore) ClaimTurn(ctx context.Context, workspaceID, conversation
 	return token.String(), row.TurnRevision, nil
 }
 
+func (s *PostgresStore) RenewTurn(ctx context.Context, workspaceID, conversationID, token string, leaseSeconds int32) error {
+	parsedToken, err := uuid.Parse(token)
+	if err != nil {
+		return fmt.Errorf("parse turn token: %w", err)
+	}
+	id, err := uuid.Parse(conversationID)
+	if err != nil {
+		return fmt.Errorf("parse conversation id: %w", err)
+	}
+	affected, err := s.q.RenewConversationTurn(ctx, pgstore.RenewConversationTurnParams{
+		LeaseSeconds: leaseSeconds, ID: id, WorkspaceID: workspaceID, TurnToken: parsedToken,
+	})
+	if err != nil {
+		return err
+	}
+	if affected != 1 {
+		return ErrTurnLost
+	}
+	return nil
+}
+
 // CommitTurn appends messages and clears the lease in one transaction.
-func (s *PostgresStore) CommitTurn(ctx context.Context, workspaceID, conversationID, token string, messages []*domain.Message, status string) error {
+func (s *PostgresStore) CommitTurn(ctx context.Context, workspaceID, conversationID, token string, messages []*domain.Message, status string, userPromptSnapshot []byte) error {
 	parsedToken, err := uuid.Parse(token)
 	if err != nil {
 		return fmt.Errorf("parse turn token: %w", err)
@@ -187,6 +242,21 @@ func (s *PostgresStore) CommitTurn(ctx context.Context, workspaceID, conversatio
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	q := s.q.WithTx(tx)
+	if len(userPromptSnapshot) != 0 {
+		var snapshot domain.UserPromptSnapshot
+		if err := json.Unmarshal(userPromptSnapshot, &snapshot); err != nil {
+			return fmt.Errorf("decode conversation prompt snapshot: %w", err)
+		}
+		if snapshot.VersionID != "" {
+			id, err := uuid.Parse(snapshot.VersionID)
+			if err != nil {
+				return fmt.Errorf("parse conversation prompt version: %w", err)
+			}
+			if err := prompt.LockVersionForReference(ctx, q, workspaceID, id); err != nil {
+				return fmt.Errorf("lock conversation prompt version: %w", err)
+			}
+		}
+	}
 	base := time.Now().UTC()
 	for i, message := range messages {
 		mid, err := uuid.Parse(message.ID)
@@ -239,6 +309,7 @@ func (s *PostgresStore) CommitTurn(ctx context.Context, workspaceID, conversatio
 	}
 	affected, err := q.FinishConversationTurn(ctx, pgstore.FinishConversationTurnParams{
 		Status: orStatus(status), ID: cid, WorkspaceID: workspaceID, TurnToken: parsedToken,
+		UserPromptSnapshot: userPromptSnapshot, RequireActiveLease: true,
 	})
 	if err != nil {
 		return fmt.Errorf("finish conversation turn: %w", err)

@@ -12,6 +12,62 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const archiveUnusedPromptDraft = `-- name: ArchiveUnusedPromptDraft :execrows
+UPDATE prompt_versions AS v
+SET is_archived = true
+WHERE v.prompt_id = $1::uuid
+  AND v.id = $2::uuid
+  AND v.version > 1
+  AND NOT v.is_archived
+  AND NOT EXISTS (
+      SELECT 1 FROM prompt_envs AS e
+      WHERE e.prompt_id = v.prompt_id AND e.version_id = v.id
+  )
+  AND NOT EXISTS (
+      SELECT 1 FROM prompt_env_events AS e
+      WHERE e.prompt_id = v.prompt_id AND v.id IN (e.from_version_id, e.to_version_id)
+  )
+  AND NOT EXISTS (
+      SELECT 1 FROM prompt_experiments AS e
+      WHERE e.prompt_id = v.prompt_id AND (
+          v.id IN (e.baseline_version_id, e.candidate_version_id)
+          OR EXISTS (
+              SELECT 1 FROM jsonb_array_elements(e.variants) AS variant
+              WHERE regexp_replace(lower(variant->>'version_id'), '(^urn:uuid:|[{}-])', '', 'g') = replace(v.id::text, '-', '')
+          )
+      )
+  )
+  AND NOT EXISTS (
+      SELECT 1 FROM agent_versions AS av
+      JOIN agents AS a ON a.id = av.agent_id
+      WHERE a.workspace_id = $3::text AND replace(v.id::text, '-', '') IN (
+          regexp_replace(lower(av.snapshot_json::jsonb->>'system_prompt_version_id'), '(^urn:uuid:|[{}-])', '', 'g'),
+          regexp_replace(lower(av.snapshot_json::jsonb->>'user_prompt_version_id'), '(^urn:uuid:|[{}-])', '', 'g')
+      )
+  )
+  AND NOT EXISTS (
+      SELECT 1 FROM conversations AS c
+      WHERE c.workspace_id = $3::text AND replace(v.id::text, '-', '') IN (
+          regexp_replace(lower(c.runtime_config_json->>'system_prompt_version_id'), '(^urn:uuid:|[{}-])', '', 'g'),
+          regexp_replace(lower(c.runtime_config_json->>'user_prompt_version_id'), '(^urn:uuid:|[{}-])', '', 'g')
+      )
+  )
+`
+
+type ArchiveUnusedPromptDraftParams struct {
+	PromptID    uuid.UUID
+	VersionID   uuid.UUID
+	WorkspaceID string
+}
+
+func (q *Queries) ArchiveUnusedPromptDraft(ctx context.Context, arg ArchiveUnusedPromptDraftParams) (int64, error) {
+	result, err := q.db.Exec(ctx, archiveUnusedPromptDraft, arg.PromptID, arg.VersionID, arg.WorkspaceID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const createPrompt = `-- name: CreatePrompt :one
 INSERT INTO prompts (id, workspace_id, name, category, created_by)
 VALUES ($1, $2, $3, $4, $5)
@@ -53,7 +109,7 @@ INSERT INTO prompt_versions (
     model_profile_version_id, generation_config, hash, token_estimate, created_by
 )
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-RETURNING id, prompt_id, version, template, variables_schema, model_profile_version_id, generation_config, hash, token_estimate, created_by, created_at
+RETURNING id, prompt_id, version, template, variables_schema, model_profile_version_id, generation_config, hash, token_estimate, created_by, created_at, is_archived
 `
 
 type CreatePromptVersionParams struct {
@@ -95,6 +151,7 @@ func (q *Queries) CreatePromptVersion(ctx context.Context, arg CreatePromptVersi
 		&i.TokenEstimate,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.IsArchived,
 	)
 	return i, err
 }
@@ -154,7 +211,7 @@ func (q *Queries) GetPromptEnv(ctx context.Context, arg GetPromptEnvParams) (Pro
 }
 
 const getPromptVersion = `-- name: GetPromptVersion :one
-SELECT v.id, v.prompt_id, v.version, v.template, v.variables_schema, v.model_profile_version_id, v.generation_config, v.hash, v.token_estimate, v.created_by, v.created_at
+SELECT v.id, v.prompt_id, v.version, v.template, v.variables_schema, v.model_profile_version_id, v.generation_config, v.hash, v.token_estimate, v.created_by, v.created_at, v.is_archived
 FROM prompt_versions AS v
 JOIN prompts AS p ON p.id = v.prompt_id
 WHERE v.id = $1::uuid
@@ -181,17 +238,19 @@ func (q *Queries) GetPromptVersion(ctx context.Context, arg GetPromptVersionPara
 		&i.TokenEstimate,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.IsArchived,
 	)
 	return i, err
 }
 
 const getPromptVersionByNumber = `-- name: GetPromptVersionByNumber :one
-SELECT v.id, v.prompt_id, v.version, v.template, v.variables_schema, v.model_profile_version_id, v.generation_config, v.hash, v.token_estimate, v.created_by, v.created_at
+SELECT v.id, v.prompt_id, v.version, v.template, v.variables_schema, v.model_profile_version_id, v.generation_config, v.hash, v.token_estimate, v.created_by, v.created_at, v.is_archived
 FROM prompt_versions AS v
 JOIN prompts AS p ON p.id = v.prompt_id
 WHERE p.id = $1::uuid
   AND p.workspace_id = $2::text
   AND v.version = $3::int
+  AND NOT v.is_archived
 `
 
 type GetPromptVersionByNumberParams struct {
@@ -215,6 +274,7 @@ func (q *Queries) GetPromptVersionByNumber(ctx context.Context, arg GetPromptVer
 		&i.TokenEstimate,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.IsArchived,
 	)
 	return i, err
 }
@@ -259,11 +319,12 @@ func (q *Queries) ListPromptEnvs(ctx context.Context, arg ListPromptEnvsParams) 
 }
 
 const listPromptVersions = `-- name: ListPromptVersions :many
-SELECT v.id, v.prompt_id, v.version, v.template, v.variables_schema, v.model_profile_version_id, v.generation_config, v.hash, v.token_estimate, v.created_by, v.created_at
+SELECT v.id, v.prompt_id, v.version, v.template, v.variables_schema, v.model_profile_version_id, v.generation_config, v.hash, v.token_estimate, v.created_by, v.created_at, v.is_archived
 FROM prompt_versions AS v
 JOIN prompts AS p ON p.id = v.prompt_id
 WHERE p.id = $1::uuid
   AND p.workspace_id = $2::text
+  AND NOT v.is_archived
 ORDER BY v.version
 `
 
@@ -293,6 +354,7 @@ func (q *Queries) ListPromptVersions(ctx context.Context, arg ListPromptVersions
 			&i.TokenEstimate,
 			&i.CreatedBy,
 			&i.CreatedAt,
+			&i.IsArchived,
 		); err != nil {
 			return nil, err
 		}
@@ -339,6 +401,28 @@ func (q *Queries) ListPrompts(ctx context.Context, workspaceID string) ([]Prompt
 	return items, nil
 }
 
+const lockLivePromptVersion = `-- name: LockLivePromptVersion :one
+SELECT v.id
+FROM prompt_versions AS v
+JOIN prompts AS p ON p.id = v.prompt_id
+WHERE v.id = $1::uuid
+  AND p.workspace_id = $2::text
+  AND NOT v.is_archived
+FOR SHARE OF v
+`
+
+type LockLivePromptVersionParams struct {
+	VersionID   uuid.UUID
+	WorkspaceID string
+}
+
+func (q *Queries) LockLivePromptVersion(ctx context.Context, arg LockLivePromptVersionParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, lockLivePromptVersion, arg.VersionID, arg.WorkspaceID)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const lockPrompt = `-- name: LockPrompt :one
 SELECT id
 FROM prompts
@@ -357,6 +441,26 @@ func (q *Queries) LockPrompt(ctx context.Context, arg LockPromptParams) (uuid.UU
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+const lockPromptVersionForArchive = `-- name: LockPromptVersionForArchive :one
+SELECT v.is_archived
+FROM prompt_versions AS v
+WHERE v.prompt_id = $1::uuid
+  AND v.id = $2::uuid
+FOR UPDATE OF v
+`
+
+type LockPromptVersionForArchiveParams struct {
+	PromptID  uuid.UUID
+	VersionID uuid.UUID
+}
+
+func (q *Queries) LockPromptVersionForArchive(ctx context.Context, arg LockPromptVersionForArchiveParams) (bool, error) {
+	row := q.db.QueryRow(ctx, lockPromptVersionForArchive, arg.PromptID, arg.VersionID)
+	var is_archived bool
+	err := row.Scan(&is_archived)
+	return is_archived, err
 }
 
 const nextPromptVersion = `-- name: NextPromptVersion :one

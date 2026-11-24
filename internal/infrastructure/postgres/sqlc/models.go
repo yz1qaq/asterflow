@@ -192,6 +192,7 @@ type PromptVersion struct {
 	TokenEstimate         int32
 	CreatedBy             string
 	CreatedAt             time.Time
+	IsArchived            bool
 }
 
 type Provider struct {

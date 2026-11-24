@@ -105,3 +105,75 @@ func TestPromptCreateAndRenderService(t *testing.T) {
 		}
 	}
 }
+
+type promptSelectionStore struct {
+	Store
+	experiment *domain.PromptExperiment
+}
+
+func (s promptSelectionStore) GetActiveExperiment(context.Context, string, string, string) (*domain.PromptExperiment, error) {
+	return s.experiment, nil
+}
+
+func (s promptSelectionStore) GetEnvBinding(context.Context, string, string, string) (*EnvBinding, error) {
+	return &EnvBinding{VersionID: "baseline"}, nil
+}
+
+func TestResolveSelectionKeepsRolloutSource(t *testing.T) {
+	promptID := uuid.NewString()
+	for _, tt := range []struct {
+		name string
+		exp  *domain.PromptExperiment
+		want domain.PromptSelection
+	}{
+		{name: "plain environment", want: domain.PromptSelection{VersionID: "baseline"}},
+		{
+			name: "multi variant traffic outside the candidates",
+			exp: &domain.PromptExperiment{
+				ID: "experiment",
+				Variants: []domain.ExperimentVariant{
+					{VersionID: "a", Traffic: 1}, {VersionID: "b", Traffic: 1},
+				},
+			},
+			want: domain.PromptSelection{VersionID: "baseline", ExperimentID: "experiment", ExperimentVariant: "baseline"},
+		},
+
+		{
+			name: "candidate",
+			exp: &domain.PromptExperiment{
+				ID: "rollout", CandidateVersionID: "candidate", TrafficPercent: 100,
+				Variants: []domain.ExperimentVariant{{VersionID: "candidate", Traffic: 100}},
+			},
+			want: domain.PromptSelection{VersionID: "candidate", ExperimentID: "rollout", ExperimentVariant: "candidate"},
+		},
+		{
+			name: "baseline",
+			exp: &domain.PromptExperiment{
+				ID: "rollout", CandidateVersionID: "candidate", TrafficPercent: 1,
+				Variants: []domain.ExperimentVariant{{VersionID: "candidate", Traffic: 1}},
+			},
+			want: domain.PromptSelection{VersionID: "baseline", ExperimentID: "rollout", ExperimentVariant: "baseline"},
+		},
+		{
+			name: "multiple variants",
+			exp: &domain.PromptExperiment{
+				ID: "experiment", Variants: []domain.ExperimentVariant{
+					{VersionID: "a", Traffic: 1}, {VersionID: "b", Traffic: 99},
+				},
+			},
+			want: domain.PromptSelection{VersionID: "b", ExperimentID: "experiment", ExperimentVariant: "variant"},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := NewService(promptSelectionStore{experiment: tt.exp}, nil)
+			ctx := context.Background()
+			got, err := svc.ResolveSelection(ctx, "space-a", promptID, "dev", "user-1")
+			if err != nil || got != tt.want {
+				t.Fatalf("selection = %+v, %v, want %+v", got, err, tt.want)
+			}
+			if versionID, err := svc.ResolveVersion(ctx, "space-a", promptID, "dev", "user-1"); err != nil || versionID != got.VersionID {
+				t.Fatalf("version resolver = %q, %v", versionID, err)
+			}
+		})
+	}
+}

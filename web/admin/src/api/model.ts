@@ -58,6 +58,21 @@ export async function rotateModelAccountAPIKey(workspaceID: string, accountID: s
   if (response.status !== 204) throw new Error('密钥更新结果未确认，请刷新列表核对更新时间')
 }
 
+export async function testModelAccount(workspaceID: string, accountID: string, modelName: string, signal?: AbortSignal) {
+  const { data } = await api.post<{ model: string; latency_ms: number }>(
+    `/model-accounts/${encodeURIComponent(accountID)}/test`, { model_name: modelName },
+    { headers: { 'X-Workspace-ID': workspaceID }, signal },
+  )
+  if (data?.model !== modelName || !Number.isInteger(data.latency_ms) || data.latency_ms < 0) {
+    throw new Error('调用结果未确认，请稍后重试')
+  }
+  return data
+}
+
+export async function deleteModelAccount(workspaceID: string, accountID: string, signal?: AbortSignal) {
+  await api.delete(`/model-accounts/${encodeURIComponent(accountID)}`, { headers: { 'X-Workspace-ID': workspaceID }, signal })
+}
+
 export function canManageModelAccounts(role: string) {
   return ['owner', 'admin', 'editor'].includes(role)
 }
@@ -67,6 +82,22 @@ export function getModelAccountError(error: unknown, writing = false) {
     if (error.response?.status === 401) return '登录已失效，请重新登录'
     if (error.response?.status === 403) return '当前空间权限不足，请重新确认空间权限'
     if (error.response?.status === 404) return '账户不存在或不属于当前空间，请刷新列表'
+    switch (error.response?.data?.code) {
+      case 'provider_in_use': return '此账户仍有模型部署引用，无法删除。'
+      case 'provider_not_ready': return '此账户未启用，或保存的密钥无法使用。'
+      case 'provider_auth': return '供应商拒绝认证，请检查 API Key 和模型访问权限。'
+      case 'provider_balance': return '供应商账户余额不足。'
+      case 'provider_endpoint_or_model': return '供应商找不到接口或模型，请核对 Base URL 和模型名。'
+      case 'provider_rate_limited': return '供应商限流，请稍后重试。'
+      case 'provider_timeout': return '供应商未在 20 秒内返回。'
+      case 'provider_network': return '无法连接供应商，请检查 Base URL 和网络。'
+      case 'provider_response': {
+        const upstream = error.response?.data?.upstream_status
+        return typeof upstream === 'number' && upstream > 0
+          ? `供应商返回 HTTP ${upstream}，请检查服务状态和模型名。`
+          : '供应商未返回可用的模型回复。'
+      }
+    }
     if (error.response?.status === 409) return '当前空间已有同名账户，请修改名称'
     if (error.response?.status === 400) return '请检查必填项、HTTP(S)地址和 API Key 后重试'
     if (error.code === 'ECONNABORTED' || !error.response) {

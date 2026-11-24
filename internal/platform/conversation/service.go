@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/yz1qaq/asterflow/internal/domain"
@@ -20,29 +21,36 @@ type AgentVersionChecker interface {
 // PromptResolver pins prompt-id references to concrete versions at conversation
 // creation time. It applies the environment pointer and active experiment.
 type PromptResolver interface {
-	ResolveVersion(ctx context.Context, workspaceID, promptID, env, userID string) (string, error)
+	ResolveSelection(ctx context.Context, workspaceID, promptID, env, userID string) (domain.PromptSelection, error)
 }
 
 type Store interface {
 	CreateConversation(context.Context, *domain.Conversation) error
 	GetConversation(context.Context, string, string) (*domain.Conversation, error)
+	DeleteOwnedConversation(ctx context.Context, workspaceID, conversationID, userID string) error
 	ListConversations(context.Context, string, string, int32, int32) ([]*domain.Conversation, error)
 	ListMessages(context.Context, string, string) ([]*domain.Message, error)
 
 	ClaimTurn(ctx context.Context, workspaceID, conversationID string, leaseSeconds int32) (string, int64, error)
-	CommitTurn(ctx context.Context, workspaceID, conversationID, token string, messages []*domain.Message, status string) error
+	RenewTurn(ctx context.Context, workspaceID, conversationID, token string, leaseSeconds int32) error
+	CommitTurn(ctx context.Context, workspaceID, conversationID, token string, messages []*domain.Message, status string, userPromptSnapshot []byte) error
 	ReleaseTurn(ctx context.Context, workspaceID, conversationID, token, status string) error
 }
 
 type Service struct {
-	store           Store
-	agentsChecker   AgentVersionChecker
-	promptsResolver PromptResolver
-	engine          Runner
+	store             Store
+	agentsChecker     AgentVersionChecker
+	promptsResolver   PromptResolver
+	engine            Runner
+	turnLeaseSeconds  int32
+	turnRenewInterval time.Duration
 }
 
 func NewService(store Store, agents AgentVersionChecker, prompts PromptResolver, engine Runner) *Service {
-	return &Service{store: store, agentsChecker: agents, promptsResolver: prompts, engine: engine}
+	return &Service{
+		store: store, agentsChecker: agents, promptsResolver: prompts, engine: engine,
+		turnLeaseSeconds: defaultTurnLeaseSeconds, turnRenewInterval: defaultTurnRenewInterval,
+	}
 }
 
 type CreateConversationRequest struct {
@@ -110,11 +118,11 @@ func (s *Service) resolveRuntimeConfig(
 		if s.promptsResolver == nil {
 			return nil, fmt.Errorf("prompt resolver is not configured")
 		}
-		versionID, err := s.promptsResolver.ResolveVersion(ctx, workspaceID, snapshot.SystemPromptID, snapshot.PromptEnv, userID)
+		selection, err := s.promptsResolver.ResolveSelection(ctx, workspaceID, snapshot.SystemPromptID, snapshot.PromptEnv, userID)
 		if err != nil {
 			return nil, err
 		}
-		runtime.SystemPromptVersionID = versionID
+		runtime.SystemPromptVersionID = selection.VersionID
 	}
 
 	if snapshot.UserPromptVersionID != "" {
@@ -123,11 +131,13 @@ func (s *Service) resolveRuntimeConfig(
 		if s.promptsResolver == nil {
 			return nil, fmt.Errorf("prompt resolver is not configured")
 		}
-		versionID, err := s.promptsResolver.ResolveVersion(ctx, workspaceID, snapshot.UserPromptID, snapshot.PromptEnv, userID)
+		selection, err := s.promptsResolver.ResolveSelection(ctx, workspaceID, snapshot.UserPromptID, snapshot.PromptEnv, userID)
 		if err != nil {
 			return nil, err
 		}
-		runtime.UserPromptVersionID = versionID
+		runtime.UserPromptVersionID = selection.VersionID
+		runtime.UserPromptExperiment = selection.ExperimentID
+		runtime.UserPromptVariant = selection.ExperimentVariant
 	}
 	return runtime, nil
 }
@@ -152,6 +162,18 @@ func (s *Service) Get(ctx context.Context, workspaceID, conversationID, userID s
 		return nil, ErrConversationNotFound
 	}
 	return conversation, nil
+}
+
+func (s *Service) Delete(ctx context.Context, workspaceID, conversationID, userID string) error {
+	workspaceID = strings.TrimSpace(workspaceID)
+	if workspaceID == "" || userID == "" {
+		return fmt.Errorf("%w: workspace and user are required", ErrInvalidArgument)
+	}
+	id, err := uuid.Parse(strings.TrimSpace(conversationID))
+	if err != nil {
+		return fmt.Errorf("%w: conversation_id must be a UUID", ErrInvalidArgument)
+	}
+	return s.store.DeleteOwnedConversation(ctx, workspaceID, id.String(), userID)
 }
 
 func (s *Service) List(ctx context.Context, workspaceID, userID string, allowAll bool, limit, offset int32) ([]*domain.Conversation, error) {

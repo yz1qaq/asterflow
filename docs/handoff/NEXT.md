@@ -1,12 +1,10 @@
-# 下一批：G06 收尾（桌面验收 → PR）
+# 下一批 G07 工具闭环
 
-G06（ENG-014/015）代码、测试与真实模型端到端已完成：Gateway/failover/OpenAIClient、执行器与事件、会话创建固化版本、RunTurn 租约+提交、SSE 与聊天页；全量门禁通过，真实 DeepSeek 调用已授权并验证，见 [G06 验收](../delivery/G06-VERIFICATION.md)。
+G06 初版已由 PR #17 合并，[补充 PR #18](https://github.com/yz1qaq/asterflow/pull/18) 的审查修复已保存。先由负责人提交并推送修复，核对新 head 的 CI 与复审，通过后合并，再按 [路线图](../delivery/ROADMAP.md) 进入 G07。G06 证据见 [验收记录](../delivery/G06-VERIFICATION.md)。常规分工保持学员写生产 Go/SQL，助手维护 React、验证、文档和评审。
 
-1. **桌面浏览器验收（聊天流 UI）。** 用开发库（DeepSeek 已配置）走浏览器：登录 → 海外电商 workspace → 会话历史选会话 → 发消息 → 流式回复逐字显示 → 刷新回读 user/assistant 顺序正确。SQL 复核租约清空。
-2. **提交与 PR。** 学员执行 Git：提交、推送 `feat/ENG-014-015-chat-loop`、按模板创建 PR（范围、验证、边界：工具/审批/观测延后）。助手只读复审与 CI 核对。
-3. 合并后进入 G07：工具版本/Schema/凭据/REST 与 internal SDK、业务工具闭环。
-
-注意：`run_started` 的 `agent_version_id`/`turn_revision` 当前为空，属非阻塞完善项，可随 PR 一起或后续补；测试用显式 `ASTERFLOW_TEST_DATABASE_URL`/`ASTERFLOW_TEST_REDIS_URL` 与一次性容器。
+1. 核对固定 Final 的 Tool 注册、版本、绑定与策略，再按 G07 任务拆出首批生产代码与验收。
+2. 将已绑定工具接到现有 Eino ADK Runner，交付独立业务系统查询、工具事件与历史消息保存和回喂。
+3. **G07 起附交互学习网页。** 随第一个验收功能交付可运行的代码路径示例，再随工具闭环补齐业务调用、事件和持久化。验收要求见 [学习计划](LEARNING-PLAN.md#从-g07-起的交互学习网页)。
 
 ## Final 能力延后归属（防遗漏）
 
@@ -21,8 +19,8 @@ G06（ENG-014/015）代码、测试与真实模型端到端已完成：Gateway/f
 | model_call_logs / OTel | 未建 | G17 |
 | 额度预留 | 仅 ErrQuotaExceeded | G15 |
 | 审批/A2UI | 聊天仅完成/失败/取消 | G12 |
-| WebSocket | 先 SSE | G06 后按需 |
+| WebSocket | G06 事件流目前只有 SSE 接入 | G19 接入身份/Origin/断连，G20 核对协议一致性 |
 | mockllm / CLI / SDK / 部署 | 未做 | G20/G21/G22 |
-| prompt_usage_logs | 未建 | 真实使用记录组；不拿空表充数 |
+| prompt_usage_logs | 未建 | G16 审计事实与查询；G17 验证可观测性关联 |
 
 每组验收必须逐项标注“已实现”或“归到 Gxx”，G22 汇总核对。

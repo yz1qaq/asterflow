@@ -23,6 +23,8 @@ import (
 	"github.com/yz1qaq/asterflow/internal/runtime/promptcache"
 )
 
+//程序的总入口,初始化组件、连接数据库、启动http服务
+
 func main() {
 	if err := start(); err != nil {
 		log.Printf("asterflow server: %v", err)
@@ -41,13 +43,14 @@ func start() error {
 	)
 	defer stop()
 
+	//连接数据库
 	pool, err := postgres.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
 		return fmt.Errorf("open PostgreSQL: %w", err)
 	}
 	defer pool.Close()
-
 	store := iam.NewPostgresStore(pool)
+
 	iamService := iam.NewService(store, []byte(cfg.JWTSecretKey))
 
 	credentialCipher, err := modelconfig.NewCipher(

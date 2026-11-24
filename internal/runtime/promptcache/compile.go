@@ -8,17 +8,21 @@ import (
 	"strings"
 	"text/template"
 	"unicode"
+
+	einoprompt "github.com/cloudwego/eino/components/prompt"
+	"github.com/cloudwego/eino/schema"
 )
 
 type Compiled struct {
 	VersionID    string
 	EstTokens    int
 	requiredVars []string
-	tmpl         *template.Template
+	tmpl         einoprompt.ChatTemplate
 }
 
+// Compile checks the template syntax and prepares the Eino template used at runtime.
 func Compile(versionID, raw, variablesSchemaJSON string) (*Compiled, error) {
-	tmpl, err := template.New("prompt").
+	_, err := template.New("prompt").
 		Option("missingkey=error").
 		Parse(raw)
 	if err != nil {
@@ -34,11 +38,11 @@ func Compile(versionID, raw, variablesSchemaJSON string) (*Compiled, error) {
 		VersionID:    versionID,
 		EstTokens:    EstimateTokens(raw),
 		requiredVars: required,
-		tmpl:         tmpl,
+		tmpl:         einoprompt.FromMessages(schema.GoTemplate, schema.UserMessage(raw)),
 	}, nil
 }
 
-//拿到必须字段的切片
+// 拿到必须字段的切片
 func parseRequired(schemaJSON string) ([]string, error) {
 	if strings.TrimSpace(schemaJSON) == "" {
 		return nil, nil
@@ -85,17 +89,20 @@ func (c *Compiled) Render(ctx context.Context, vars map[string]any) (string, err
 		}
 	}
 
-	var out strings.Builder
-	if err := c.tmpl.Execute(&out, vars); err != nil {
+	messages, err := c.tmpl.Format(ctx, vars)
+	if err != nil {
 		return "", fmt.Errorf("render prompt: %w", err)
 	}
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
-	return out.String(), nil
+	if len(messages) != 1 {
+		return "", fmt.Errorf("render prompt: expected one message, got %d", len(messages))
+	}
+	return messages[0].Content, nil
 }
 
-//估算token
+// 估算token
 func EstimateTokens(s string) int {
 	var cjk, other int
 	for _, r := range s {

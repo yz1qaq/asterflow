@@ -17,6 +17,13 @@ WHERE c.workspace_id = sqlc.arg(workspace_id)::text
 ORDER BY c.started_at DESC, c.id DESC
 LIMIT sqlc.arg(row_limit) OFFSET sqlc.arg(row_offset);
 
+-- name: DeleteOwnedConversation :execrows
+DELETE FROM conversations
+WHERE id = sqlc.arg(id)::uuid
+  AND workspace_id = sqlc.arg(workspace_id)::text
+  AND user_id = sqlc.arg(user_id)::text
+  AND (turn_lease_until IS NULL OR turn_lease_until <= clock_timestamp());
+
 -- name: ListConversationMessages :many
 SELECT m.*
 FROM messages AS m
@@ -53,14 +60,19 @@ SET turn_lease_until = now() + sqlc.arg(lease_seconds)::int * interval '1 second
     updated_at = now()
 WHERE id = sqlc.arg(id)::uuid
   AND workspace_id = sqlc.arg(workspace_id)::text
-  AND turn_token = sqlc.arg(turn_token)::uuid;
+  AND turn_token = sqlc.arg(turn_token)::uuid
+  AND turn_lease_until > clock_timestamp();
 
 -- name: FinishConversationTurn :execrows
 UPDATE conversations
 SET status = sqlc.arg(status)::text,
     turn_token = NULL,
     turn_lease_until = NULL,
+    runtime_config_json = runtime_config_json
+    || COALESCE(sqlc.narg(user_prompt_snapshot)::jsonb, '{}'::jsonb),
     updated_at = now()
+
 WHERE id = sqlc.arg(id)::uuid
   AND workspace_id = sqlc.arg(workspace_id)::text
-  AND turn_token = sqlc.arg(turn_token)::uuid;
+  AND turn_token = sqlc.arg(turn_token)::uuid
+  AND (NOT sqlc.arg(require_active_lease)::boolean OR turn_lease_until > clock_timestamp());

@@ -203,6 +203,28 @@ func (q *Queries) CreateProviderAccount(ctx context.Context, arg CreateProviderA
 	return i, err
 }
 
+const deleteUnusedProviderAccount = `-- name: DeleteUnusedProviderAccount :execrows
+DELETE FROM providers AS p
+WHERE p.id = $1::uuid
+  AND p.workspace_id = $2::text
+  AND NOT EXISTS (
+      SELECT 1 FROM model_deployments AS d WHERE d.provider_account_id = p.id
+  )
+`
+
+type DeleteUnusedProviderAccountParams struct {
+	ID          uuid.UUID
+	WorkspaceID string
+}
+
+func (q *Queries) DeleteUnusedProviderAccount(ctx context.Context, arg DeleteUnusedProviderAccountParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteUnusedProviderAccount, arg.ID, arg.WorkspaceID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getDeployment = `-- name: GetDeployment :one
 SELECT id, workspace_id, provider_account_id, name, model_name, region, timeout_ms, max_retries, input_price_per_million, output_price_per_million, cached_input_price_per_million, status, created_by, created_at, updated_at
 FROM model_deployments
@@ -561,6 +583,25 @@ func (q *Queries) LockModelProfile(ctx context.Context, id uuid.UUID) (ModelProf
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const lockProviderAccount = `-- name: LockProviderAccount :one
+SELECT id
+FROM providers
+WHERE id = $1::uuid AND workspace_id = $2::text
+FOR UPDATE
+`
+
+type LockProviderAccountParams struct {
+	ID          uuid.UUID
+	WorkspaceID string
+}
+
+func (q *Queries) LockProviderAccount(ctx context.Context, arg LockProviderAccountParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, lockProviderAccount, arg.ID, arg.WorkspaceID)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const nextModelProfileVersion = `-- name: NextModelProfileVersion :one

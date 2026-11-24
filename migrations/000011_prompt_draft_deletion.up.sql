@@ -1,0 +1,1 @@
+ALTER TABLE prompt_versions ADD COLUMN is_archived BOOLEAN NOT NULL DEFAULT FALSE;

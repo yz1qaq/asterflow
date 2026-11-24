@@ -170,4 +170,59 @@ func TestConversationHTTP(t *testing.T) {
 	call("GET", base+"/"+created.ID, "", ownerToken, a, http.StatusOK)
 	call("GET", base+"/"+created.ID, "", ownerToken, b, http.StatusNotFound)
 	call("GET", base+"/invalid", "", memberToken, a, http.StatusBadRequest)
+
+	path := base + "/" + created.ID
+	call("DELETE", path, "", "", a, http.StatusUnauthorized)
+	call("DELETE", path, "", viewerToken, a, http.StatusForbidden)
+	call("DELETE", path, "", otherToken, a, http.StatusNotFound)
+	call("DELETE", path, "", ownerToken, a, http.StatusNotFound)
+	call("DELETE", path, "", ownerToken, b, http.StatusNotFound)
+	call("DELETE", base+"/invalid", "", memberToken, a, http.StatusBadRequest)
+
+	store := conversation.NewPostgresStore(pool)
+	token, _, err := store.ClaimTurn(ctx, a, created.ID, 60)
+	if err != nil {
+		t.Fatal(err)
+	}
+	messageID, callID := uuid.NewString(), uuid.NewString()
+	err = store.CommitTurn(ctx, a, created.ID, token, []*domain.Message{{
+		ID: messageID, ConversationID: created.ID, Role: "assistant",
+		ToolCalls: []domain.ToolCall{{ID: callID, Args: "{}"}},
+	}}, "active", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := store.ClaimTurn(ctx, a, created.ID, 60); err != nil {
+		t.Fatal(err)
+	}
+	call("DELETE", path, "", memberToken, a, http.StatusConflict)
+	call("GET", path, "", memberToken, a, http.StatusOK)
+
+	// A worker can disappear without clearing its lease. An expired lease
+	// should not block cleanup of the conversation.
+	_, err = pool.Exec(ctx,
+		"UPDATE conversations SET turn_lease_until = clock_timestamp() - interval '1 second' WHERE id = $1",
+		created.ID,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := call("DELETE", path, "", memberToken, a, http.StatusNoContent); len(got) != 0 {
+		t.Fatalf("204 response has a body: %s", got)
+	}
+	call("DELETE", path, "", memberToken, a, http.StatusNotFound)
+	call("GET", path, "", ownerToken, a, http.StatusNotFound)
+	if rows := listOf(memberToken, http.StatusOK); len(rows) != 0 {
+		t.Fatalf("deleted conversation is still listed: %+v", rows)
+	}
+	var messages, toolCalls int
+	if err := pool.QueryRow(ctx, `
+		SELECT (SELECT count(*) FROM messages WHERE id = $1), (SELECT count(*) FROM tool_calls WHERE id = $2)
+	`, messageID, callID).Scan(&messages, &toolCalls); err != nil {
+		t.Fatal(err)
+	}
+	if messages != 0 || toolCalls != 0 {
+		t.Fatalf("delete left related records: %d messages, %d tool calls", messages, toolCalls)
+	}
+
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"hash/crc32"
 	"io"
 	"net/http"
@@ -15,6 +16,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/yz1qaq/asterflow/internal/domain"
+	"github.com/yz1qaq/asterflow/internal/platform/agent"
+	"github.com/yz1qaq/asterflow/internal/platform/conversation"
 	"github.com/yz1qaq/asterflow/internal/platform/iam"
 	"github.com/yz1qaq/asterflow/internal/platform/modelconfig"
 	"github.com/yz1qaq/asterflow/internal/platform/prompt"
@@ -27,6 +30,7 @@ func TestPromptHTTP(t *testing.T) {
 		"000003_model_accounts_deployments.up.sql", "000004_model_profiles.up.sql",
 		"000005_project_model_bindings.up.sql", "000006_prompt_versions.up.sql",
 		"000007_prompt_experiments.up.sql", "000008_prompt_env_events.up.sql",
+		"000009_agents.up.sql", "000010_conversations.up.sql", "000011_prompt_draft_deletion.up.sql",
 	} {
 		script, err := os.ReadFile("../../migrations/" + migration)
 		if err != nil {
@@ -515,4 +519,85 @@ func TestPromptHTTP(t *testing.T) {
 	if got := devVersion(); got != v2.ID {
 		t.Fatalf("stopping an experiment must not move the pointer, dev=%s", got)
 	}
+
+	call("DELETE", path+"/versions/"+created.Version.ID, ownToken, a, "", 409)
+	call("DELETE", path+"/versions/"+v2.ID, ownToken, a, "", 409)
+	var draft prompt.PromptVersion
+	if err := json.Unmarshal(call("POST", path+"/versions", ownToken, a, versionBody, 201), &draft); err != nil {
+		t.Fatal(err)
+	}
+	draftPath := path + "/versions/" + draft.ID
+	call("DELETE", draftPath, viewerToken, a, "", 403)
+	call("DELETE", draftPath, ownToken, b, "", 404)
+	call("DELETE", draftPath, ownToken, a, "", 204)
+	call("DELETE", draftPath, ownToken, a, "", 404)
+	if versions := call("GET", path+"/versions", ownToken, a, "", 200); strings.Contains(string(versions), draft.ID) {
+		t.Fatalf("archived draft remains in active version list: %s", versions)
+	}
+	call("POST", path+"/promote", ownToken, a, marshal(map[string]string{"env": "prod", "version_id": draft.ID}), 404)
+	call("POST", path+"/render", ownToken, a, render(draft.ID, "ORD-1001"), 404)
+
+	// A caller that read the draft before archival must recheck it in its write transaction.
+	agentStore := agent.NewPostgresStore(pool)
+	aRef := &domain.Agent{ID: uuid.NewString(), WorkspaceID: a, Name: "Late reference"}
+	versionRef := &domain.AgentVersion{ID: uuid.NewString(), SnapshotJSON: marshal(domain.AgentSnapshot{
+		SystemPromptVersionID: draft.ID,
+	})}
+	if err := agentStore.CreateAgentWithInitialVersion(ctx, aRef, versionRef); !errors.Is(err, prompt.ErrPromptVersionNotFound) {
+		t.Fatalf("agent persisted an archived draft reference: %v", err)
+	}
+	versionRef.SnapshotJSON = "{}"
+	if err := agentStore.CreateAgentWithInitialVersion(ctx, aRef, versionRef); err != nil {
+		t.Fatal(err)
+	}
+	conversationStore := conversation.NewPostgresStore(pool)
+	conv := &domain.Conversation{ID: uuid.NewString(), WorkspaceID: a, AgentID: aRef.ID, AgentVersionID: versionRef.ID, UserID: owner.ID}
+	if err := conversationStore.CreateConversation(ctx, conv); err != nil {
+		t.Fatal(err)
+	}
+	turn, _, err := conversationStore.ClaimTurn(ctx, a, conv.ID, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = conversationStore.CommitTurn(ctx, a, conv.ID, turn, []*domain.Message{{
+		ID: uuid.NewString(), ConversationID: conv.ID, Role: "user", Content: "rendered draft",
+	}}, "active", []byte(marshal(domain.UserPromptSnapshot{VersionID: draft.ID, Rendered: "rendered draft"})))
+	if !errors.Is(err, prompt.ErrPromptVersionNotFound) {
+		t.Fatalf("chat persisted an archived draft reference: %v", err)
+	}
+	if rows, err := conversationStore.ListMessages(ctx, a, conv.ID); err != nil || len(rows) != 0 {
+		t.Fatalf("chat with archived draft persisted messages: %v %v", rows, err)
+	}
+
+	var after prompt.PromptVersion
+	if err := json.Unmarshal(call("POST", path+"/versions", ownToken, a, versionBody, 201), &after); err != nil || after.Version != draft.Version+1 {
+		t.Fatalf("archived version number must not be reused: %+v %v", after, err)
+	}
+
+	draftVersion := func() prompt.PromptVersion {
+		t.Helper()
+		var result prompt.PromptVersion
+		if err := json.Unmarshal(call("POST", path+"/versions", ownToken, a, versionBody, 201), &result); err != nil {
+			t.Fatal(err)
+		}
+		return result
+	}
+	pinned := draftVersion()
+	agentService := agent.NewService(agent.NewPostgresStore(pool), prompts, models)
+	_, _, err = agentService.CreateAgent(ctx, agent.CreateAgentRequest{
+		WorkspaceID: a, Name: "Pinned draft", CreatedBy: owner.ID,
+		VersionInput: agent.VersionInput{SystemPromptVersionID: strings.ToUpper(pinned.ID)},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	call("DELETE", path+"/versions/"+pinned.ID, ownToken, a, "", 409)
+
+	variant := draftVersion()
+	call("POST", path+"/experiments", ownToken, a, marshal(map[string]any{
+		"env": "dev", "variants": []map[string]any{{"version_id": strings.ToUpper(variant.ID), "traffic": 20}},
+	}), 201)
+	call("POST", path+"/rollouts/rollback", ownToken, a, `{"env":"dev"}`, 200)
+	call("DELETE", path+"/versions/"+variant.ID, ownToken, a, "", 409)
+
 }

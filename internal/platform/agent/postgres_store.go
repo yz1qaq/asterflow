@@ -12,12 +12,14 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/yz1qaq/asterflow/internal/domain"
 	pgstore "github.com/yz1qaq/asterflow/internal/infrastructure/postgres/sqlc"
+	"github.com/yz1qaq/asterflow/internal/platform/prompt"
 )
 
 var (
-	ErrAgentNotFound        = errors.New("agent not found")
-	ErrAgentVersionNotFound = errors.New("agent version not found")
-	ErrAgentEnvNotBound     = errors.New("agent environment is not bound")
+	ErrAgentNotFound         = errors.New("agent not found")
+	ErrAgentVersionNotFound  = errors.New("agent version not found")
+	ErrAgentEnvNotBound      = errors.New("agent environment is not bound")
+	ErrAgentConversationBusy = errors.New("agent has a running conversation")
 )
 
 type PostgresStore struct {
@@ -65,6 +67,27 @@ func validateSnapshot(snapshot string) error {
 	return nil
 }
 
+func lockSnapshotPromptVersions(ctx context.Context, q *pgstore.Queries, workspaceID, snapshotJSON string) error {
+	var refs struct {
+		System string `json:"system_prompt_version_id"`
+		User   string `json:"user_prompt_version_id"`
+	}
+	if err := json.Unmarshal([]byte(snapshotJSON), &refs); err != nil {
+		return fmt.Errorf("read snapshot prompt references: %w", err)
+	}
+	for _, ref := range []string{refs.System, refs.User} {
+		id, err := uuid.Parse(strings.TrimSpace(ref))
+		if err != nil {
+			// Service-level validation handles identifiers. The store also reads legacy snapshots.
+			continue
+		}
+		if err := prompt.LockVersionForReference(ctx, q, workspaceID, id); err != nil {
+			return fmt.Errorf("lock referenced prompt version: %w", err)
+		}
+	}
+	return nil
+}
+
 func orGeneral(template string) string {
 	if strings.TrimSpace(template) == "" {
 		return "general"
@@ -102,6 +125,9 @@ func (s *PostgresStore) CreateAgentWithInitialVersion(
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	q := s.q.WithTx(tx)
+	if err := lockSnapshotPromptVersions(ctx, q, workspaceID, v.SnapshotJSON); err != nil {
+		return err
+	}
 
 	agentRow, err := q.CreateAgent(ctx, pgstore.CreateAgentParams{
 		ID:          agentID,
@@ -172,6 +198,9 @@ func (s *PostgresStore) AppendAgentVersion(
 		}
 		return fmt.Errorf("lock agent: %w", err)
 	}
+	if err := lockSnapshotPromptVersions(ctx, q, workspaceID, v.SnapshotJSON); err != nil {
+		return err
+	}
 	next, err := q.NextAgentVersion(ctx, agentID)
 	if err != nil {
 		return fmt.Errorf("next agent version: %w", err)
@@ -191,6 +220,49 @@ func (s *PostgresStore) AppendAgentVersion(
 	}
 	*v = *agentVersionFromRow(row)
 	return nil
+}
+
+func (s *PostgresStore) DeleteAgent(ctx context.Context, workspaceID, agentID string) error {
+	id, err := uuid.Parse(agentID)
+	if err != nil {
+		return fmt.Errorf("parse agent id: %w", err)
+	}
+	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
+	if err != nil {
+		return fmt.Errorf("begin agent deletion: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	q := s.q.WithTx(tx)
+
+	// Lock the Agent first so a conversation insert cannot acquire the FK's key-share lock.
+	if _, err := q.LockAgent(ctx, pgstore.LockAgentParams{ID: id, WorkspaceID: workspaceID}); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrAgentNotFound
+		}
+		return fmt.Errorf("lock agent for deletion: %w", err)
+	}
+	// Hold every conversation lock through commit to exclude new turn claims.
+	busy, err := q.LockAgentConversationLeases(ctx, pgstore.LockAgentConversationLeasesParams{
+		AgentID: id, WorkspaceID: workspaceID,
+	})
+	if err != nil {
+		return fmt.Errorf("lock agent conversations: %w", err)
+	}
+	if busy {
+		return ErrAgentConversationBusy
+	}
+	if err := q.DeleteAgentConversations(ctx, pgstore.DeleteAgentConversationsParams{
+		AgentID: id, WorkspaceID: workspaceID,
+	}); err != nil {
+		return fmt.Errorf("delete agent conversations: %w", err)
+	}
+	if err := q.DeleteAgentEnvs(ctx, id); err != nil {
+		return fmt.Errorf("delete agent environments: %w", err)
+	}
+	if err := q.DeleteAgent(ctx, pgstore.DeleteAgentParams{ID: id, WorkspaceID: workspaceID}); err != nil {
+		return fmt.Errorf("delete agent: %w", err)
+	}
+	return tx.Commit(ctx)
 }
 
 func (s *PostgresStore) GetAgent(

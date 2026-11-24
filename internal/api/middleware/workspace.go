@@ -67,7 +67,7 @@ func Workspace(service *iam.Service) gin.HandlerFunc {
 		if !workspaceMethodAllowed(
 			role,
 			c.Request.Method,
-			c.Request.URL.Path,
+			c.FullPath(),
 		) {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
 				"error": "workspace role does not allow this action",
@@ -112,6 +112,10 @@ func workspaceMethodAllowed(role, method, path string) bool {
 
 	if role == iam.WorkspaceRoleViewer {
 		return false
+	}
+
+	if method == http.MethodDelete && path == "/api/v1/conversations/:conversation_id" {
+		return true
 	}
 
 	return strings.HasSuffix(path, "/chat") ||

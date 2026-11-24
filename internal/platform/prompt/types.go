@@ -17,6 +17,7 @@ type Prompt struct {
 }
 
 type PromptVersion struct {
+	Archived              bool                    `json:"-"`
 	ID                    string                  `json:"id"`
 	PromptID              string                  `json:"prompt_id"`
 	Version               int                     `json:"version"`

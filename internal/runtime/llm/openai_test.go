@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -147,3 +148,23 @@ func TestOpenAIStreamCancellation(t *testing.T) {
 }
 
 func intPtr(value int) *int { return &value }
+
+func TestOpenAIStreamRejectsPrematureClose(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = w.Write([]byte(`data: {"choices":[{"delta":{"content":"partial"}}]}` + "\n\n"))
+	}))
+	defer server.Close()
+	ctx := context.Background()
+	stream, err := NewOpenAIClient().Stream(ctx, ResolvedDeployment{BaseURL: server.URL, Model: "fixture"}, GenerateRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stream.Close()
+	if chunk, err := stream.Recv(ctx); err != nil || chunk.Content != "partial" {
+		t.Fatalf("first chunk = %+v, %v", chunk, err)
+	}
+	if chunk, err := stream.Recv(ctx); chunk != nil || !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatalf("premature close = %+v, %v", chunk, err)
+	}
+}

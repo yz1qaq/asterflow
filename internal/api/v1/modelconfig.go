@@ -39,6 +39,10 @@ func writeModelConfigError(c *gin.Context, err error) {
 		c.JSON(http.StatusNotFound, gin.H{
 			"error": "model configuration not found",
 		})
+	case errors.Is(err, modelconfig.ErrProviderAccountInUse):
+		c.JSON(http.StatusConflict, gin.H{"error": "provider account has model deployments", "code": "provider_in_use"})
+	case errors.Is(err, modelconfig.ErrProviderNotReady):
+		c.JSON(http.StatusConflict, gin.H{"error": "provider account is disabled or credentials are unavailable", "code": "provider_not_ready"})
 	case errors.Is(err, modelconfig.ErrDeploymentPriceRequired):
 		c.JSON(http.StatusConflict, gin.H{
 			"error": "deployment pricing is required by a positive-budget binding",
@@ -117,6 +121,53 @@ func (h *ModelConfigHandler) RotateProviderAPIKey(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+func (h *ModelConfigHandler) DeleteProviderAccount(c *gin.Context) {
+	ctx := c.Request.Context()
+	if err := h.service.DeleteProviderAccount(ctx, middleware.GetWorkspaceIDFromContext(ctx), c.Param("account_id")); err != nil {
+		writeModelConfigError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+func (h *ModelConfigHandler) TestProviderAccount(c *gin.Context) {
+	var req struct {
+		ModelName string `json:"model_name"`
+	}
+	if err := decodeJSON(c.Writer, c.Request, &req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	ctx := c.Request.Context()
+	result, err := h.service.TestProviderAccount(ctx, middleware.GetWorkspaceIDFromContext(ctx), c.Param("account_id"), req.ModelName)
+	if err == nil {
+		c.JSON(http.StatusOK, result)
+		return
+	}
+	var failure *modelconfig.ProviderTestError
+	if !errors.As(err, &failure) {
+		writeModelConfigError(c, err)
+		return
+	}
+	status, code := http.StatusBadGateway, "provider_response"
+	switch {
+	case failure.Timeout:
+		status, code = http.StatusGatewayTimeout, "provider_timeout"
+	case failure.Network:
+		code = "provider_network"
+	case failure.UpstreamStatus == http.StatusUnauthorized || failure.UpstreamStatus == http.StatusForbidden:
+		code = "provider_auth"
+	case failure.UpstreamStatus == http.StatusPaymentRequired:
+		code = "provider_balance"
+	case failure.UpstreamStatus == http.StatusNotFound:
+		code = "provider_endpoint_or_model"
+	case failure.UpstreamStatus == http.StatusTooManyRequests:
+		code = "provider_rate_limited"
+	}
+	c.JSON(status, gin.H{"error": "provider test request failed", "code": code, "upstream_status": failure.UpstreamStatus})
 }
 
 func (h *ModelConfigHandler) CreateDeployment(c *gin.Context) {

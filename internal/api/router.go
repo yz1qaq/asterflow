@@ -108,6 +108,9 @@ func NewRouter(
 		modelHandler.RotateProviderAPIKey,
 	)
 
+	workspaceRoutes.DELETE("/model-accounts/:account_id", modelHandler.DeleteProviderAccount)
+	workspaceRoutes.POST("/model-accounts/:account_id/test", modelHandler.TestProviderAccount)
+
 	workspaceRoutes.POST(
 		"/model-deployments",
 		modelHandler.CreateDeployment,
@@ -157,6 +160,7 @@ func NewRouter(
 	workspaceRoutes.POST("/prompts", promptHandler.CreatePrompt)
 	workspaceRoutes.GET("/prompts/:prompt_id/versions", promptHandler.ListVersions)
 	workspaceRoutes.POST("/prompts/:prompt_id/versions", promptHandler.CreateVersion)
+	workspaceRoutes.DELETE("/prompts/:prompt_id/versions/:version_id", promptHandler.DeleteDraft)
 	workspaceRoutes.POST("/prompts/:prompt_id/render", promptHandler.Render)
 	workspaceRoutes.POST("/prompts/:prompt_id/promote", promptHandler.Promote)
 	workspaceRoutes.POST("/prompts/:prompt_id/rollback", promptHandler.Rollback)
@@ -182,6 +186,7 @@ func NewRouter(
 		workspaceRoutes.GET("/agents", agentHandler.ListAgents)
 		workspaceRoutes.POST("/agents", agentHandler.CreateAgent)
 		workspaceRoutes.GET("/agents/:agent_id", agentHandler.GetAgent)
+		workspaceRoutes.DELETE("/agents/:agent_id", agentHandler.Delete)
 		workspaceRoutes.GET("/agents/:agent_id/versions", agentHandler.ListVersions)
 		workspaceRoutes.POST("/agents/:agent_id/versions", agentHandler.CreateVersion)
 		workspaceRoutes.GET("/agents/:agent_id/envs", agentHandler.ListEnvs)
@@ -192,6 +197,7 @@ func NewRouter(
 		workspaceRoutes.GET("/conversations", conversationHandler.List)
 		workspaceRoutes.POST("/conversations", conversationHandler.Create)
 		workspaceRoutes.GET("/conversations/:conversation_id", conversationHandler.Get)
+		workspaceRoutes.DELETE("/conversations/:conversation_id", conversationHandler.Delete)
 
 		conversationChatHandler := v1.NewConversationChatHandler(services.Conversation)
 		workspaceRoutes.POST("/conversations/:conversation_id/chat", conversationChatHandler.Chat)

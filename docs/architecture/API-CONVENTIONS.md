@@ -17,6 +17,25 @@
 Idempotency-Key标识一次业务意图，同键同参数可回放，变参冲突。它不能替代业务库自身事务约束，也不代表同账号只能发一个请求。
 会话/审批并发使用服务端租约；前端禁用发送/确认只是交互保护。任务重投/重试必须考虑相同tool_call_id、业务幂等键和审批执行token。
 
+## 删除 Agent
+
+`DELETE /api/v1/agents/:agent_id` 使用 Bearer Token 和当前工作空间，无请求体。只允许空间 Owner 和管理员操作。成功返回 `204 No Content`，非法 UUID 返回 `400`，无操作权限返回 `403`，Agent 不存在或不在当前空间返回 `404`，任一关联会话仍有有效租约时返回 `409 agent_conversation_running`。
+
+事务先锁 Agent，再锁其会话。确认可以删除后，依次删除关联会话、环境绑定、Agent，沿现有外键清理消息、工具记录和 Agent 版本。单步失败时整笔回滚。
+
+## 删除会话
+
+`DELETE /api/v1/conversations/:conversation_id` 使用 Bearer Token 和当前工作空间，无请求体。具有会话写权限的成员、编辑者、空间 owner/admin 可删除本人会话，成功返回 `204 No Content`。UUID 无效返回 `400`，未认证返回 `401`，无空间权限或为 viewer 返回 `403`，空间内不可见或不存在的会话返回 `404`，本人会话持有有效轮次租约时返回 `409`。
+
+删除语句在写入时同时检查空间、会话创建者和租约有效期。PostgreSQL 外键级联删除会话消息和关联的工具调用。浏览器删除当前会话后返回新会话页面并刷新列表。
+
+## 供应商试跑与配置删除
+
+- `POST /api/v1/model-accounts/:account_id/test` 接收 `{"model_name":"deepseek-flash"}`。使用该账号保存的凭证直接发起一次、最多 20 秒的非流式生成，成功返回 `model` 和 `latency_ms`。不跟随重定向或切换备用部署。失败只返回清理后的分类和上游 HTTP 状态，余额不足对应 `provider_balance`。
+- `DELETE /api/v1/model-accounts/:account_id` 永久删除未被模型部署使用的供应商账号。事务先锁账户，再确认没有部署引用，避免触发历史 schema 的级联删除；有引用返回 `409 provider_in_use`。
+- `DELETE /api/v1/prompts/:prompt_id/versions/:version_id` 软删除草稿。v1、发布与回滚历史、灰度实验、Agent 快照和会话均保护已有版本引用。软删除、发布及新引用的最终写入使用数据库行锁；已软删除的版本不出现在版本列表且版本号不复用。引用冲突返回 `409 prompt_version_in_use`。删除成功返回 `204`。
+- 三个操作使用认证身份和可信工作空间，仅 owner/admin/editor 有权写入。诊断请求只接受模型名，提示词删除和账号删除无需请求体。
+
 ## 同步、SSE和WS
 
 同步返回终态，流式由事件驱动逐段输出。AgentEvent的枚举、payload、终态顺序在Engine/SSE任务中依据固定实现定义；不得仅靠任意字符串让前后端猜测。
