@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 )
 
 type CreateToolRequest struct {
@@ -56,6 +57,43 @@ func toolConfigFromStrings(sourceType, schemaJSON, endpointJSON, authJSON string
 		EndpointConfig: endpoint,
 		AuthConfig:     auth,
 	}, nil
+}
+
+// validateToolEndpointKeys 检查已解析为对象的端点配置中，公开地址字段是否唯一。
+func validateToolEndpointKeys(raw string) error {
+	if raw == "" {
+		return nil
+	}
+	decoder := json.NewDecoder(strings.NewReader(raw))
+	if _, err := decoder.Token(); err != nil {
+		return fmt.Errorf("invalid endpoint_config: %w", err)
+	}
+
+	// 逐个读顶层键，保留 map 解码时会被合并的同名字段。
+	seen := make(map[string]struct{}, 2)
+	for decoder.More() {
+		token, err := decoder.Token()
+		if err != nil {
+			return fmt.Errorf("invalid endpoint_config: %w", err)
+		}
+		key, ok := token.(string)
+		if !ok {
+			return fmt.Errorf("invalid endpoint_config: expected a field name")
+		}
+		if key == "url" || key == "card_url" {
+			if _, exists := seen[key]; exists {
+				return fmt.Errorf("endpoint_config has duplicate %s field", key)
+			}
+			seen[key] = struct{}{}
+		}
+
+		// 跳过当前字段的整个值，下一次读取的仍是顶层键。
+		var ignored json.RawMessage
+		if err := decoder.Decode(&ignored); err != nil {
+			return fmt.Errorf("invalid endpoint_config: %w", err)
+		}
+	}
+	return nil
 }
 
 func parseJSONObject(field, value string) (map[string]any, error) {

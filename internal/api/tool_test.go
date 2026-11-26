@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -105,7 +106,7 @@ func TestToolRegistryHTTP(t *testing.T) {
 	}))
 	server := httptest.NewServer(NewRouter(pool, iamService, nil, nil, Services{Tool: toolsService, ToolRegistry: registry}))
 	defer server.Close()
-	request := func(method, path, payload, token, space string, want int) []byte {
+	requestFor := func(t *testing.T, method, path, payload, token, space string, want int) []byte {
 		t.Helper()
 		req, err := http.NewRequestWithContext(ctx, method, server.URL+path, strings.NewReader(payload))
 		if err != nil {
@@ -128,6 +129,11 @@ func TestToolRegistryHTTP(t *testing.T) {
 			t.Fatalf("%s %s status %d, want %d: %s (%v)", method, path, res.StatusCode, want, body, err)
 		}
 		return body
+	}
+
+	request := func(method, path, payload, token, space string, want int) []byte {
+		t.Helper()
+		return requestFor(t, method, path, payload, token, space, want)
 	}
 
 	get := func(path, token, space string, want int) []byte {
@@ -358,6 +364,77 @@ func TestToolRegistryHTTP(t *testing.T) {
 		request(http.MethodPost, toolsPath+"/"+sensitive.ID+"/test", input, ownerToken, a, http.StatusForbidden)
 		if sdkCalls.Load() != 1 {
 			t.Fatal("sensitive tool reached the SDK")
+		}
+	})
+
+	t.Run("endpoint URL fields must be unique", func(t *testing.T) {
+		const duplicate = `{"url":"http://127.0.0.1:8123/orders","url":"http://127.0.0.1:8123/inventory"}`
+		registerBody, err := json.Marshal(tool.CreateToolRequest{
+			Name: "duplicate_endpoint_fixture", SourceType: "rest_api", EndpointConfig: duplicate,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		item, err := toolsService.CreateTool(ctx, tool.CreateToolRequest{
+			WorkspaceID: a, CreatedBy: owner.ID, Name: "ordinary_endpoint_fixture", SourceType: "rest_api",
+			EndpointConfig: `{"url":"http://127.0.0.1:8123/orders"}`,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		path := toolsPath + "/" + item.ID + "/versions"
+		versionBody, err := json.Marshal(tool.CreateToolVersionRequest{EndpointConfig: duplicate})
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Run("registration", func(t *testing.T) {
+			response := requestFor(t, http.MethodPost, toolsPath, string(registerBody), ownerToken, a, http.StatusBadRequest)
+			if !strings.Contains(string(response), "duplicate url field") {
+				t.Fatalf("unexpected error response: %s", response)
+			}
+		})
+		t.Run("append version", func(t *testing.T) {
+			response := requestFor(t, http.MethodPost, path, string(versionBody), ownerToken, a, http.StatusBadRequest)
+			if !strings.Contains(string(response), "duplicate url field") {
+				t.Fatalf("unexpected error response: %s", response)
+			}
+			if latest, err := store.GetToolCurrentVersion(ctx, item.ID); err != nil || latest.Version != 1 {
+				t.Fatalf("rejected request changed current version: %+v, %v", latest, err)
+			}
+		})
+	})
+
+	t.Run("stored endpoint remains runnable and hidden from viewers", func(t *testing.T) {
+		upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/orders" {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			_, _ = io.WriteString(w, `{"order_id":"fixture-order"}`)
+		}))
+		defer upstream.Close()
+		itemID, versionID := uuid.NewString(), uuid.NewString()
+		endpoint := fmt.Sprintf(`{"url":%q,"url":%q}`, upstream.URL+"/unused", upstream.URL+"/orders")
+		if err := store.CreateToolWithVersion(ctx, &domain.Tool{
+			ID: itemID, WorkspaceID: a, Name: "stored_duplicate_fixture", SourceType: "rest_api", CreatedBy: owner.ID,
+		}, &domain.ToolVersion{
+			ID: versionID, ToolID: itemID, Version: 1, Status: "draft",
+			SchemaJSON: querySchema, EndpointConfig: endpoint, AuthConfig: "{}", RetryPolicy: "{}",
+		}); err != nil {
+			t.Fatal(err)
+		}
+
+		path := toolsPath + "/" + itemID
+		var versions []domain.ToolVersion
+		if err := json.Unmarshal(get(path+"/versions", viewerToken, a, http.StatusOK), &versions); err != nil ||
+			len(versions) != 1 || versions[0].EndpointConfig != "{}" || !versions[0].EndpointConfigRedacted {
+			t.Fatalf("viewer must see only the redaction status: %+v, %v", versions, err)
+		}
+		var run domain.ToolTestRun
+		result := request(http.MethodPost, path+"/test", `{"input":{"order_id":"fixture-order"}}`, ownerToken, a, http.StatusOK)
+		if err := json.Unmarshal(result, &run); err != nil || run.Status != "success" ||
+			run.ToolVersionID != versionID || run.Output != `{"order_id":"fixture-order"}` {
+			t.Fatalf("stored version should retain its execution route: %+v, %v", run, err)
 		}
 	})
 

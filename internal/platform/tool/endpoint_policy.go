@@ -2,10 +2,18 @@ package tool
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
 	"strings"
+)
+
+// 可向工具调用方公开的固定策略错误。
+var (
+	ErrToolPrivateEndpoint     = errors.New("tool endpoint resolves to a private or local network address")
+	ErrToolCrossOriginRedirect = errors.New("tool endpoint cross-origin redirect is blocked")
+	ErrToolRedirectLimit       = errors.New("tool endpoint stopped after 5 redirects")
 )
 
 // EndpointPolicy 控制 Tool 可以访问的网络目标。显式 allowlist 可放行课堂 Compose 服务。
@@ -92,7 +100,7 @@ func (p *EndpointPolicy) lookupPublicIPs(ctx context.Context, host string) ([]ne
 	}
 	for _, addr := range addrs {
 		if unsafeIP(addr.IP) {
-			return nil, fmt.Errorf("tool endpoint resolves to a private or local network address")
+			return nil, ErrToolPrivateEndpoint
 		}
 	}
 	return addrs, nil

@@ -58,6 +58,28 @@ func TestToolRegistrationSecurity(t *testing.T) {
 	}
 }
 
+func TestPublicToolEndpointConfigRejectsRepeatedURLFields(t *testing.T) {
+	cases := []string{
+		`{"url":"https://example.test/first","url":"https://example.test/second"}`,
+		`{"card_url":"https://example.test/first","\u0063ard_url":"https://example.test/second"}`,
+	}
+	for _, fixture := range cases {
+		version := &domain.ToolVersion{EndpointConfig: fixture}
+		public := publicToolVersion(version)
+		if public.EndpointConfig != "{}" || !public.EndpointConfigRedacted {
+			t.Error("ambiguous URL fields must be hidden from public versions")
+		}
+		if version.EndpointConfig != fixture {
+			t.Error("redaction modified the stored version")
+		}
+	}
+
+	const clean = `{"url":"https://example.test/orders","metadata":{"url":"https://example.test/reference"}}`
+	if config, hidden := publicToolEndpointConfig(clean); config != clean || hidden {
+		t.Error("a nested metadata field must not count as a second top-level URL")
+	}
+}
+
 func TestConfiguredToolURLMustBeSafeToPublish(t *testing.T) {
 	ctx := context.Background()
 	policy := NewEndpointPolicy([]string{"crossborder-sim"}, false)

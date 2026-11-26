@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 
 	"github.com/yz1qaq/asterflow/internal/platform/tool"
 )
@@ -70,12 +69,19 @@ func (e *restExecutor) Execute(ctx context.Context, args json.RawMessage) (strin
 
 	resp, err := e.client.Do(req)
 	if err != nil {
-		// http.Client 的外层错误附带完整 URL，试跑只返回底层错误。
-		var requestErr *url.Error
-		if errors.As(err, &requestErr) {
-			err = requestErr.Err
+		// 只公开固定的策略错误和取消状态，避免记录上游诊断中的地址。
+		for _, publicErr := range []error{
+			context.Canceled,
+			context.DeadlineExceeded,
+			tool.ErrToolPrivateEndpoint,
+			tool.ErrToolCrossOriginRedirect,
+			tool.ErrToolRedirectLimit,
+		} {
+			if errors.Is(err, publicErr) {
+				return "", fmt.Errorf("call rest tool: %w", publicErr)
+			}
 		}
-		return "", fmt.Errorf("call rest tool: %w", err)
+		return "", errors.New("call rest tool: upstream request failed")
 	}
 	defer resp.Body.Close()
 

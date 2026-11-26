@@ -30,3 +30,11 @@
 - P2 Eino 适配器返回的 HTTP 请求中缺少显式的 top_p=0 和 max_tokens=0。用本地模型替身对照旧客户端，同步和流式都复现，temperature=0 与 seed=0 正常。本地修复通过 Eino ExtraFields 保留显式零值。TestEinoOpenAIPreservesGenerationValues 验证同步与流式的省略、零值和非零值。隔离 PostgreSQL 的 make check 与桌面工具链路通过，Agent 快照中的零值按原值进入模型请求。
 
 独立 AI 复审在版本固定、Crossborder 业务查询及正常工具历史未发现新的合并阻断。两项修复在本地通过验收。推送后按新提交验证 CI 与复审。
+
+## 修复提交复审
+
+[PR #19](https://github.com/yz1qaq/asterflow/pull/19) 的 `8ea9b6a460b7d7d6db0bd0eb1204a0d87256db9e` 已通过 [Documentation](https://github.com/yz1qaq/asterflow/actions/runs/45839160560)、[Go](https://github.com/yz1qaq/asterflow/actions/runs/45839160581) 和 [Web](https://github.com/yz1qaq/asterflow/actions/runs/45839160531)，Go 含 Crossborder 模块检查。正式提交的端点、REST、Eino 定向 race 通过，独立复审确认模型零值问题关闭。
+
+端点仍有一项 P2。JSON 解码为 map 会折叠同名 URL 字段，规则检查的是折叠后的值，版本接口仍返回原始文本。公开响应应只使用检查过的配置，写入应识别重复 URL 字段，旧版本继续按原解析规则执行。附带检查确认格式错误的上游跳转地址仍可能出现在试跑错误里，应稳定映射对外错误。复审未运行真实凭据或外部网络请求。修复并复验前保留 Draft。
+
+[端点重复字段与试跑错误](../handoff/next/G07-tool-endpoint-review.md)已按负责人授权写入正式工作区。原实现未通过新增回归。修复后正式工作区在独立 PostgreSQL/Redis 上完成 make check，Go race、vet、构建、React 93 项测试及生产构建通过。用正式 Go 文件构建的后端与桌面 Chrome 连接隔离 Crossborder，验证隐藏旧配置、原版本仍能执行、必须重新填写端点以及 v2 保存。回归覆盖 Viewer 读取、登记和追加返回 400、试跑网络错误输出、同源策略和取消。新提交 CI 和独立复审待推送。

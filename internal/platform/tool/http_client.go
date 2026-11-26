@@ -46,11 +46,11 @@ func (p *EndpointPolicy) HTTPClient(timeout time.Duration) (*http.Client, error)
 		Transport: transport,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if len(via) >= 5 {
-				return fmt.Errorf("tool endpoint stopped after 5 redirects")
+				return ErrToolRedirectLimit
 			}
 			// 鉴权请求只跟随同源跳转。
 			if len(via) > 0 && !sameOrigin(via[0].URL, req.URL) {
-				return fmt.Errorf("tool endpoint cross-origin redirect is blocked")
+				return ErrToolCrossOriginRedirect
 			}
 			return p.ValidateURL(req.Context(), req.URL.String())
 		},

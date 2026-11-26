@@ -100,6 +100,23 @@ func TestRESTExecutor(t *testing.T) {
 	}
 }
 
+type failingRESTTransport struct{}
+
+func (failingRESTTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, errors.New("fixture-transport-detail")
+}
+
+func TestRESTExecutorPublicTransportError(t *testing.T) {
+	client := &http.Client{Transport: failingRESTTransport{}}
+	executor := NewRESTExecutor(client, &tool.ToolConfig{
+		EndpointConfig: map[string]any{"url": "https://example.test/orders"},
+	})
+	output, err := executor.Execute(context.Background(), json.RawMessage(`{}`))
+	if output != "" || err == nil || err.Error() != "call rest tool: upstream request failed" {
+		t.Fatalf("want empty output and standardized upstream error, got output=%q, error=%v", output, err)
+	}
+}
+
 func TestRESTCrossborderFixture(t *testing.T) {
 	endpoint := os.Getenv("ASTERFLOW_TEST_CROSSBORDER_TOOL_URL")
 	if endpoint == "" {

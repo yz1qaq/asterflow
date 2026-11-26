@@ -105,6 +105,9 @@ func (s *Service) CreateTool(ctx context.Context, req CreateToolRequest) (*domai
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrInvalidArgument, err)
 	}
+	if err := validateToolEndpointKeys(req.EndpointConfig); err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrInvalidArgument, err)
+	}
 	if s.policy == nil {
 		return nil, errors.New("tool endpoint policy is not configured")
 	}
@@ -190,6 +193,9 @@ func (s *Service) CreateToolVersion(
 	if _, err := parseJSONObject("retry_policy", req.RetryPolicy); err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrInvalidArgument, err)
 	}
+	if err := validateToolEndpointKeys(req.EndpointConfig); err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrInvalidArgument, err)
+	}
 	if s.policy == nil {
 		return nil, errors.New("tool endpoint policy is not configured")
 	}
@@ -244,7 +250,7 @@ func publicToolVersion(version *domain.ToolVersion) *domain.ToolVersion {
 
 func publicToolEndpointConfig(raw string) (string, bool) {
 	config, err := parseJSONObject("endpoint_config", raw)
-	if err != nil {
+	if err != nil || validateToolEndpointKeys(raw) != nil {
 		return "{}", true
 	}
 	// 隐藏整份不合规的旧配置，避免把删减后的地址当作原配置继续编辑。
