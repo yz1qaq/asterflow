@@ -21,3 +21,12 @@
 - 固定 Final 对工具运行的最终正文聚合后统一发送，G07 保留该语义。无工具路径现有正文 delta 流式行为保留。固定 Final 唯一内置 SDK 实现是知识库检索，按 G10 接入默认服务。当前 Registry 的 internal SDK 分发覆盖测试，普通服务可试跑的已落地业务来源是 REST。
 
 独立 AI 复核已核对上述三项修复，在当前工作区未发现新的阻断问题。版本冲突检查依据服务端读到的版本。表单在请求发出前已过期时，用户填写的字段仍视为显式配置。PR 评审与远程 CI 以提交的 SHA 为准。
+
+## PR #19 提交复审
+
+[PR #19](https://github.com/yz1qaq/asterflow/pull/19) 的提交 `7c354227bfefd2ec22a02e6d7887c3419b57e5e6`。远程 [Documentation](https://github.com/yz1qaq/asterflow/actions/runs/45832915068)、[Go](https://github.com/yz1qaq/asterflow/actions/runs/45832915117) 和 [Web](https://github.com/yz1qaq/asterflow/actions/runs/45832914968) 全部通过，Go 任务的独立 Crossborder 建库和模块检查通过。
+
+- P2 工具的 EndpointConfig 可包含查询或片段，版本列表只清理 AuthConfig。端点中的查询凭据会随公开版本配置返回，违反 FR-04 的凭据不回显要求。[端点配置回显修复](../handoff/next/G07-endpoint-config-privacy.md)已保存，正式工作区通过隔离 PostgreSQL 上的本地门禁和桌面复验。
+- P2 Eino 适配器返回的 HTTP 请求中缺少显式的 top_p=0 和 max_tokens=0。用本地模型替身对照旧客户端，同步和流式都复现，temperature=0 与 seed=0 正常。本地修复通过 Eino ExtraFields 保留显式零值。TestEinoOpenAIPreservesGenerationValues 验证同步与流式的省略、零值和非零值。隔离 PostgreSQL 的 make check 与桌面工具链路通过，Agent 快照中的零值按原值进入模型请求。
+
+独立 AI 复审在版本固定、Crossborder 业务查询及正常工具历史未发现新的合并阻断。两项修复在本地通过验收。推送后按新提交验证 CI 与复审。

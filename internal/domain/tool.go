@@ -21,18 +21,19 @@ type ToolIdentity struct {
 }
 
 type ToolVersion struct {
-	ID                  string    `json:"id"`
-	ToolID              string    `json:"tool_id"`
-	Version             int       `json:"version"`
-	SchemaJSON          string    `json:"schema_json"`
-	EndpointConfig      string    `json:"endpoint_config"`
-	AuthConfig          string    `json:"auth_config"`
-	AuthConfigEncrypted []byte    `json:"-"`
-	HasAuth             bool      `json:"has_auth"`
-	RetryPolicy         string    `json:"retry_policy"`
-	Status              string    `json:"status"`
-	CreatedBy           string    `json:"created_by"`
-	CreatedAt           time.Time `json:"created_at"`
+	ID                     string    `json:"id"`
+	ToolID                 string    `json:"tool_id"`
+	Version                int       `json:"version"`
+	SchemaJSON             string    `json:"schema_json"`
+	EndpointConfig         string    `json:"endpoint_config"`
+	EndpointConfigRedacted bool      `json:"endpoint_config_redacted,omitempty"`
+	AuthConfig             string    `json:"auth_config"`
+	AuthConfigEncrypted    []byte    `json:"-"`
+	HasAuth                bool      `json:"has_auth"`
+	RetryPolicy            string    `json:"retry_policy"`
+	Status                 string    `json:"status"`
+	CreatedBy              string    `json:"created_by"`
+	CreatedAt              time.Time `json:"created_at"`
 }
 
 type ToolTestRun struct {

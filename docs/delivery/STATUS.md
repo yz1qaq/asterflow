@@ -12,7 +12,7 @@ G04 提示词治理由 [PR #15](https://github.com/yz1qaq/asterflow/pull/15) 合
 | G04 历史范围 | 版本/环境指针/发布/回滚/操作记录、diff、实验与灰度（含多变体）、事件时间线、Redis 跨进程失效均已完成；隔离 PG+Redis、双进程与桌面验收通过 |
 | G06 交付 | 统一 Eino ADK、Gateway 主备、续租、多轮与首轮模板、SSE / Go 同步聚合和桌面联调已完成本地验收。见 [G06 验收](G06-VERIFICATION.md) |
 | G07 验收 | 双 Go 模块隔离 PostgreSQL race、前端构建和桌面双工具流程通过。见 [G07 验收](G07-VERIFICATION.md) |
-| 下一步 | G07 独立预审的三项修复通过正式回归。下一步提交 G07 PR，核对远程 CI 与提交复审。见[下一步](../handoff/NEXT.md) |
+| 下一步 | [G07 PR #19](https://github.com/yz1qaq/asterflow/pull/19) 的 Documentation、Go、Web 通过。固定提交 `7c35422` 的复审发现两项 P2。端点回显和模型显式零值修复均已在本地通过验收，待推送后复查新提交。见[下一步](../handoff/NEXT.md) |
 | 已知非阻断项 | 共享框架 chunk 约 562.6 kB；G01 用户列表同时间稳定排序建议保留 |
 
 [路线图](ROADMAP.md) · [G03 验收记录](G03-VERIFICATION.md) · [G04 开发任务](../tasks/G04-prompt-governance.md) · [G04 验收记录](G04-VERIFICATION.md)。

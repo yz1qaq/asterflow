@@ -94,8 +94,9 @@ func TestRESTExecutor(t *testing.T) {
 	}
 	stopped, cancel := context.WithCancel(ctx)
 	cancel()
-	if _, err := makeExecutor(client, "/orders").Execute(stopped, fixtureInput); !errors.Is(err, context.Canceled) {
-		t.Fatalf("expected cancellation: %v", err)
+	if _, err := makeExecutor(client, "/orders?region=us").Execute(stopped, fixtureInput); !errors.Is(err, context.Canceled) ||
+		strings.Contains(err.Error(), "region=") {
+		t.Fatalf("expected cancellation without including endpoint query: %v", err)
 	}
 }
 

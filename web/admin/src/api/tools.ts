@@ -25,6 +25,7 @@ export interface ToolVersion {
   has_auth: boolean
   schema_json: string
   endpoint_config: string
+  endpoint_config_redacted?: boolean
   retry_policy: string
   created_at: string
 }
@@ -84,6 +85,7 @@ function parseVersion(value: unknown, toolID: string): ToolVersion {
   return {
     id: row.id, version: row.version, status: row.status, has_auth: row.has_auth,
     schema_json: row.schema_json, endpoint_config: row.endpoint_config, retry_policy: row.retry_policy,
+    endpoint_config_redacted: row.endpoint_config_redacted === true,
     created_at: row.created_at,
   }
 }

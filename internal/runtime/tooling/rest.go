@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 
 	"github.com/yz1qaq/asterflow/internal/platform/tool"
 )
@@ -68,6 +70,11 @@ func (e *restExecutor) Execute(ctx context.Context, args json.RawMessage) (strin
 
 	resp, err := e.client.Do(req)
 	if err != nil {
+		// http.Client 的外层错误附带完整 URL，试跑只返回底层错误。
+		var requestErr *url.Error
+		if errors.As(err, &requestErr) {
+			err = requestErr.Err
+		}
 		return "", fmt.Errorf("call rest tool: %w", err)
 	}
 	defer resp.Body.Close()

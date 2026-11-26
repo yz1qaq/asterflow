@@ -308,3 +308,71 @@ func TestEinoOpenAIStreamRejectsPrematureClose(t *testing.T) {
 		t.Fatalf("premature close = %+v, %v", chunk, err)
 	}
 }
+
+func TestEinoOpenAIPreservesGenerationValues(t *testing.T) {
+	zeroTopP, normalTopP := float32(0), float32(0.25)
+	zeroTokens, normalTokens := 0, 64
+	tests := []struct {
+		name string
+		req  GenerateRequest
+		want map[string]string
+	}{
+		{name: "unset", want: map[string]string{"top_p": "", "max_tokens": "", "temperature": "", "seed": ""}},
+		{name: "explicit zero",
+			req:  GenerateRequest{TopP: &zeroTopP, MaxOutputTokens: &zeroTokens, Temperature: &zeroTopP, Seed: &zeroTokens},
+			want: map[string]string{"top_p": "0", "max_tokens": "0", "temperature": "0", "seed": "0"}},
+		{name: "nonzero",
+			req:  GenerateRequest{TopP: &normalTopP, MaxOutputTokens: &normalTokens},
+			want: map[string]string{"top_p": "0.25", "max_tokens": "64"}},
+	}
+	for _, streaming := range []bool{false, true} {
+		mode := "generate"
+		if streaming {
+			mode = "stream"
+		}
+		for _, test := range tests {
+			t.Run(mode+"/"+test.name, func(t *testing.T) {
+				requestBody := make(chan map[string]json.RawMessage, 1)
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					var body map[string]json.RawMessage
+					if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+						w.WriteHeader(http.StatusBadRequest)
+						return
+					}
+					requestBody <- body
+					if streaming {
+						w.Header().Set("Content-Type", "text/event-stream")
+						_, _ = io.WriteString(w, `data: {"model":"fixture","choices":[{"index":0,"delta":{"role":"assistant","content":"ok"},"finish_reason":"stop"}]}`+"\n\ndata: [DONE]\n\n")
+						return
+					}
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = io.WriteString(w, `{"model":"fixture","choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}]}`)
+				}))
+				defer server.Close()
+
+				ctx := context.Background()
+				client := NewEinoOpenAIClient()
+				dep := ResolvedDeployment{BaseURL: server.URL, Model: "fixture"}
+				if streaming {
+					stream, err := client.Stream(ctx, dep, test.req)
+					if err != nil {
+						t.Fatal(err)
+					}
+					defer stream.Close()
+					if _, err := stream.Recv(ctx); err != nil {
+						t.Fatal(err)
+					}
+				} else if _, err := client.Generate(ctx, dep, test.req); err != nil {
+					t.Fatal(err)
+				}
+
+				got := <-requestBody
+				for field, want := range test.want {
+					if actual := string(got[field]); actual != want {
+						t.Errorf("%s wire value = %q, want %q", field, actual, want)
+					}
+				}
+			})
+		}
+	}
+}

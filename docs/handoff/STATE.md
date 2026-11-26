@@ -48,4 +48,4 @@
 
 Agent 管理增量：空间 Owner 或管理员可删除整个 Agent 及所有成员与其的会话，版本、环境绑定、消息和工具记录同事务清理。有效租约返回 409。
 
-G07 从 [NEXT](NEXT.md) 接续。[未知工具的失败轨迹](next/G07-unknown-tool-fallback.md)已按负责人授权写入正式 Go 实现。已确认 Eino 回退同时跳过平台中间件和 ADK 工具结果事件。正式实现发出成对 SSE，补发 ADK 工具结果供既有事务收集，并把原结果返给模型。Engine、会话、HTTP race 与隔离桌面刷新通过。[正常工具调用的主记录 ID](next/G07-tool-call-identity.md)已按负责人授权保存。Registry 从同一次加载传递主记录与版本 UUID。正式工作区通过隔离 PostgreSQL 上的本地门禁与桌面回读。G07 进入提交 PR 阶段。
+G07 从 [NEXT](NEXT.md) 接续。[未知工具的失败轨迹](next/G07-unknown-tool-fallback.md)已按负责人授权写入正式 Go 实现。已确认 Eino 回退同时跳过平台中间件和 ADK 工具结果事件。正式实现发出成对 SSE，补发 ADK 工具结果供既有事务收集，并把原结果返给模型。Engine、会话、HTTP race 与隔离桌面刷新通过。[正常工具调用的主记录 ID](next/G07-tool-call-identity.md)已按负责人授权保存。Registry 从同一次加载传递主记录与版本 UUID。正式工作区通过隔离 PostgreSQL 上的本地门禁与桌面回读。[G07 PR #19](https://github.com/yz1qaq/asterflow/pull/19) 已创建为 Draft，提交 `7c35422` 的 Documentation、Go、Web 通过。固定提交复审确认两个 P2：工具端点查询凭据可回显，以及 Eino 省略显式零值。保留 Draft。[端点配置回显修复](next/G07-endpoint-config-privacy.md)的 Go 和回归已按授权保存。固定旧版本仍能执行，网页隐藏原端点。正式工作区通过隔离 PostgreSQL 本地门禁和桌面复验。Eino 零值修复及正式回归也已保存。HTTP 模型替身验证同步与流式的显式零值、未设置和非零行为。隔离本地门禁与桌面工具链路通过，待推送同一 PR 复审。详见[G07 验收](../delivery/G07-VERIFICATION.md)。

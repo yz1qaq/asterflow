@@ -37,6 +37,7 @@ function toolError(error: unknown) {
       case 400: {
         const detail = error.response.data?.error
         if (typeof detail === 'string') {
+          if (detail.includes('query or fragment')) return '端点 URL 不能包含查询参数或片段，请在鉴权配置中填写凭据'
           if (detail.includes('endpoint origin changed')) return '端点来源已更改，请填写新凭据，或填 {} 清空鉴权'
           if (!detail.includes('auth_config')) return detail.slice(0, 260)
         }
@@ -360,7 +361,10 @@ function ToolVersions({ scope, tool, writable, recheckRole }: {
         pagination={{ pageSize: 10, hideOnSinglePage: true }}
         expandable={{ expandedRowRender: version => <div>
           <Typography.Text strong>参数 Schema</Typography.Text><pre className="prompt-text">{formatJSON(version.schema_json)}</pre>
-          <Typography.Text strong>端点配置</Typography.Text><pre className="prompt-text">{formatJSON(version.endpoint_config)}</pre>
+          <Typography.Text strong>端点配置</Typography.Text>
+          {version.endpoint_config_redacted
+            ? <p>旧端点配置已隐藏，请在新版本中重新填写。</p>
+            : <pre className="prompt-text">{formatJSON(version.endpoint_config)}</pre>}
           <Typography.Text strong>重试策略</Typography.Text><pre className="prompt-text">{formatJSON(version.retry_policy)}</pre>
         </div> }}
         columns={[
@@ -460,14 +464,17 @@ function CreateToolVersionModal({ baseVersion, saving, error, onSave, onClose }:
     <Form form={form} layout="vertical" disabled={saving} onFinish={onSave} autoComplete="off"
       initialValues={{
         schema_json: baseVersion.schema_json,
-        endpoint_config: baseVersion.endpoint_config,
+        endpoint_config: baseVersion.endpoint_config_redacted ? '' : baseVersion.endpoint_config,
         retry_policy: baseVersion.retry_policy,
         auth_config: '',
       }}>
       <Form.Item name="schema_json" label="参数 Schema" rules={[jsonObjectRule]}>
         <Input.TextArea rows={4} spellCheck={false} />
       </Form.Item>
-      <Form.Item name="endpoint_config" label="端点配置" rules={[jsonObjectRule]}>
+      <Form.Item name="endpoint_config" label="端点配置" rules={[
+        { required: baseVersion.endpoint_config_redacted, whitespace: true, message: '请重新填写端点配置' },
+        jsonObjectRule,
+      ]} extra={baseVersion.endpoint_config_redacted ? '旧端点配置已隐藏，请填写不包含查询参数或片段的新地址。' : undefined}>
         <Input.TextArea rows={3} spellCheck={false} />
       </Form.Item>
       <Form.Item name="retry_policy" label="重试策略" rules={[jsonObjectRule]}>

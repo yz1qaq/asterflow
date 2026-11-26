@@ -79,10 +79,7 @@ func (s *Service) ListToolVersions(
 
 	result := make([]*domain.ToolVersion, 0, len(versions))
 	for _, version := range versions {
-		safeVersion := *version
-		safeVersion.AuthConfig = "{}"
-		safeVersion.AuthConfigEncrypted = nil
-		result = append(result, &safeVersion)
+		result = append(result, publicToolVersion(version))
 	}
 	return result, nil
 }
@@ -241,7 +238,30 @@ func publicToolVersion(version *domain.ToolVersion) *domain.ToolVersion {
 	safeVersion := *version
 	safeVersion.AuthConfig = "{}"
 	safeVersion.AuthConfigEncrypted = nil
+	safeVersion.EndpointConfig, safeVersion.EndpointConfigRedacted = publicToolEndpointConfig(version.EndpointConfig)
 	return &safeVersion
+}
+
+func publicToolEndpointConfig(raw string) (string, bool) {
+	config, err := parseJSONObject("endpoint_config", raw)
+	if err != nil {
+		return "{}", true
+	}
+	// 隐藏整份不合规的旧配置，避免把删减后的地址当作原配置继续编辑。
+	for _, field := range []string{"url", "card_url"} {
+		value, exists := config[field]
+		if !exists || value == "" {
+			continue
+		}
+		endpoint, ok := value.(string)
+		if !ok {
+			return "{}", true
+		}
+		if _, err := parseConfiguredToolEndpointURL(endpoint); err != nil {
+			return "{}", true
+		}
+	}
+	return raw, false
 }
 
 func (s *Service) RecordTestRun(

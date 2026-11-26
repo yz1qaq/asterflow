@@ -32,24 +32,39 @@ func (p *EndpointPolicy) hostAllowed(host string) bool {
 	return ok
 }
 
-func (p *EndpointPolicy) validateURL(ctx context.Context, rawURL string) error {
-	u, err := url.Parse(rawURL)
-	if err != nil || u.Hostname() == "" {
-		return fmt.Errorf("invalid tool endpoint URL")
+func parseToolEndpointURL(rawURL string) (*url.URL, error) {
+	endpoint, err := url.Parse(rawURL)
+	if err != nil || endpoint.Hostname() == "" {
+		return nil, fmt.Errorf("invalid tool endpoint URL")
 	}
-	if u.Scheme != "http" && u.Scheme != "https" {
-		return fmt.Errorf("tool endpoint scheme must be http or https")
+	if endpoint.Scheme != "http" && endpoint.Scheme != "https" {
+		return nil, fmt.Errorf("tool endpoint scheme must be http or https")
 	}
-	// URL 只描述请求目标，凭据由 auth_config 单独处理。
-	if u.User != nil {
-		return fmt.Errorf("tool endpoint URL must not contain credentials")
+	if endpoint.User != nil {
+		return nil, fmt.Errorf("tool endpoint URL must not contain credentials")
 	}
-	return p.validateHost(ctx, u.Hostname())
+	return endpoint, nil
 }
 
-// ValidateURL 校验可配置的服务端 HTTP 出口地址。
+func parseConfiguredToolEndpointURL(rawURL string) (*url.URL, error) {
+	endpoint, err := parseToolEndpointURL(rawURL)
+	if err != nil {
+		return nil, err
+	}
+	// 版本接口会显示端点配置，查询参数及片段不得进入这一配置。
+	if endpoint.RawQuery != "" || endpoint.ForceQuery || strings.Contains(rawURL, "#") {
+		return nil, fmt.Errorf("configured tool endpoint URL must not contain a query or fragment")
+	}
+	return endpoint, nil
+}
+
+// ValidateURL 校验运行时的 HTTP 目标，包括同源跳转的地址。
 func (p *EndpointPolicy) ValidateURL(ctx context.Context, rawURL string) error {
-	return p.validateURL(ctx, rawURL)
+	endpoint, err := parseToolEndpointURL(rawURL)
+	if err != nil {
+		return err
+	}
+	return p.validateHost(ctx, endpoint.Hostname())
 }
 
 func (p *EndpointPolicy) validateHost(ctx context.Context, host string) error {
@@ -89,6 +104,13 @@ func unsafeIP(ip net.IP) bool {
 }
 
 func (p *EndpointPolicy) validateConfig(ctx context.Context, sourceType string, endpoint map[string]any) error {
+	return p.validateToolEndpoints(ctx, sourceType, endpoint, parseConfiguredToolEndpointURL)
+}
+
+func (p *EndpointPolicy) validateToolEndpoints(
+	ctx context.Context, sourceType string, endpoint map[string]any,
+	parseURL func(string) (*url.URL, error),
+) error {
 	if p == nil {
 		return nil
 	}
@@ -120,7 +142,11 @@ func (p *EndpointPolicy) validateConfig(ctx context.Context, sourceType string, 
 			continue
 		}
 		seen = true
-		if err := p.validateURL(ctx, raw); err != nil {
+		endpointURL, err := parseURL(raw)
+		if err != nil {
+			return fmt.Errorf("%s: %w", field, err)
+		}
+		if err := p.validateHost(ctx, endpointURL.Hostname()); err != nil {
 			return fmt.Errorf("%s: %w", field, err)
 		}
 	}

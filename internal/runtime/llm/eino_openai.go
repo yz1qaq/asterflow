@@ -31,11 +31,21 @@ func (c *EinoOpenAIClient) newModel(
 		return nil, fmt.Errorf("model deployment base URL is required")
 	}
 
+	// Eino 底层会省略这两个标量的零值，通过 ExtraFields 保留显式配置。
+	extraFields := make(map[string]any, 2)
+	if req.TopP != nil && *req.TopP == 0 {
+		extraFields["top_p"] = *req.TopP
+	}
+	if req.MaxOutputTokens != nil && *req.MaxOutputTokens == 0 {
+		extraFields["max_tokens"] = *req.MaxOutputTokens
+	}
+
 	// 网关先选部署，再把部署地址、凭据和生成参数交给 Eino。
 	return einoopenai.NewChatModel(ctx, &einoopenai.ChatModelConfig{
 		BaseURL: dep.BaseURL, APIKey: dep.APIKey, Model: dep.Model, HTTPClient: c.http,
 		Temperature: req.Temperature, TopP: req.TopP, MaxTokens: req.MaxOutputTokens,
 		Stop: req.Stop, Seed: req.Seed,
+		ExtraFields: extraFields,
 	})
 }
 

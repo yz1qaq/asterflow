@@ -2,6 +2,8 @@ package tool
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/yz1qaq/asterflow/internal/domain"
@@ -53,5 +55,36 @@ func TestToolRegistrationSecurity(t *testing.T) {
 	decoded, err := cipher.Decrypt(version.AuthConfigEncrypted)
 	if err != nil || decoded != plain {
 		t.Fatal("tool credential failed round trip")
+	}
+}
+
+func TestConfiguredToolURLMustBeSafeToPublish(t *testing.T) {
+	ctx := context.Background()
+	policy := NewEndpointPolicy([]string{"crossborder-sim"}, false)
+	const cleanURL = "http://crossborder-sim:8091/tools/get_order"
+	for _, suffix := range []string{"?region=us", "?", "#section"} {
+		t.Run(suffix, func(t *testing.T) {
+			raw := cleanURL + suffix
+			if err := policy.validateConfig(ctx, "rest_api", map[string]any{"url": raw}); err == nil {
+				t.Error("stored endpoint must exclude query and fragment")
+			}
+			version := &domain.ToolVersion{EndpointConfig: fmt.Sprintf(`{"url":%q,"method":"POST"}`, raw)}
+			if public := publicToolVersion(version); public.EndpointConfig != "{}" || !public.EndpointConfigRedacted {
+				t.Error("public endpoint config must omit private URL components")
+			}
+			if !strings.Contains(version.EndpointConfig, raw) {
+				t.Error("redaction changed the stored input")
+			}
+		})
+	}
+	if err := policy.validateToolEndpoints(ctx, "rest_api", map[string]any{"url": cleanURL + "?region=us"}, parseToolEndpointURL); err != nil {
+		t.Fatalf("stored version must keep its runtime endpoint: %v", err)
+	}
+	if err := policy.ValidateURL(ctx, cleanURL+"?region=us"); err != nil {
+		t.Fatalf("outbound validation should preserve existing redirect behavior: %v", err)
+	}
+	version := &domain.ToolVersion{EndpointConfig: fmt.Sprintf(`{"url":%q,"method":"POST"}`, cleanURL)}
+	if public := publicToolVersion(version); public.EndpointConfig != version.EndpointConfig || public.EndpointConfigRedacted {
+		t.Error("ordinary endpoint config should remain readable")
 	}
 }

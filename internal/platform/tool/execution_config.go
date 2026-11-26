@@ -64,7 +64,8 @@ func (s *Service) resolveExecutionConfig(
 	if s.policy == nil {
 		return nil, errors.New("tool endpoint policy is not configured")
 	}
-	if err := s.policy.validateConfig(ctx, cfg.SourceType, cfg.EndpointConfig); err != nil {
+	// 已固定的旧版本继续按原网络规则执行，写入新配置时才要求使用公开地址。
+	if err := s.policy.validateToolEndpoints(ctx, cfg.SourceType, cfg.EndpointConfig, parseToolEndpointURL); err != nil {
 		return nil, err
 	}
 
