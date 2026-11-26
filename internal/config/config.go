@@ -19,6 +19,7 @@ type Config struct {
 	AutoseedAdminEmail    string
 	AutoseedAdminPassword string
 	CredentialSecretKey   string
+	ToolAllowedHosts      string
 }
 
 func Load() (Config, error) {
@@ -108,5 +109,6 @@ func Load() (Config, error) {
 		AutoseedAdminEmail:    adminEmail,
 		AutoseedAdminPassword: adminPassword,
 		RedisURL:              redisURL,
+		ToolAllowedHosts:      os.Getenv("ASTERFLOW_TOOL_ALLOWED_HOSTS"),
 	}, nil
 }

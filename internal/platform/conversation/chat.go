@@ -96,16 +96,26 @@ func (s *Service) RunTurn(
 		)
 	}
 
+	snapshot, err := s.loadAgentSnapshot(turnCtx, conv)
+	if cause := context.Cause(turnCtx); cause != nil {
+		return nil, cause
+	}
+	if err != nil {
+		return nil, err
+	}
+
 	var userPromptID string
 	if requestedVersion != "" {
-		userPromptID, err = s.boundUserPromptID(turnCtx, conv)
-		if err != nil {
-			return nil, err
+		if snapshot.UserPromptID == "" {
+			return nil, fmt.Errorf("%w: agent version has no user prompt template for version selection",
+				ErrInvalidArgument)
 		}
+		userPromptID = snapshot.UserPromptID
 	}
 
 	result, err := s.engine.Run(turnCtx, engine.RunInput{
 		AgentVersionID:      conv.AgentVersionID,
+		ToolVersionIDs:      snapshot.ToolVersionIDs,
 		TurnRevision:        revision,
 		WorkspaceID:         workspaceID,
 		ConversationID:      conv.ID,
@@ -152,6 +162,11 @@ func (s *Service) RunTurn(
 		Content:        result.Content,
 	}
 
+	messages, err := buildTurnMessages(userMessage, assistantMessage, history, result)
+	if err != nil {
+		return nil, err
+	}
+
 	if cause := context.Cause(turnCtx); cause != nil {
 		return nil, cause
 	}
@@ -160,7 +175,7 @@ func (s *Service) RunTurn(
 	commitCtx, cancelCommit := context.WithTimeout(ctx, turnCommitTimeout)
 	err = s.store.CommitTurn(
 		commitCtx, workspaceID, conv.ID, token,
-		[]*domain.Message{userMessage, assistantMessage},
+		messages,
 		"active", userPromptSnapshot,
 	)
 	cancelCommit()
@@ -185,30 +200,23 @@ func (s *Service) RunTurn(
 	return assistantMessage, nil
 }
 
-// 会话固定的agent版本读取模版ID
-func (s *Service) boundUserPromptID(
+func (s *Service) loadAgentSnapshot(
 	ctx context.Context, conv *domain.Conversation,
-) (string, error) {
+) (domain.AgentSnapshot, error) {
+	var snapshot domain.AgentSnapshot
 	if s.agentsChecker == nil {
-		return "", fmt.Errorf("agent resolver is not configured")
+		return snapshot, fmt.Errorf("agent resolver is not configured")
 	}
 
+	// 同时核对工作空间、Agent 和会话保存的 Agent 版本。
 	version, err := s.agentsChecker.GetOwnedVersion(
 		ctx, conv.WorkspaceID, conv.AgentID, conv.AgentVersionID,
 	)
 	if err != nil {
-		return "", err
+		return snapshot, err
 	}
-
-	var snapshot domain.AgentSnapshot
 	if err := json.Unmarshal([]byte(version.SnapshotJSON), &snapshot); err != nil {
-		return "", fmt.Errorf("decode agent snapshot: %w", err)
+		return snapshot, fmt.Errorf("decode agent snapshot: %w", err)
 	}
-	if snapshot.UserPromptID == "" {
-		return "", fmt.Errorf(
-			"%w: agent version has no user prompt template for version selection",
-			ErrInvalidArgument,
-		)
-	}
-	return snapshot.UserPromptID, nil
+	return snapshot, nil
 }

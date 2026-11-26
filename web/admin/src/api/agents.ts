@@ -34,6 +34,7 @@ export interface AgentVersionInput {
   user_prompt_version_id?: string
   prompt_env?: string
   model_profile_version_id?: string
+  tool_ids?: string[]
   generation_config?: Record<string, unknown>
 }
 
@@ -92,6 +93,7 @@ function versionBody(input: AgentVersionInput) {
     user_prompt_version_id: input.user_prompt_version_id ?? '',
     prompt_env: input.prompt_env ?? 'dev',
     model_profile_version_id: input.model_profile_version_id ?? '',
+    ...(input.tool_ids?.length ? { tool_ids: input.tool_ids } : {}),
     generation_config: input.generation_config ?? {},
   }
 }

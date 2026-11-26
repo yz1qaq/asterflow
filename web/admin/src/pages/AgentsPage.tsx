@@ -14,6 +14,7 @@ import { canWriteConversations } from '@/api/conversations'
 import { listWorkspaceProfileVersions } from '@/api/modelBindings'
 import { listModelProfiles } from '@/api/modelProfiles'
 import { listPrompts } from '@/api/prompts'
+import { listTools, listToolVersions } from '@/api/tools'
 import { isSessionValid, useAuthStore } from '@/store/authStore'
 
 type Scope = { userID: string; token: string; workspaceID: string }
@@ -25,6 +26,17 @@ const envsKey = ({ userID, workspaceID }: Scope, agentID: string) => ['agent-env
 const timeLabel = (value: string) => Number.isNaN(Date.parse(value)) ? '—' : new Date(value).toLocaleString('zh-CN', { hour12: false })
 const ENVS = ['dev', 'staging', 'prod']
 const TEMPLATES = ['general', 'customer_support', 'internal_copilot']
+
+function snapshotToolIDs(snapshotJSON?: string): string[] {
+  if (!snapshotJSON) return []
+  try {
+    const snapshot = JSON.parse(snapshotJSON) as { tool_ids?: unknown } | null
+    if (Array.isArray(snapshot?.tool_ids)) return snapshot.tool_ids.filter((id): id is string => typeof id === 'string')
+  } catch {
+    // 旧快照缺少可用的工具字段时，表单从空选择开始。
+  }
+  return []
+}
 
 function useFormRequest({ userID, token, workspaceID }: Scope) {
   const request = useRef<AbortController | null>(null)
@@ -59,6 +71,7 @@ function getAgentError(error: unknown) {
         break
       case 400: {
         const detail = error.response.data?.error
+        if (typeof detail === 'string' && detail.includes('tool has no published version')) return '所选工具需要先发布版本'
         return typeof detail === 'string' ? detail.slice(0, 300) : '请检查名称、系统提示词或引用版本'
       }
     }
@@ -158,6 +171,19 @@ function AgentPanel({ scope, writable, deletable, chatAllowed, request }: {
     queryFn: ({ signal }) => request(signal, () => listPrompts(workspaceID, signal)),
   })
   const editingVersion = creating || Boolean(appending)
+  const tools = useQuery({
+    queryKey: ['agent-bindable-tools', scope.userID, workspaceID],
+    enabled: writable && editingVersion, retry: false,
+    queryFn: ({ signal }) => request(signal, async () => {
+      const entries = await listTools(workspaceID, signal)
+      const options = await Promise.all(entries.map(async tool => {
+        const versions = await listToolVersions(workspaceID, tool.id, signal)
+        const latestPublished = versions.find(version => version.status === 'published')
+        return latestPublished ? { value: tool.id, label: `${tool.name} · v${latestPublished.version}` } : null
+      }))
+      return options.filter(option => option !== null)
+    }),
+  })
   const profiles = useQuery({
     queryKey: ['agent-model-profiles', scope.userID, workspaceID],
     enabled: editingVersion, retry: false, refetchOnMount: 'always',
@@ -180,7 +206,12 @@ function AgentPanel({ scope, writable, deletable, chatAllowed, request }: {
     retry: false, refetchOnMount: 'always', queryFn: ({ signal }) => request(signal, () => listAgentEnvs(workspaceID, current!.id, signal)) })
 
   function openCreate() { form.resetFields(); setError(''); setCreating(true) }
-  function openAppend(agent: Agent) { form.resetFields(); setError(''); setAppending(agent) }
+  function openAppend(agent: Agent) {
+    form.resetFields()
+    form.setFieldValue('tool_ids', snapshotToolIDs(versions.data?.[0]?.snapshot_json))
+    setError('')
+    setAppending(agent)
+  }
   function openPublish(version: AgentVersion) { form.resetFields(); setError(''); setPublishing(version) }
   function closeModal() {
     if (busyRef.current) return
@@ -203,16 +234,17 @@ function AgentPanel({ scope, writable, deletable, chatAllowed, request }: {
   }
   async function save(values: {
     name?: string; description?: string; template?: string; system_prompt?: string
-    user_prompt_id?: string; model_profile_version_id?: string; env?: string
+    user_prompt_id?: string; model_profile_version_id?: string; tool_ids?: string[]; env?: string
   }) {
     if (!writable) return
     const body = {
       system_prompt: values.system_prompt ?? '',
       user_prompt_id: values.user_prompt_id,
       model_profile_version_id: values.model_profile_version_id,
+      tool_ids: values.tool_ids,
     }
     if (creating) {
-      const created = await run(() => createAgent(workspaceID, { name: values.name ?? '', description: values.description, template: values.template, ...body }))
+      const created = await run(signal => createAgent(workspaceID, { name: values.name ?? '', description: values.description, template: values.template, ...body }, signal))
       if (created) {
         const { agent } = created as { agent: Agent }
         setCreating(false); setSelected(agent.id)
@@ -222,7 +254,7 @@ function AgentPanel({ scope, writable, deletable, chatAllowed, request }: {
       return
     }
     if (appending) {
-      const appended = await run(() => createAgentVersion(workspaceID, appending.id, body))
+      const appended = await run(signal => createAgentVersion(workspaceID, appending.id, body, signal))
       if (appended) {
         setAppending(null)
         void message.success(`v${(appended as AgentVersion).version} 已保存`)
@@ -288,7 +320,7 @@ function AgentPanel({ scope, writable, deletable, chatAllowed, request }: {
         ]} />}
     {current && <section aria-label={`${current.name} 详情`} className="prompt-detail">
       <div className="model-section-heading"><Typography.Title level={4}>{current.name} · 版本</Typography.Title>
-        {writable && <Button onClick={() => openAppend(current)}>追加版本</Button>}</div>
+        {writable && <Button disabled={!versions.isSuccess} onClick={() => openAppend(current)}>追加版本</Button>}</div>
       {envs.isError && <Alert className="version-env-alert" role="alert" type="warning" showIcon message="无法读取发布环境"
         action={<Button size="small" onClick={() => void envs.refetch()}>重试</Button>} />}
       {versions.isError ? <Alert role="alert" type="error" showIcon message={getAgentError(versions.error)}
@@ -331,6 +363,15 @@ function AgentPanel({ scope, writable, deletable, chatAllowed, request }: {
         {editingVersion && <Form.Item name="model_profile_version_id" label="模型方案版本">
           <Select allowClear loading={profiles.isFetching || modelVersions.isFetching} placeholder="聊天需要选择模型方案"
             options={modelOptions} notFoundContent={profiles.isError || modelVersions.isError ? '无法读取模型方案' : '暂无模型方案版本'} />
+        </Form.Item>}
+        {editingVersion && <Form.Item name="tool_ids" label="绑定工具"
+          extra={tools.isError ? <Space>
+            <Typography.Text type="danger">无法读取工具</Typography.Text>
+            <Button type="link" size="small" onClick={() => void tools.refetch()}>重试</Button>
+          </Space> : '保存时固定所选工具的最新已发布版本'}>
+          <Select mode="multiple" showSearch optionFilterProp="label" placeholder="选择已发布工具"
+            loading={tools.isFetching} disabled={busy || tools.isPending || tools.isError}
+            options={tools.isError ? [] : tools.data ?? []} notFoundContent="当前空间暂无已发布工具" />
         </Form.Item>}
         {publishing && <Form.Item name="env" label="目标环境" rules={[{ required: true, message: '请选择环境' }]} initialValue="dev">
           <Select options={ENVS.map(value => ({ value, label: value }))} />

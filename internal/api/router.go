@@ -13,6 +13,8 @@ import (
 	"github.com/yz1qaq/asterflow/internal/platform/iam"
 	"github.com/yz1qaq/asterflow/internal/platform/modelconfig"
 	"github.com/yz1qaq/asterflow/internal/platform/prompt"
+	"github.com/yz1qaq/asterflow/internal/platform/tool"
+	"github.com/yz1qaq/asterflow/internal/runtime/tooling"
 )
 
 type ReadinessChecker interface {
@@ -22,6 +24,8 @@ type ReadinessChecker interface {
 type Services struct {
 	Agent        *agent.Service
 	Conversation *conversation.Service
+	Tool         *tool.Service
+	ToolRegistry *tooling.Registry
 }
 
 func NewRouter(
@@ -181,6 +185,17 @@ func NewRouter(
 	if len(extra) > 0 {
 		services = extra[0]
 	}
+	if services.Tool != nil {
+		toolHandler := v1.NewToolHandler(services.Tool, services.ToolRegistry)
+		workspaceRoutes.GET("/tools", toolHandler.ListTools)
+		workspaceRoutes.GET("/tools/:tool_id/versions", toolHandler.ListToolVersions)
+		workspaceRoutes.POST("/tools", toolHandler.CreateTool)
+		workspaceRoutes.POST("/tools/:tool_id/versions", toolHandler.CreateToolVersion)
+		if services.ToolRegistry != nil {
+			workspaceRoutes.POST("/tools/:tool_id/test", toolHandler.TestTool)
+		}
+		workspaceRoutes.POST("/tools/:tool_id/versions/:version_id/publish", toolHandler.PublishToolVersion)
+	}
 	if services.Agent != nil {
 		agentHandler := v1.NewAgentHandler(services.Agent)
 		workspaceRoutes.GET("/agents", agentHandler.ListAgents)
@@ -191,6 +206,7 @@ func NewRouter(
 		workspaceRoutes.POST("/agents/:agent_id/versions", agentHandler.CreateVersion)
 		workspaceRoutes.GET("/agents/:agent_id/envs", agentHandler.ListEnvs)
 		workspaceRoutes.POST("/agents/:agent_id/promote", agentHandler.Promote)
+
 	}
 	if services.Conversation != nil {
 		conversationHandler := v1.NewConversationHandler(services.Conversation)

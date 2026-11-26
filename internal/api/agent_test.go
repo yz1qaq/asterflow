@@ -17,6 +17,7 @@ import (
 	"github.com/yz1qaq/asterflow/internal/platform/iam"
 	"github.com/yz1qaq/asterflow/internal/platform/modelconfig"
 	"github.com/yz1qaq/asterflow/internal/platform/prompt"
+	"github.com/yz1qaq/asterflow/internal/platform/tool"
 )
 
 func TestAgentHTTP(t *testing.T) {
@@ -26,6 +27,7 @@ func TestAgentHTTP(t *testing.T) {
 		"000003_model_accounts_deployments.up.sql", "000004_model_profiles.up.sql",
 		"000005_project_model_bindings.up.sql", "000006_prompt_versions.up.sql",
 		"000009_agents.up.sql", "000010_conversations.up.sql", "000011_prompt_draft_deletion.up.sql",
+		"000012_tool_registry.up.sql", "000013_tool_test_runs.up.sql",
 	} {
 		script, err := os.ReadFile("../../migrations/" + migration)
 		if err != nil {
@@ -76,12 +78,15 @@ func TestAgentHTTP(t *testing.T) {
 	models := modelconfig.NewService(modelconfig.NewPostgresStore(pool), nil)
 	prompts := prompt.NewService(prompt.NewPostgresStore(pool), models)
 	agents := agent.NewService(agent.NewPostgresStore(pool), prompts, models)
+	tools := tool.NewService(tool.NewPostgresStore(pool))
+	tools.ConfigureSecurity(nil, tool.NewEndpointPolicy(nil, false))
+	agents.ConfigureToolResolver(tools)
 	conversationStore := conversation.NewPostgresStore(pool)
 	conversations := conversation.NewService(conversationStore, agents, prompts, nil)
 	server := httptest.NewServer(NewRouter(pool, identities, models, prompts, Services{Agent: agents, Conversation: conversations}))
 	defer server.Close()
 
-	call := func(method, path, body, token, space string, want int) []byte {
+	callAs := func(t *testing.T, method, path, body, token, space string, want int) []byte {
 		t.Helper()
 		req, err := http.NewRequestWithContext(ctx, method, server.URL+path, strings.NewReader(body))
 		if err != nil {
@@ -104,6 +109,10 @@ func TestAgentHTTP(t *testing.T) {
 			t.Fatalf("%s %s: status=%d want=%d err=%v body=%s", method, path, res.StatusCode, want, err, got)
 		}
 		return got
+	}
+	call := func(method, path, body, token, space string, want int) []byte {
+		t.Helper()
+		return callAs(t, method, path, body, token, space, want)
 	}
 	marshal := func(v any) string {
 		t.Helper()
@@ -274,5 +283,71 @@ func TestAgentHTTP(t *testing.T) {
 	if removedCount != 0 || remainingPrompt != 1 {
 		t.Fatalf("deletion left %d dependent rows; shared prompt count = %d", removedCount, remainingPrompt)
 	}
+	t.Run("pin published tool versions", func(t *testing.T) {
+		item, err := tools.CreateTool(ctx, tool.CreateToolRequest{
+			WorkspaceID: a, CreatedBy: owner.ID, Name: "get_order", SourceType: "internal_sdk",
+			EndpointConfig: `{"sdk_name":"fixture-orders"}`,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		toolStore := tool.NewPostgresStore(pool)
+		first, err := toolStore.GetToolCurrentVersion(ctx, item.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		authored := map[string]any{"name": "Agent with a bound tool", "tool_ids": []string{item.ID}}
+		callAs(t, "POST", base, marshal(authored), ownToken, a, http.StatusBadRequest)
+		callAs(t, "POST", base, marshal(authored), ownToken, b, http.StatusNotFound)
+		callAs(t, "POST", base, marshal(map[string]any{"name": "Malformed tool ID", "tool_ids": []string{"bad-id"}}),
+			ownToken, a, http.StatusBadRequest)
 
+		publish := func(id string) {
+			t.Helper()
+			if _, err := tools.RecordTestRun(ctx, a, item.ID, id, "{}", "fixture", 1, nil); err != nil {
+				t.Fatal(err)
+			}
+			if err := tools.PublishToolVersion(ctx, a, item.ID, id); err != nil {
+				t.Fatal(err)
+			}
+		}
+		publish(first.ID)
+		second, err := tools.CreateToolVersion(ctx, a, item.ID, tool.CreateToolVersionRequest{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		authored["tool_ids"] = []string{item.ID, " " + strings.ToUpper(item.ID) + " "}
+		var saved struct {
+			Agent   domain.Agent        `json:"agent"`
+			Version domain.AgentVersion `json:"version"`
+		}
+		if err := json.Unmarshal(callAs(t, "POST", base, marshal(authored), ownToken, a, http.StatusCreated), &saved); err != nil {
+			t.Fatal(err)
+		}
+		expect := func(raw, expectedVersionID string) {
+			t.Helper()
+			var snap domain.AgentSnapshot
+			if err := json.Unmarshal([]byte(raw), &snap); err != nil ||
+				len(snap.ToolIDs) != 1 || snap.ToolIDs[0] != item.ID ||
+				len(snap.ToolVersionIDs) != 1 || snap.ToolVersionIDs[0] != expectedVersionID {
+				t.Fatalf("unexpected pinned snapshot: %+v (%v)", snap, err)
+			}
+		}
+		expect(saved.Version.SnapshotJSON, first.ID)
+
+		publish(second.ID)
+		var next domain.AgentVersion
+		path := base + "/" + saved.Agent.ID + "/versions"
+		if err := json.Unmarshal(callAs(t, "POST", path, marshal(map[string]any{"tool_ids": authored["tool_ids"]}), ownToken, a, http.StatusCreated), &next); err != nil {
+			t.Fatal(err)
+		}
+		expect(next.SnapshotJSON, second.ID)
+
+		var persisted []domain.AgentVersion
+		if err := json.Unmarshal(callAs(t, "GET", path, "", viewerToken, a, http.StatusOK), &persisted); err != nil || len(persisted) != 2 {
+			t.Fatalf("load pinned snapshots: %v", err)
+		}
+		expect(persisted[0].SnapshotJSON, second.ID)
+		expect(persisted[1].SnapshotJSON, first.ID)
+	})
 }

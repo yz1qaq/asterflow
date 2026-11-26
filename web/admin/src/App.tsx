@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/authStore'
 import { NAV } from '@/nav'
 const ModelsPage = lazy(() => import('@/pages/ModelsPage').then(module => ({ default: module.ModelsPage })))
 const PromptsPage = lazy(() => import('@/pages/PromptsPage').then(module => ({ default: module.PromptsPage })))
+const ToolsPage = lazy(() => import('@/pages/ToolsPage').then(module => ({ default: module.ToolsPage })))
 const AgentsPage = lazy(() => import('@/pages/AgentsPage').then(module => ({ default: module.AgentsPage })))
 const ChatPage = lazy(() => import('@/pages/ChatPage').then(module => ({ default: module.ChatPage })))
 const ConversationsPage = lazy(() => import('@/pages/ConversationsPage').then(module => ({ default: module.ConversationsPage })))
@@ -34,6 +35,7 @@ export default function App() {
     <Route path="/workspaces"><AppLayout><WorkspacesPage /></AppLayout></Route>
     <Route path="/models"><AppLayout><ModelsPage /></AppLayout></Route>
     <Route path="/prompts"><AppLayout><PromptsPage /></AppLayout></Route>
+    <Route path="/tools"><AppLayout><ToolsPage /></AppLayout></Route>
     <Route path="/agents"><AppLayout><AgentsPage /></AppLayout></Route>
     <Route path="/chat"><AppLayout><ChatPage /></AppLayout></Route>
     <Route path="/conversations"><AppLayout><ConversationsPage /></AppLayout></Route>

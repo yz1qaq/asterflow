@@ -6,7 +6,7 @@ AsterFlow 将模型、提示词、技能、工具、知识库与多Agent编排�
 
 ## 项目状态
 
-需求与基础工程、G01登录用户管理和G02空间/成员治理已合并。G02最终head的Documentation/Go/Web CI与AI复审通过，已接通真实PG、Gin权限及React空间/成员/当前空间选择。G03 模型配置已由 [PR #14](https://github.com/yz1qaq/asterflow/pull/14) 合并，包含供应商账户、部署计价、方案版本与环境绑定。G04 提示词治理和 G05 Agent / 会话管理已合并。G06 初版聊天由 [PR #17](https://github.com/yz1qaq/asterflow/pull/17) 合并，ADK、续租及管理功能通过本地验收，[补充 PR #18](https://github.com/yz1qaq/asterflow/pull/18) 进入评审修复。详见[交付状态](docs/delivery/STATUS.md)。尚无生产部署。
+需求与基础工程、G01登录用户管理和G02空间/成员治理已合并。G02最终head的Documentation/Go/Web CI与AI复审通过，已接通真实PG、Gin权限及React空间/成员/当前空间选择。G03 模型配置已由 [PR #14](https://github.com/yz1qaq/asterflow/pull/14) 合并，包含供应商账户、部署计价、方案版本与环境绑定。G04 提示词治理和 G05 Agent / 会话管理已合并。G06 初版聊天由 [PR #17](https://github.com/yz1qaq/asterflow/pull/17) 合并，ADK、续租及管理功能由[补充 PR #18](https://github.com/yz1qaq/asterflow/pull/18) 合并。G07 工具管理和会话工具调用已通过本地验收。详见[交付状态](docs/delivery/STATUS.md)。尚无生产部署。
 
 目标范围包括：身份与空间权限、模型管理、Prompt治理、五源工具、Skills、知识检索、Agent/Team、审批与A2UI、Guard、Eval、审计观测、外部渠道、SDK/CLI、独立业务场景及部署。
 
@@ -38,7 +38,7 @@ python3 -m unittest discover -s scripts -p 'test_*.py' -v
 git diff --check
 ```
 
-当前管理端支持登录、空间与成员、模型配置、Prompt 治理、Agent 版本和会话聊天。
+当前管理端支持登录、空间与成员、模型配置、Prompt 治理、Agent 版本、会话聊天、工具版本管理和试跑。
 
 ## 后端启动与检查
 
@@ -78,6 +78,32 @@ make build
 ```
 
 首次先make web-install安装前端锁定依赖；make check执行文档、Go依赖一致性、race/vet/build及前端测试/类型检查/构建；build生成的bin目录已忽略。HTTP地址未设置时用默认，显式空白或非法host:port/端口1–65535以错误退出。数据库URL必需，启动连接失败退出1；Redis启动时Ping失败同样退出1（Prompt缓存跨进程失效依赖它）。运行期间的PG故障由readyz返回503，healthz仍报告存活；Redis不参与readyz。
+
+## 业务工具调用
+
+工具管理接口保存版本、校验 Schema 与端点配置，指定版本试跑成功后可发布。新版本的端点配置禁止同名地址字段，URL 不接受查询参数或片段。历史配置不符合显示规则时，版本详情会隐藏端点，执行仍使用已保存的配置。鉴权凭据通过独立配置加密保存。Agent 版本快照引用具体工具版本。会话执行时，Eino ADK 把工具结果交给模型，Gin 把实时事件交给网页，会话服务把完整消息和工具调用记录写入平台库。
+
+```mermaid
+flowchart LR
+    Web["React 管理端"] --> API["Gin · 认证与空间权限"]
+    API --> Tools["工具 Service · 版本、试跑、发布"]
+    Tools --> PlatformDB[("平台 PostgreSQL")]
+    API --> Turn["会话 RunTurn · 读取快照与租约"]
+    Turn --> Engine["Executor · Eino ADK"]
+    Engine --> Model["模型 Gateway"]
+    Engine --> Registry["Registry · 按版本构建工具"]
+    Registry --> Tools
+    Registry --> Validate["Schema 校验"]
+    Validate --> SDK["internal SDK"]
+    Validate --> REST["REST 执行器 · 端点校验与请求"]
+    REST --> Business["独立 Crossborder HTTP"]
+    Business --> BusinessDB[("业务 PostgreSQL")]
+    Engine --> Turn
+    Turn -->|CommitTurn · 消息和调用记录| PlatformDB
+    Turn -->|SSE · 工具事件和回答| Web
+```
+
+见[独立业务启动说明](crossborder/README.md)和[G07 验收记录](docs/delivery/G07-VERIFICATION.md)。
 
 ## 当前启动与退出路径
 
@@ -253,4 +279,4 @@ git config --local core.hooksPath .githooks
 
 ## 来源与许可
 
-技术参考与固定基线见[第三方说明](THIRD_PARTY.md)和[基线记录](docs/reference/BASELINE.md)。项目采用[Apache-2.0](LICENSE)，保留适用的原项目来源与版权说明。
+技术参考来自 [Q1mi/kbot](https://github.com/Q1mi/kbot)。固定版本和来源说明见[第三方说明](THIRD_PARTY.md)和[基线记录](docs/reference/BASELINE.md)。项目采用[Apache-2.0](LICENSE)，保留适用的原项目来源与版权说明。

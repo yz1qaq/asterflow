@@ -20,6 +20,7 @@ type PromptRenderer interface {
 type Executor struct {
 	promptRenderer PromptRenderer
 	models         llm.Gateway
+	toolBuilder    VersionedToolBuilder
 }
 
 const maxHistoryMessages = 10
@@ -32,6 +33,7 @@ func NewExecutor(prompts PromptRenderer, models llm.Gateway) *Executor {
 
 type RunInput struct {
 	AgentVersionID      string            `json:"-"`
+	ToolVersionIDs      []string          `json:"-"`
 	TurnRevision        int64             `json:"-"`
 	WorkspaceID         string            `json:"-"`
 	ConversationID      string            `json:"-"`
@@ -53,6 +55,9 @@ type RunResult struct {
 	Model                string
 	Usage                llm.Usage
 	NextSeq              int64
+	ToolMessages         []*schema.Message
+	ToolResults          []ToolResultEvent
+	ToolIdentities       map[string]domain.ToolIdentity
 }
 
 func (e *Executor) Run(ctx context.Context, in RunInput, emit Emitter) (*RunResult, error) {
@@ -165,6 +170,19 @@ func (e *Executor) Run(ctx context.Context, in RunInput, emit Emitter) (*RunResu
 		_ = send(EventRunFailed, RunFailed{Code: "model_unavailable", Message: err.Error()})
 		return nil, err
 	}
+
+	// 会话快照决定本轮可供 ADK 调用的工具。
+	tools, toolIdentities, err := e.buildTools(ctx, in)
+	if err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		_ = send(EventRunFailed, RunFailed{
+			Code: "tool_build_error", Message: "工具加载失败",
+		})
+		return nil, err
+	}
+
 	chatModel := &gatewayChatModel{
 		gateway: e.models, workspaceID: in.WorkspaceID, classification: in.Classification,
 		request: llm.GenerateRequest{
@@ -176,7 +194,14 @@ func (e *Executor) Run(ctx context.Context, in RunInput, emit Emitter) (*RunResu
 			Seed:                  runtime.GenerationConfig.Seed,
 		},
 	}
-	result, err := runADK(ctx, chatModel, system, messages, func(text string) error {
+	var toolResults []ToolResultEvent
+	sendToolEvent := func(kind EventType, data any) error {
+		if outcome, ok := data.(ToolResultEvent); ok {
+			toolResults = append(toolResults, outcome)
+		}
+		return send(kind, data)
+	}
+	result, err := runADK(ctx, chatModel, system, messages, tools, sendToolEvent, func(text string) error {
 		return send(EventModelDelta, ModelDelta{Content: text})
 	})
 	if err != nil {
@@ -191,6 +216,9 @@ func (e *Executor) Run(ctx context.Context, in RunInput, emit Emitter) (*RunResu
 		return nil, err
 	}
 	result.NextSeq = seq
+	result.ToolResults = toolResults
+	result.ToolIdentities = toolIdentities
+
 	if userVersion != "" {
 		result.RenderedUserPrompt = user
 		result.UserPromptVersionID = userVersion
@@ -202,33 +230,74 @@ func (e *Executor) Run(ctx context.Context, in RunInput, emit Emitter) (*RunResu
 	return result, nil
 }
 
-// 把历史记录构建进消息
 func buildModelMessages(history []*domain.Message, user string) ([]*schema.Message, error) {
 	if len(history) > maxHistoryMessages {
-		history = history[len(history)-maxHistoryMessages:]
+		start := len(history) - maxHistoryMessages
+		// 回到本轮用户消息，避免裁剪出一条孤立的工具结果。
+		for start > 0 && history[start] != nil && history[start].Role != "user" {
+			start--
+		}
+		history = history[start:]
 	}
 
 	messages := make([]*schema.Message, 0, len(history)+1)
+	pending := make(map[string]struct{})
+
 	for _, message := range history {
 		if message == nil {
 			return nil, fmt.Errorf("conversation history contains a nil message")
 		}
-		if message.Role == "tool" || len(message.ToolCalls) > 0 || message.ToolCallID != nil {
-			return nil, fmt.Errorf("tool history requires the tool runtime")
+		if len(pending) != 0 && message.Role != "tool" {
+			return nil, fmt.Errorf("history tool calls are missing results")
 		}
 
 		switch message.Role {
-		case "user", "assistant":
-			messages = append(messages, &schema.Message{
-				Role:    schema.RoleType(message.Role),
-				Content: message.Content,
-			})
+		case "user":
+			messages = append(messages, schema.UserMessage(message.Content))
+
+		case "assistant":
+			var calls []schema.ToolCall
+			for _, call := range message.ToolCalls {
+				id := call.ProviderCallID
+				if id == "" {
+					id = call.ID
+				}
+				_, exists := pending[id]
+				if id == "" || call.Name == "" || exists {
+					return nil, fmt.Errorf("invalid history tool call %q", id)
+				}
+
+				pending[id] = struct{}{}
+				calls = append(calls, schema.ToolCall{
+					ID: id, Type: "function",
+					Function: schema.FunctionCall{
+						Name:      call.Name,
+						Arguments: domain.ToolArgumentsObject(call.Args),
+					},
+				})
+			}
+			messages = append(messages, schema.AssistantMessage(message.Content, calls))
+
+		case "tool":
+			if message.ToolCallID == nil {
+				return nil, fmt.Errorf("history tool result is missing its call ID")
+			}
+			id := *message.ToolCallID
+			if _, exists := pending[id]; !exists {
+				return nil, fmt.Errorf("history tool result has no matching call %q", id)
+			}
+			delete(pending, id)
+			messages = append(messages, schema.ToolMessage(message.Content, id))
+
 		case "system":
-			// The system prompt comes from the pinned runtime config.
+			// 系统提示词由本会话固定的运行时配置提供。
 		default:
 			return nil, fmt.Errorf("unsupported history role %q", message.Role)
 		}
 	}
 
+	if len(pending) != 0 {
+		return nil, fmt.Errorf("history tool calls are missing results")
+	}
 	return append(messages, schema.UserMessage(user)), nil
 }

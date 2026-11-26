@@ -13,6 +13,8 @@ const (
 	EventRunStarted     EventType = "run_started"
 	EventPromptResolved EventType = "prompt_resolved"
 	EventModelDelta     EventType = "model_delta"
+	EventToolCall       EventType = "tool_call"
+	EventToolResult     EventType = "tool_result"
 
 	EventRunCompleted EventType = "run_completed"
 	EventRunFailed    EventType = "run_failed"
@@ -46,6 +48,21 @@ type PromptResolved struct {
 
 type ModelDelta struct {
 	Content string `json:"content"`
+}
+
+type ToolCallEvent struct {
+	CallID    string `json:"call_id"`
+	Name      string `json:"name"`
+	Arguments string `json:"arguments"`
+}
+
+type ToolResultEvent struct {
+	CallID    string `json:"call_id"`
+	Name      string `json:"name"`
+	Status    string `json:"status"`
+	Output    string `json:"output,omitempty"`
+	Error     string `json:"error,omitempty"`
+	LatencyMs int64  `json:"latency_ms"`
 }
 
 type RunCompleted struct {

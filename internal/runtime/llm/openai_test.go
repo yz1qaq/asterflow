@@ -9,6 +9,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/cloudwego/eino/schema"
 )
 
 func TestOpenAIGenerate(t *testing.T) {
@@ -166,5 +168,211 @@ func TestOpenAIStreamRejectsPrematureClose(t *testing.T) {
 	}
 	if chunk, err := stream.Recv(ctx); chunk != nil || !errors.Is(err, io.ErrUnexpectedEOF) {
 		t.Fatalf("premature close = %+v, %v", chunk, err)
+	}
+}
+
+func TestEinoOpenAIChatTools(t *testing.T) {
+	ctx := context.Background()
+	type observed struct {
+		path string
+		req  map[string]json.RawMessage
+		auth string
+		err  error
+	}
+	requests := make(chan observed, 4)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var fields map[string]json.RawMessage
+		err := json.NewDecoder(r.Body).Decode(&fields)
+		requests <- observed{r.URL.Path, fields, r.Header.Get("Authorization"), err}
+		if string(fields["stream"]) == "true" {
+			w.Header().Set("Content-Type", "text/event-stream")
+			for _, data := range []string{
+				"{\"model\":\"provider-resolved\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"tool_calls\":[{\"index\":0,\"id\":\"call_1\",\"type\":\"function\",\"function\":{\"name\":\"get_order\",\"arguments\":\"{\\\"order\"}}]}}]}",
+				"{\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"_id\\\":\\\"A\\\"}\"}}]}}]}",
+				"{\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}]}",
+				"{\"choices\":[],\"usage\":{\"prompt_tokens\":4,\"completion_tokens\":2,\"total_tokens\":6}}",
+				"[DONE]",
+			} {
+				_, _ = io.WriteString(w, "data: "+data+"\n\n")
+			}
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, "{\"model\":\"provider-resolved\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"tool_calls\":[{\"id\":\"call_1\",\"type\":\"function\",\"function\":{\"name\":\"get_order\",\"arguments\":\"{}\"}}]},\"finish_reason\":\"tool_calls\"}],\"usage\":{\"total_tokens\":8}}")
+	}))
+	defer server.Close()
+
+	client := NewEinoOpenAIClient()
+	dep := ResolvedDeployment{ID: "deploy", BaseURL: server.URL + "/v1", Model: "model-a", APIKey: "fixture"}
+	req := GenerateRequest{Tools: []*schema.ToolInfo{{Name: "get_order", Desc: "find an order", ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
+		"order_id": {Type: schema.String, Required: true},
+	})}}, Messages: []Message{{Role: "user", Content: "find A"},
+		{Role: "assistant", ToolCalls: []ToolCall{{ID: "call_old", Type: "function", Function: schema.FunctionCall{Name: "get_order", Arguments: "{}"}}}},
+		{Role: "tool", ToolCallID: "call_old", Content: "in transit"},
+	}}
+	one, err := client.Generate(ctx, dep, req)
+	if err != nil || len(one.ToolCalls) != 1 || one.ToolCalls[0].ID != "call_1" || one.Usage.TotalTokens != 8 || one.Model != "provider-resolved" {
+		t.Fatalf("generate result: %+v (%v)", one, err)
+	}
+	first := <-requests
+	if first.err != nil || first.path != "/v1/chat/completions" || first.auth != "Bearer fixture" ||
+		!strings.Contains(string(first.req["tools"]), "\"name\":\"get_order\"") ||
+		!strings.Contains(string(first.req["messages"]), "\"tool_call_id\":\"call_old\"") {
+		t.Fatalf("unexpected wire request: %+v", first)
+	}
+	stream, err := client.Stream(ctx, dep, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stream.Close()
+	var merged []*schema.Message
+	for {
+		delta, err := stream.Recv(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if delta.Done {
+			if delta.Usage.TotalTokens != 6 || delta.Model != "provider-resolved" || delta.DeploymentID != "deploy" {
+				t.Fatalf("done: %+v", delta)
+			}
+			break
+		}
+		merged = append(merged, schema.AssistantMessage(delta.Content, delta.ToolCalls))
+	}
+	msg, err := schema.ConcatMessages(merged)
+	if err != nil || len(msg.ToolCalls) != 1 || msg.ToolCalls[0].Function.Arguments != "{\"order_id\":\"A\"}" {
+		t.Fatalf("joined tool args: %+v (%v)", msg, err)
+	}
+}
+
+func TestEinoOpenAIRetryableStatus(t *testing.T) {
+	for _, tc := range []struct {
+		status    int
+		retryable bool
+	}{{429, true}, {502, true}, {401, false}} {
+		s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(tc.status)
+			_, _ = io.WriteString(w, "provider error fixture")
+		}))
+		_, err := NewEinoOpenAIClient().Generate(context.Background(), ResolvedDeployment{BaseURL: s.URL, Model: "m"}, GenerateRequest{})
+		s.Close()
+		var failure *ProviderError
+		if !errors.As(err, &failure) || failure.StatusCode != tc.status || failure.Retryable != tc.retryable {
+			t.Fatalf("status %d: %v", tc.status, err)
+		}
+	}
+}
+
+func TestEinoOpenAIStreamCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		flusher, _ := w.(http.Flusher)
+		_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"x\"}}]}\n\n"))
+		flusher.Flush()
+		<-r.Context().Done() // 阻塞直到客户端断开
+	}))
+	defer server.Close()
+
+	client := NewEinoOpenAIClient()
+	stream, err := client.Stream(ctx, ResolvedDeployment{ID: "d1", BaseURL: server.URL, Model: "m"}, GenerateRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stream.Close()
+	if _, err := stream.Recv(ctx); err != nil {
+		t.Fatalf("first chunk should arrive before cancel: %v", err)
+	}
+	cancel()
+	if _, err := stream.Recv(ctx); err == nil || !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context cancellation, got %v", err)
+	}
+}
+
+func TestEinoOpenAIStreamRejectsPrematureClose(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = w.Write([]byte(`data: {"choices":[{"delta":{"content":"partial"}}]}` + "\n\n"))
+	}))
+	defer server.Close()
+	ctx := context.Background()
+	stream, err := NewEinoOpenAIClient().Stream(ctx, ResolvedDeployment{BaseURL: server.URL, Model: "fixture"}, GenerateRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stream.Close()
+	if chunk, err := stream.Recv(ctx); err != nil || chunk.Content != "partial" {
+		t.Fatalf("first chunk = %+v, %v", chunk, err)
+	}
+	if chunk, err := stream.Recv(ctx); chunk != nil || !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatalf("premature close = %+v, %v", chunk, err)
+	}
+}
+
+func TestEinoOpenAIPreservesGenerationValues(t *testing.T) {
+	zeroTopP, normalTopP := float32(0), float32(0.25)
+	zeroTokens, normalTokens := 0, 64
+	tests := []struct {
+		name string
+		req  GenerateRequest
+		want map[string]string
+	}{
+		{name: "unset", want: map[string]string{"top_p": "", "max_tokens": "", "temperature": "", "seed": ""}},
+		{name: "explicit zero",
+			req:  GenerateRequest{TopP: &zeroTopP, MaxOutputTokens: &zeroTokens, Temperature: &zeroTopP, Seed: &zeroTokens},
+			want: map[string]string{"top_p": "0", "max_tokens": "0", "temperature": "0", "seed": "0"}},
+		{name: "nonzero",
+			req:  GenerateRequest{TopP: &normalTopP, MaxOutputTokens: &normalTokens},
+			want: map[string]string{"top_p": "0.25", "max_tokens": "64"}},
+	}
+	for _, streaming := range []bool{false, true} {
+		mode := "generate"
+		if streaming {
+			mode = "stream"
+		}
+		for _, test := range tests {
+			t.Run(mode+"/"+test.name, func(t *testing.T) {
+				requestBody := make(chan map[string]json.RawMessage, 1)
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					var body map[string]json.RawMessage
+					if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+						w.WriteHeader(http.StatusBadRequest)
+						return
+					}
+					requestBody <- body
+					if streaming {
+						w.Header().Set("Content-Type", "text/event-stream")
+						_, _ = io.WriteString(w, `data: {"model":"fixture","choices":[{"index":0,"delta":{"role":"assistant","content":"ok"},"finish_reason":"stop"}]}`+"\n\ndata: [DONE]\n\n")
+						return
+					}
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = io.WriteString(w, `{"model":"fixture","choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}]}`)
+				}))
+				defer server.Close()
+
+				ctx := context.Background()
+				client := NewEinoOpenAIClient()
+				dep := ResolvedDeployment{BaseURL: server.URL, Model: "fixture"}
+				if streaming {
+					stream, err := client.Stream(ctx, dep, test.req)
+					if err != nil {
+						t.Fatal(err)
+					}
+					defer stream.Close()
+					if _, err := stream.Recv(ctx); err != nil {
+						t.Fatal(err)
+					}
+				} else if _, err := client.Generate(ctx, dep, test.req); err != nil {
+					t.Fatal(err)
+				}
+
+				got := <-requestBody
+				for field, want := range test.want {
+					if actual := string(got[field]); actual != want {
+						t.Errorf("%s wire value = %q, want %q", field, actual, want)
+					}
+				}
+			})
+		}
 	}
 }

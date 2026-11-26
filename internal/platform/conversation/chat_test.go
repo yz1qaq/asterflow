@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudwego/eino/schema"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/yz1qaq/asterflow/internal/domain"
@@ -53,7 +54,11 @@ func TestConversationRunTurn(t *testing.T) {
 	ctx := context.Background()
 	agents := agent.NewPostgresStore(pool)
 	a := &domain.Agent{ID: uuid.NewString(), WorkspaceID: "space-a", Name: "Support"}
-	v1 := &domain.AgentVersion{ID: uuid.NewString(), SnapshotJSON: `{"system_prompt":"hi","model_profile_version_id":"m1"}`, CreatedBy: "owner"}
+	toolV1, toolV2 := uuid.NewString(), uuid.NewString()
+	v1 := &domain.AgentVersion{
+		ID: uuid.NewString(), CreatedBy: "owner",
+		SnapshotJSON: `{"system_prompt":"hi","model_profile_version_id":"m1","tool_version_ids":["` + toolV1 + `"]}`,
+	}
 	if err := agents.CreateAgentWithInitialVersion(ctx, a, v1); err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +69,24 @@ func TestConversationRunTurn(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	runner := fakeRunner{result: &engine.RunResult{Content: "hello", Model: "m", Usage: llm.Usage{TotalTokens: 3}, NextSeq: 1}}
+	v2 := &domain.AgentVersion{
+		ID: uuid.NewString(), AgentID: a.ID, CreatedBy: "owner",
+		SnapshotJSON: `{"tool_version_ids":["` + toolV2 + `"]}`,
+	}
+	if err := agents.AppendAgentVersion(ctx, a.WorkspaceID, v2); err != nil {
+		t.Fatal(err)
+	}
+	if err := agentSvc.Promote(ctx, a.WorkspaceID, a.ID, "dev", v2.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	replyRunner := fakeRunner{result: &engine.RunResult{Content: "hello", Model: "m", Usage: llm.Usage{TotalTokens: 3}, NextSeq: 1}}
+	runner := chatRunnerFunc(func(ctx context.Context, in engine.RunInput, emit engine.Emitter) (*engine.RunResult, error) {
+		if in.AgentVersionID != v1.ID || !reflect.DeepEqual(in.ToolVersionIDs, []string{toolV1}) {
+			t.Fatalf("runner got Agent version %s and tool versions %v", in.AgentVersionID, in.ToolVersionIDs)
+		}
+		return replyRunner.Run(ctx, in, emit)
+	})
 	svc := NewService(store, agentSvc, nil, runner)
 	emit := &captureEmitter{}
 	reply, err := svc.RunTurn(ctx, ChatTurnRequest{WorkspaceID: "space-a", UserID: "user-1", ConversationID: conv.ID, Input: "hi"}, emit)
@@ -153,7 +175,7 @@ func TestConversationRunTurnReplaysHistory(t *testing.T) {
 	}
 	store := NewPostgresStore(pool)
 	gateway := &historyRecordingGateway{}
-	svc := NewService(store, nil, nil, engine.NewExecutor(nil, gateway))
+	svc := NewService(store, agent.NewService(agents, nil, nil), nil, engine.NewExecutor(nil, gateway))
 
 	createConversation := func(t *testing.T) *domain.Conversation {
 		t.Helper()
@@ -270,7 +292,7 @@ func TestConversationFirstTurnUserTemplate(t *testing.T) {
 	store := NewPostgresStore(pool)
 	gateway := &historyRecordingGateway{}
 	renderer := prompt.NewService(userTemplateStore{versions: map[string]*prompt.PromptVersion{template.ID: template}}, nil)
-	svc := NewService(store, nil, nil, engine.NewExecutor(renderer, gateway))
+	svc := NewService(store, agent.NewService(agent.NewPostgresStore(pool), nil, nil), nil, engine.NewExecutor(renderer, gateway))
 
 	for _, tt := range []struct {
 		name  string
@@ -489,7 +511,8 @@ func TestConversationLongTurnRenewsAndSyncCollectsDeltas(t *testing.T) {
 	req := ChatTurnRequest{WorkspaceID: a.WorkspaceID, ConversationID: conv.ID, UserID: conv.UserID, Input: "hello"}
 	started, release := make(chan engine.RunInput, 1), make(chan struct{})
 	commit := delayedCommitStore{Store: store, started: make(chan struct{}), proceed: make(chan struct{})}
-	svc := NewService(commit, nil, nil, chatRunnerFunc(func(ctx context.Context, in engine.RunInput, emit engine.Emitter) (*engine.RunResult, error) {
+	agentSvc := agent.NewService(agentStore, nil, nil)
+	svc := NewService(commit, agentSvc, nil, chatRunnerFunc(func(ctx context.Context, in engine.RunInput, emit engine.Emitter) (*engine.RunResult, error) {
 		started <- in
 		select {
 		case <-release:
@@ -553,7 +576,7 @@ func TestConversationLongTurnRenewsAndSyncCollectsDeltas(t *testing.T) {
 		t.Fatalf("saved messages = %+v, %v", messages, err)
 	}
 
-	broken := NewService(failingRenewalStore{store}, nil, nil, chatRunnerFunc(func(ctx context.Context, _ engine.RunInput, emit engine.Emitter) (*engine.RunResult, error) {
+	broken := NewService(failingRenewalStore{store}, agentSvc, nil, chatRunnerFunc(func(ctx context.Context, _ engine.RunInput, emit engine.Emitter) (*engine.RunResult, error) {
 		if err := emit.Emit(ctx, engine.Event{Seq: 1, Type: engine.EventRunStarted}); err != nil {
 			return nil, err
 		}
@@ -578,5 +601,66 @@ func TestConversationLongTurnRenewsAndSyncCollectsDeltas(t *testing.T) {
 	}
 	if err := store.ReleaseTurn(ctx, conv.WorkspaceID, conv.ID, probe, "active"); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestRunTurnPersistsToolTranscriptAndRelationalCall(t *testing.T) {
+	pool := newConversationTestPool(t)
+	ctx := context.Background()
+	agents := agent.NewPostgresStore(pool)
+	a := &domain.Agent{ID: uuid.NewString(), WorkspaceID: "space-a", Name: "Support"}
+	v := &domain.AgentVersion{ID: uuid.NewString(), SnapshotJSON: "{}", CreatedBy: "owner"}
+	if err := agents.CreateAgentWithInitialVersion(ctx, a, v); err != nil {
+		t.Fatal(err)
+	}
+	store := NewPostgresStore(pool)
+	conv := &domain.Conversation{ID: uuid.NewString(), WorkspaceID: a.WorkspaceID, AgentID: a.ID,
+		AgentVersionID: v.ID, UserID: "user-1", RuntimeConfigJSON: "{}"}
+	if err := store.CreateConversation(ctx, conv); err != nil {
+		t.Fatal(err)
+	}
+	const providerID = "call_same_from_provider"
+	toolID, versionID := uuid.NewString(), uuid.NewString()
+	const output = "error: tool execution failed"
+	run := chatRunnerFunc(func(context.Context, engine.RunInput, engine.Emitter) (*engine.RunResult, error) {
+		return &engine.RunResult{
+			Content: "请补充订单号",
+			ToolMessages: []*schema.Message{
+				schema.AssistantMessage("", []schema.ToolCall{{ID: providerID, Type: "function",
+					Function: schema.FunctionCall{Name: "get_order", Arguments: "invalid json"}}}),
+				schema.ToolMessage(output, providerID),
+			},
+			ToolResults:    []engine.ToolResultEvent{{CallID: providerID, Error: "工具执行失败", LatencyMs: 7}},
+			ToolIdentities: map[string]domain.ToolIdentity{"get_order": {ToolID: toolID, VersionID: versionID}},
+		}, nil
+	})
+	svc := NewService(store, agent.NewService(agents, nil, nil), nil, run)
+	req := ChatTurnRequest{WorkspaceID: conv.WorkspaceID, ConversationID: conv.ID, UserID: conv.UserID, Input: "查询订单"}
+	if _, err := svc.RunTurn(ctx, req, &captureEmitter{}); err != nil {
+		t.Fatal(err)
+	}
+	msgs, err := store.ListMessages(ctx, conv.WorkspaceID, conv.ID)
+	if err != nil || len(msgs) != 4 || len(msgs[1].ToolCalls) != 1 || msgs[2].ToolCallID == nil {
+		t.Fatalf("incorrect transcript: %+v (%v)", msgs, err)
+	}
+	call := msgs[1].ToolCalls[0]
+	if _, err := uuid.Parse(call.ID); err != nil || call.ProviderCallID != providerID ||
+		*msgs[2].ToolCallID != providerID || call.Args != "invalid json" || call.Result != output {
+		t.Fatalf("wrong message or call identity: %+v %+v", call, msgs[2])
+	}
+	var rawArgs, rawResult, id, failure string
+	var storedToolID *string
+	var latency int
+	if err := pool.QueryRow(ctx, "SELECT args::text, result::text, tool_id::text, tool_version_id::text, error, latency_ms FROM tool_calls WHERE id::text = $1", call.ID).
+		Scan(&rawArgs, &rawResult, &storedToolID, &id, &failure, &latency); err != nil {
+		t.Fatal(err)
+	}
+	if storedToolID == nil || *storedToolID != toolID || call.ToolID != toolID {
+		t.Fatalf("tool identity from message and DB: want %s, message has %q, DB has %v", toolID, call.ToolID, storedToolID)
+	}
+	var storedOutput string
+	if err := json.Unmarshal([]byte(rawResult), &storedOutput); err != nil || rawArgs != "{}" || storedOutput != output ||
+		id != versionID || failure != "工具执行失败" || latency != 7 {
+		t.Fatalf("unexpected relational row: %s %s %s %s %d (%v)", rawArgs, rawResult, id, failure, latency, err)
 	}
 }

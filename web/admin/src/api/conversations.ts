@@ -18,7 +18,17 @@ export interface ConversationMessage {
   conversation_id: string
   role: string
   content: string
-  tool_calls?: { id: string; tool_id?: string; args?: string; result?: string; error?: string; latency_ms?: number }[]
+  tool_calls?: {
+    id: string
+    provider_call_id?: string
+    tool_id?: string
+    tool_version_id?: string
+    name?: string
+    args?: string
+    result?: string
+    error?: string
+    latency_ms?: number
+  }[]
   tool_call_id?: string
   created_at: string
 }

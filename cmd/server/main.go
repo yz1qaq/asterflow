@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -18,9 +19,11 @@ import (
 	"github.com/yz1qaq/asterflow/internal/platform/iam"
 	"github.com/yz1qaq/asterflow/internal/platform/modelconfig"
 	"github.com/yz1qaq/asterflow/internal/platform/prompt"
+	"github.com/yz1qaq/asterflow/internal/platform/tool"
 	"github.com/yz1qaq/asterflow/internal/runtime/engine"
 	"github.com/yz1qaq/asterflow/internal/runtime/llm"
 	"github.com/yz1qaq/asterflow/internal/runtime/promptcache"
+	"github.com/yz1qaq/asterflow/internal/runtime/tooling"
 )
 
 //程序的总入口,初始化组件、连接数据库、启动http服务
@@ -93,14 +96,32 @@ func start() error {
 	agentStore := agent.NewPostgresStore(pool)
 	agentService := agent.NewService(agentStore, promptService, modelService)
 
-	gateway := llm.NewFailoverGateway(modelService, llm.NewOpenAIClient())
+	gateway := llm.NewFailoverGateway(modelService, llm.NewEinoOpenAIClient())
 	executor := engine.NewExecutor(promptService, gateway)
 
 	conversationStore := conversation.NewPostgresStore(pool)
 	conversationService := conversation.NewService(conversationStore, agentService, promptService, executor)
 
-	handler := api.NewRouter(pool, iamService, modelService, promptService,
-		api.Services{Agent: agentService, Conversation: conversationService})
+	toolStore := tool.NewPostgresStore(pool)
+	toolService := tool.NewService(toolStore)
+	agentService.ConfigureToolResolver(toolService)
+
+	// 只为显式指定的主机提供私网例外。
+	endpointPolicy := tool.NewEndpointPolicy(strings.Split(cfg.ToolAllowedHosts, ","), false)
+	toolService.ConfigureSecurity(credentialCipher, endpointPolicy)
+	toolRegistry, err := tooling.NewRegistry(endpointPolicy)
+	if err != nil {
+		return fmt.Errorf("initialize tool registry: %w", err)
+	}
+	toolRegistry.ConfigureVersionLoader(toolService)
+	executor.ConfigureTools(toolRegistry)
+
+	handler := api.NewRouter(pool, iamService, modelService, promptService, api.Services{
+		Agent:        agentService,
+		Conversation: conversationService,
+		Tool:         toolService,
+		ToolRegistry: toolRegistry,
+	})
 
 	if cfg.AutoseedAdmin {
 		seedCtx, cancel := context.WithTimeout(ctx, 10*time.Second)

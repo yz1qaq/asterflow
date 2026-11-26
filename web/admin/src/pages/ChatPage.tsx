@@ -12,6 +12,7 @@ import {
 } from '@/api/conversations'
 import { getWorkspaceContext } from '@/api/iam'
 import { ChatComposer, readStringField } from '@/components/ChatComposer'
+import { ChatToolActivity, type LiveToolCall } from '@/components/ChatToolActivity'
 import { ConversationMessages, timeLabel } from '@/components/ConversationMessages'
 import { isSessionValid, useAuthStore } from '@/store/authStore'
 
@@ -269,6 +270,7 @@ function ActiveChat({ workspaceID, userID, conversation, messages, agentName, ca
   onDone: () => Promise<void>
 }) {
   const [streaming, setStreaming] = useState('')
+  const [toolCalls, setToolCalls] = useState<LiveToolCall[]>([])
   const timeline = useRef<HTMLDivElement>(null)
   const stickToBottom = useRef(true)
   const versions = useQuery({
@@ -288,6 +290,7 @@ function ActiveChat({ workspaceID, userID, conversation, messages, agentName, ca
       <Typography.Title level={4}>{agentName ?? '当前会话'}</Typography.Title>
       {version !== undefined && <Tag color="blue">v{version}</Tag>}
     </header>
+    <ChatToolActivity calls={toolCalls} />
     <div className="chat-timeline" ref={timeline} tabIndex={0} aria-label="会话消息"
       onScroll={event => {
         const view = event.currentTarget
@@ -301,6 +304,6 @@ function ActiveChat({ workspaceID, userID, conversation, messages, agentName, ca
       </article>}
     </div>
     {canWrite && <ChatComposer workspaceID={workspaceID} userID={userID} conversation={conversation}
-      firstTurn={messages.length === 0} onDone={onDone} onDraftChange={setStreaming} />}
+      firstTurn={messages.length === 0} onDone={onDone} onDraftChange={setStreaming} onToolsChange={setToolCalls} />}
   </section>
 }
