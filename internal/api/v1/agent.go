@@ -9,6 +9,7 @@ import (
 	"github.com/yz1qaq/asterflow/internal/platform/agent"
 	"github.com/yz1qaq/asterflow/internal/platform/modelconfig"
 	"github.com/yz1qaq/asterflow/internal/platform/prompt"
+	"github.com/yz1qaq/asterflow/internal/platform/tool"
 )
 
 type AgentHandler struct {
@@ -21,10 +22,11 @@ func NewAgentHandler(service *agent.Service) *AgentHandler {
 
 func writeAgentError(c *gin.Context, err error) {
 	switch {
-	case errors.Is(err, agent.ErrInvalidArgument):
+	case errors.Is(err, agent.ErrInvalidArgument), errors.Is(err, tool.ErrNoPublishedToolVersion):
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	case errors.Is(err, prompt.ErrPromptVersionNotFound),
 		errors.Is(err, modelconfig.ErrProfileVersionNotFound),
+		errors.Is(err, tool.ErrToolNotFound),
 		errors.Is(err, agent.ErrAgentNotFound),
 		errors.Is(err, agent.ErrAgentVersionNotFound):
 		c.JSON(http.StatusNotFound, gin.H{"error": "agent or referenced version not found"})

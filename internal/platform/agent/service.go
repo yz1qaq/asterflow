@@ -24,6 +24,10 @@ type ModelProfileVersionChecker interface {
 	ValidateProfileVersion(ctx context.Context, workspaceID, versionID string) error
 }
 
+type ToolVersionResolver interface {
+	ResolvePublishedToolVersionID(ctx context.Context, workspaceID, toolID string) (string, error)
+}
+
 type Store interface {
 	CreateAgentWithInitialVersion(context.Context, *domain.Agent, *domain.AgentVersion) error
 	AppendAgentVersion(context.Context, string, *domain.AgentVersion) error
@@ -41,6 +45,7 @@ type Service struct {
 	store   Store
 	prompts PromptVersionChecker
 	models  ModelProfileVersionChecker
+	tools   ToolVersionResolver
 }
 
 func NewService(store Store, prompts PromptVersionChecker, models ModelProfileVersionChecker) *Service {
@@ -56,6 +61,7 @@ type VersionInput struct {
 	PromptEnv             string                  `json:"prompt_env"`
 	ModelProfileVersionID string                  `json:"model_profile_version_id"`
 	GenerationConfig      domain.GenerationConfig `json:"generation_config"`
+	ToolIDs               []string                `json:"tool_ids"`
 }
 
 type CreateAgentRequest struct {
@@ -122,6 +128,10 @@ func (s *Service) buildSnapshot(ctx context.Context, workspaceID, agentID string
 			return "", err
 		}
 	}
+	toolIDs, toolVersionIDs, err := s.resolveSnapshotTools(ctx, workspaceID, in.ToolIDs)
+	if err != nil {
+		return "", err
+	}
 
 	encoded, err := json.Marshal(domain.AgentSnapshot{
 		ID:                    agentID,
@@ -133,6 +143,8 @@ func (s *Service) buildSnapshot(ctx context.Context, workspaceID, agentID string
 		PromptEnv:             env,
 		ModelProfileVersionID: modelVersion,
 		GenerationConfig:      in.GenerationConfig,
+		ToolIDs:               toolIDs,
+		ToolVersionIDs:        toolVersionIDs,
 	})
 	if err != nil {
 		return "", fmt.Errorf("marshal agent snapshot: %w", err)
@@ -298,4 +310,43 @@ func (s *Service) GetOwnedVersion(ctx context.Context, workspaceID, agentID, ver
 		return nil, ErrAgentVersionNotFound
 	}
 	return version, nil
+}
+
+func (s *Service) ConfigureToolResolver(tools ToolVersionResolver) {
+	s.tools = tools
+}
+
+func (s *Service) resolveSnapshotTools(
+	ctx context.Context, workspaceID string, requested []string,
+) ([]string, []string, error) {
+	if len(requested) == 0 {
+		return nil, nil, nil
+	}
+	if s.tools == nil {
+		return nil, nil, errors.New("tool version resolver is not configured")
+	}
+
+	toolIDs := make([]string, 0, len(requested))
+	versionIDs := make([]string, 0, len(requested))
+	seen := make(map[string]struct{}, len(requested))
+	for _, raw := range requested {
+		id, err := uuid.Parse(strings.TrimSpace(raw))
+		if err != nil {
+			return nil, nil, fmt.Errorf("%w: tool_ids must contain valid UUIDs", ErrInvalidArgument)
+		}
+		toolID := id.String()
+		if _, exists := seen[toolID]; exists {
+			continue
+		}
+		versionID, err := s.tools.ResolvePublishedToolVersionID(ctx, workspaceID, toolID)
+		if err != nil {
+			return nil, nil, fmt.Errorf("pin tool %s: %w", toolID, err)
+		}
+
+		// 两个切片同序保存。ToolID 用于编辑，VersionID 用于复现执行。
+		seen[toolID] = struct{}{}
+		toolIDs = append(toolIDs, toolID)
+		versionIDs = append(versionIDs, versionID)
+	}
+	return toolIDs, versionIDs, nil
 }

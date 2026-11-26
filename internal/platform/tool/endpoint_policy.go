@@ -1,0 +1,136 @@
+package tool
+
+import (
+	"context"
+	"fmt"
+	"net"
+	"net/url"
+	"strings"
+)
+
+// EndpointPolicy 控制 Tool 可以访问的网络目标。显式 allowlist 可放行课堂 Compose 服务。
+type EndpointPolicy struct {
+	allowedHosts map[string]struct{}
+	allowPrivate bool
+	resolver     *net.Resolver
+}
+
+func NewEndpointPolicy(allowedHosts []string, allowPrivate bool) *EndpointPolicy {
+	p := &EndpointPolicy{allowedHosts: make(map[string]struct{}), allowPrivate: allowPrivate, resolver: net.DefaultResolver}
+	// 配置中的主机名去掉首尾空白并统一小写，便于后续精确匹配。
+	for _, host := range allowedHosts {
+		if host = strings.ToLower(strings.TrimSpace(host)); host != "" {
+			p.allowedHosts[host] = struct{}{}
+		}
+	}
+	return p
+}
+
+// 判断是否允许这个host
+func (p *EndpointPolicy) hostAllowed(host string) bool {
+	_, ok := p.allowedHosts[strings.ToLower(strings.TrimSuffix(host, "."))]
+	return ok
+}
+
+func (p *EndpointPolicy) validateURL(ctx context.Context, rawURL string) error {
+	u, err := url.Parse(rawURL)
+	if err != nil || u.Hostname() == "" {
+		return fmt.Errorf("invalid tool endpoint URL")
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("tool endpoint scheme must be http or https")
+	}
+	// URL 只描述请求目标，凭据由 auth_config 单独处理。
+	if u.User != nil {
+		return fmt.Errorf("tool endpoint URL must not contain credentials")
+	}
+	return p.validateHost(ctx, u.Hostname())
+}
+
+// ValidateURL 校验可配置的服务端 HTTP 出口地址。
+func (p *EndpointPolicy) ValidateURL(ctx context.Context, rawURL string) error {
+	return p.validateURL(ctx, rawURL)
+}
+
+func (p *EndpointPolicy) validateHost(ctx context.Context, host string) error {
+	if p == nil || p.allowPrivate || p.hostAllowed(host) {
+		return nil
+	}
+	_, err := p.lookupPublicIPs(ctx, host)
+	return err
+}
+
+func (p *EndpointPolicy) lookupPublicIPs(ctx context.Context, host string) ([]net.IPAddr, error) {
+	var addrs []net.IPAddr
+	if ip := net.ParseIP(host); ip != nil {
+		addrs = []net.IPAddr{{IP: ip}}
+	} else {
+		var err error
+		addrs, err = p.resolver.LookupIPAddr(ctx, host)
+		if err != nil {
+			return nil, fmt.Errorf("resolve tool endpoint host: %w", err)
+		}
+	}
+
+	if len(addrs) == 0 {
+		return nil, fmt.Errorf("tool endpoint host has no IP addresses")
+	}
+	for _, addr := range addrs {
+		if unsafeIP(addr.IP) {
+			return nil, fmt.Errorf("tool endpoint resolves to a private or local network address")
+		}
+	}
+	return addrs, nil
+}
+
+func unsafeIP(ip net.IP) bool {
+	return ip.IsLoopback() || ip.IsPrivate() || ip.IsUnspecified() ||
+		ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsMulticast()
+}
+
+func (p *EndpointPolicy) validateConfig(ctx context.Context, sourceType string, endpoint map[string]any) error {
+	if p == nil {
+		return nil
+	}
+	// 按来源类型选择需要检查的端点字段。
+	var fields []string
+	switch sourceType {
+	case "rest_api":
+		fields = []string{"url"}
+	case "mcp_server":
+		transport, _ := endpoint["transport"].(string)
+		// 未指定传输方式和 URL 时，按 MCP 默认的 stdio 处理。
+		if transport == "" && strings.TrimSpace(stringValue(endpoint["url"])) == "" {
+			transport = "stdio"
+		}
+		if transport == "stdio" {
+			return fmt.Errorf("MCP stdio is disabled in app/worker; deploy an isolated connector runner and use streamable_http")
+		}
+		fields = []string{"url"}
+	case "a2a":
+		fields = []string{"card_url", "url"}
+	default:
+		return nil
+	}
+	// 逐个检查已填的地址。需要网络端点的来源至少要提供一个地址。
+	seen := false
+	for _, field := range fields {
+		raw, _ := endpoint[field].(string)
+		if raw == "" {
+			continue
+		}
+		seen = true
+		if err := p.validateURL(ctx, raw); err != nil {
+			return fmt.Errorf("%s: %w", field, err)
+		}
+	}
+	if !seen {
+		return fmt.Errorf("tool endpoint URL is required")
+	}
+	return nil
+}
+
+func stringValue(value any) string {
+	result, _ := value.(string)
+	return result
+}

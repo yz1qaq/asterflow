@@ -290,13 +290,17 @@ func (s *PostgresStore) CommitTurn(ctx context.Context, workspaceID, conversatio
 			if err != nil {
 				return fmt.Errorf("parse tool call id: %w", err)
 			}
-			args := call.Args
-			if args == "" {
-				args = "{}"
-			}
+			args := domain.ToolArgumentsObject(call.Args)
 			var result []byte
 			if call.Result != "" {
 				result = []byte(call.Result)
+				if !json.Valid(result) {
+					// 普通文本也可以写入 JSONB，先编码成 JSON 字符串。
+					result, err = json.Marshal(call.Result)
+					if err != nil {
+						return fmt.Errorf("encode tool result: %w", err)
+					}
+				}
 			}
 			if _, err := q.InsertToolCall(ctx, pgstore.InsertToolCallParams{
 				ID: callRow, MessageID: mid,

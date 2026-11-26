@@ -221,6 +221,19 @@ type RolePermission struct {
 	Action   string
 }
 
+type Tool struct {
+	ID                uuid.UUID
+	WorkspaceID       string
+	Name              string
+	Description       string
+	SourceType        string
+	Sensitive         bool
+	ClassificationMax string
+	CreatedBy         string
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
 type ToolCall struct {
 	ID            uuid.UUID
 	MessageID     uuid.UUID
@@ -231,6 +244,32 @@ type ToolCall struct {
 	LatencyMs     int32
 	Error         string
 	CreatedAt     time.Time
+}
+
+type ToolTestRun struct {
+	ID            uuid.UUID
+	ToolID        uuid.UUID
+	ToolVersionID uuid.UUID
+	Input         string
+	Output        string
+	Status        string
+	LatencyMs     int32
+	Error         pgtype.Text
+	CreatedAt     time.Time
+}
+
+type ToolVersion struct {
+	ID                  uuid.UUID
+	ToolID              uuid.UUID
+	Version             int32
+	SchemaJson          string
+	EndpointConfig      string
+	AuthConfig          string
+	AuthConfigEncrypted []byte
+	RetryPolicy         string
+	Status              string
+	CreatedBy           string
+	CreatedAt           time.Time
 }
 
 type User struct {

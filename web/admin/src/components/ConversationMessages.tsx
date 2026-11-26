@@ -1,5 +1,6 @@
 import { Space, Tag, Typography } from 'antd'
 import type { ConversationMessage } from '@/api/conversations'
+import { formatToolJSON } from '@/components/ChatToolActivity'
 
 export const timeLabel = (value: string) =>
   Number.isNaN(Date.parse(value)) ? '—' : new Date(value).toLocaleString('zh-CN', { hour12: false })
@@ -13,7 +14,20 @@ export function ConversationMessages({ messages }: { messages: ConversationMessa
       <Typography.Text type="secondary" className="chat-message-time">{timeLabel(message.created_at)}</Typography.Text>
       {message.tool_call_id && <Tag>Tool call {message.tool_call_id.slice(0, 8)}</Tag>}
     </Space>
-    <div className="chat-message-content">{message.content || '（空内容）'}</div>
-    {message.tool_calls?.length ? <pre className="prompt-text">{JSON.stringify(message.tool_calls, null, 2)}</pre> : null}
+    {message.role === 'tool'
+      ? <details>
+          <summary>查看工具结果</summary>
+          <pre className="prompt-text">{formatToolJSON(message.content)}</pre>
+        </details>
+      : message.content || !message.tool_calls?.length
+        ? <div className="chat-message-content">{message.content || '（空内容）'}</div>
+        : null}
+    {message.tool_calls?.map(call => <details key={call.id}>
+      <summary><span>{call.name ?? '工具调用'}</span> <Tag color={call.error ? 'error' : 'success'}>
+        {call.error ? '失败' : '已完成'}
+      </Tag></summary>
+      {call.args !== undefined && <pre className="prompt-text">{formatToolJSON(call.args)}</pre>}
+      {call.error && <Typography.Text type="danger">{call.error}</Typography.Text>}
+    </details>)}
   </article>)}</>
 }

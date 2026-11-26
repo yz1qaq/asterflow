@@ -5,6 +5,7 @@ import { listAgentVersions } from '@/api/agents'
 import { getChatError, streamChat } from '@/api/chat'
 import type { Conversation } from '@/api/conversations'
 import { listPromptVersions, parsePromptVariables } from '@/api/prompts'
+import { applyToolEvent, type LiveToolCall } from '@/components/ChatToolActivity'
 
 export function readStringField(json: string | undefined, key: string) {
   if (!json) return ''
@@ -16,13 +17,14 @@ export function readStringField(json: string | undefined, key: string) {
   }
 }
 
-export function ChatComposer({ workspaceID, userID, conversation, firstTurn, onDone, onDraftChange }: {
+export function ChatComposer({ workspaceID, userID, conversation, firstTurn, onDone, onDraftChange, onToolsChange }: {
   workspaceID: string
   userID: string
   conversation: Conversation
   firstTurn: boolean
   onDone: () => Promise<void>
   onDraftChange: Dispatch<SetStateAction<string>>
+  onToolsChange: Dispatch<SetStateAction<LiveToolCall[]>>
 }) {
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
@@ -75,6 +77,7 @@ export function ChatComposer({ workspaceID, userID, conversation, firstTurn, onD
     abortRef.current = controller
     setBusy(true)
     onDraftChange('')
+    onToolsChange([])
     try {
       let completed = false
       for await (const event of streamChat(
@@ -83,6 +86,9 @@ export function ChatComposer({ workspaceID, userID, conversation, firstTurn, onD
         if (event.type === 'model_delta' && typeof event.data?.content === 'string') {
           const content = event.data.content
           onDraftChange(prev => prev + content)
+        }
+        if (event.type === 'tool_call' || event.type === 'tool_result') {
+          onToolsChange(prev => applyToolEvent(prev, event))
         }
         if (event.type === 'run_failed') {
           const reason = event.data?.message
@@ -98,6 +104,8 @@ export function ChatComposer({ workspaceID, userID, conversation, firstTurn, onD
       onDraftChange('')
     } catch (err) {
       onDraftChange('')
+      const status = controller.signal.aborted ? 'cancelled' : 'error'
+      onToolsChange(prev => prev.map(call => call.status === 'running' ? { ...call, status } : call))
       setError(getChatError(err))
     } finally {
       setBusy(false)

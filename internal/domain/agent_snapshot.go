@@ -10,6 +10,8 @@ type AgentSnapshot struct {
 	PromptEnv             string           `json:"prompt_env,omitempty"`
 	ModelProfileVersionID string           `json:"model_profile_version_id,omitempty"`
 	GenerationConfig      GenerationConfig `json:"generation_config"`
+	ToolIDs               []string         `json:"tool_ids,omitempty"`
+	ToolVersionIDs        []string         `json:"tool_version_ids,omitempty"`
 }
 
 type PromptSelection struct {
